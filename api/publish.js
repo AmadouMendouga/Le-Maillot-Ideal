@@ -91,7 +91,31 @@ export async function POST(request) {
       throw new HttpError(413, "Trop d'images modifiées à la fois pour une seule publication. Publiez en plusieurs fois.");
     }
 
-    // --- état actuel du dépôt ---
+    // --- images : commitées individuellement via l'API Contents (le jeton
+    //     fine-grained ne peut pas créer de blob binaire via l'API Git bas
+    //     niveau) avant le commit atomique du reste des fichiers texte ---
+    for (const [path, dataUrl] of Object.entries(newImages)) {
+      const comma = String(dataUrl).indexOf(",");
+      if (comma < 0) throw new HttpError(400, `Image illisible : ${path}.`);
+      let existingSha;
+      try {
+        const existing = await gh(token, `/repos/${OWNER}/${REPO}/contents/${path}?ref=${BRANCH}`);
+        existingSha = existing.sha;
+      } catch {
+        existingSha = undefined; // le fichier n'existe pas encore
+      }
+      await gh(token, `/repos/${OWNER}/${REPO}/contents/${path}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          message: `Publication depuis l'admin — image ${path}`,
+          content: dataUrl.slice(comma + 1),
+          branch: BRANCH,
+          sha: existingSha,
+        }),
+      });
+    }
+
+    // --- état actuel du dépôt (après les éventuels commits d'images) ---
     const ref = await gh(token, `/repos/${OWNER}/${REPO}/git/ref/heads/${BRANCH}`);
     const baseCommitSha = ref.object.sha;
     const baseCommit = await gh(token, `/repos/${OWNER}/${REPO}/git/commits/${baseCommitSha}`);
@@ -142,17 +166,7 @@ export async function POST(request) {
     treeEntries.push({ path: "js/data.js", mode: "100644", type: "blob", content: buildDataJs({ PRODUCTS: products, LEAGUES: leagues, GALLERY: gallery, TESTIMONIALS: testimonials }) });
     treeEntries.push({ path: "js/site-config.js", mode: "100644", type: "blob", content: buildConfigJs(site) });
 
-    for (const [path, dataUrl] of Object.entries(newImages)) {
-      const comma = String(dataUrl).indexOf(",");
-      if (comma < 0) throw new HttpError(400, `Image illisible : ${path}.`);
-      const blob = await gh(token, `/repos/${OWNER}/${REPO}/git/blobs`, {
-        method: "POST",
-        body: JSON.stringify({ content: dataUrl.slice(comma + 1), encoding: "base64" }),
-      });
-      treeEntries.push({ path, mode: "100644", type: "blob", sha: blob.sha });
-    }
-
-    // --- commit atomique ---
+    // --- commit atomique (fichiers texte ; les images ont déjà été commitées ci-dessus) ---
     const newTree = await gh(token, `/repos/${OWNER}/${REPO}/git/trees`, {
       method: "POST",
       body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
