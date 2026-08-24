@@ -209,5 +209,17 @@ html[data-theme="dark"] .adm-drawer-foot { background: var(--surface-container);
 .adm-diff { font-size: .82rem; color: var(--on-surface-variant); }
 .adm-diff b { color: var(--primary); }
 
+.adm-step-publish {
+  border-color: var(--primary); background: var(--primary-container);
+  max-width: 760px; margin-bottom: 22px;
+}
+.adm-step-publish::before { display: none; }
+.adm-step-publish h4, .adm-step-publish p { color: var(--on-primary-container); }
+.adm-publish-status { margin: 10px 0 0; font-size: .84rem; font-weight: 600; min-height: 1.1em; }
+.adm-publish-status:empty { display: none; }
+.adm-publish-status.is-ok { color: var(--secondary); }
+.adm-publish-status.is-error { color: var(--error); }
+.adm-publish-status a { color: inherit; text-decoration: underline; }
+
 .adm-empty { text-align: center; padding: 50px 20px; color: var(--on-surface-variant); }
 .adm-empty .icon { width: 44px; height: 44px; opacity: .5; margin: 0 auto 12px; }

@@ -854,6 +854,51 @@
     }
   });
 
+  /* --- publication en ligne (sans fichier à manipuler) --- */
+  $("#admPublish").addEventListener("click", function () {
+    if (!productsAreValid(true)) return;
+    if (!validateSite(true)) return;
+    var badTestimonial = state.testimonials.find(function (item) {
+      return !String(item.name || "").trim() || !String(item.quote || "").trim() || !String(item.src || "").trim();
+    });
+    if (badTestimonial) {
+      alert("Chaque avis publié doit contenir au minimum un nom, un texte et une image.");
+      $('.adm-tab[data-tab="avis"]').click();
+      return;
+    }
+    var statusEl = $("#admPublishStatus");
+    statusEl.className = "adm-publish-status";
+    statusEl.textContent = "";
+    var btn = this;
+    window.StatefulButton.run(btn, function () {
+      return fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          products: state.products,
+          leagues: state.leagues,
+          gallery: state.gallery,
+          testimonials: state.testimonials,
+          site: state.site,
+          newImages: state.newImages,
+        }),
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          if (!res.ok || !data.ok) throw new Error((data && data.error) || "La publication a échoué.");
+          return data;
+        });
+      }).then(function (data) {
+        statusEl.className = "adm-publish-status is-ok";
+        statusEl.innerHTML = "Publié — le site sera à jour dans environ une minute. " +
+          '<a href="' + esc(data.commitUrl) + '" target="_blank" rel="noopener">Voir le commit</a>.';
+      }).catch(function (error) {
+        statusEl.className = "adm-publish-status is-error";
+        statusEl.textContent = error.message || "La publication a échoué.";
+        throw error;
+      });
+    });
+  });
+
   function renderDiff() {
     var nImg = Object.keys(state.newImages).length;
     var nProd = Object.keys(state.touched).length;

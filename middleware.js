@@ -9,12 +9,13 @@ export const config = {
     '/admin.html',
     '/js/admin.js',
     '/css/admin.css',
+    '/api/publish',
     '/package.json',
     '/package-lock.json',
   ],
 };
 
-const PROTECTED_PREFIXES = ['/admin.html', '/js/admin.js', '/css/admin.css'];
+const PROTECTED_PREFIXES = ['/admin.html', '/js/admin.js', '/css/admin.css', '/api/publish'];
 
 function unauthorized() {
   return new Response('Authentification requise.', {

@@ -3,6 +3,23 @@
 Le site public reste entièrement statique. Aucune installation Node ni étape de
 build n'est nécessaire pour le consulter ou le déployer.
 
+## Publier une modification (Vercel)
+
+Sur le déploiement Vercel (connecté au dépôt GitHub, redéploiement automatique
+à chaque push sur `master`), la console d'administration publie directement
+ses modifications : onglet **Exporter** → bouton **« Publier en ligne
+maintenant »**. La fonction serverless `api/publish.js` régénère tout côté
+serveur et commite sur `master` via l'API GitHub — le site est à jour en
+ligne sous environ une minute, sans aucun fichier à manipuler.
+
+Cela nécessite la variable d'environnement Vercel `GITHUB_TOKEN` (jeton
+GitHub *fine-grained*, limité à ce dépôt, permission « Contents: Read and
+write ») ainsi que `ADMIN_USER`/`ADMIN_PASS` (protection de `/admin.html`,
+voir `middleware.js`).
+
+Les étapes manuelles ci-dessous restent une **solution de secours** — jeton
+indisponible, fonction en panne, ou hébergement non-Vercel sans backend.
+
 ## Fichiers à ne pas publier
 
 La console d'administration fonctionne localement et ne doit pas être envoyée

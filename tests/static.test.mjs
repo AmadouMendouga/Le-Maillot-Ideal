@@ -95,7 +95,7 @@ test("le sitemap couvre exactement les contenus publics indexables", () => {
     read("phototheque.html"),
     new RegExp(`<meta name="robots" content="${photoIndexable ? "index,follow,max-image-preview:large" : "noindex,follow"}">`),
   );
-  const generator = read("scripts/generate-product-pages.mjs");
+  const generator = read("lib/generate-site.mjs");
   assert.match(generator, /SITE\.showGallery === true && Array\.isArray\(GALLERY\) && GALLERY\.length > 0/);
   assert.match(generator, /SITE\.showTestimonials === true && Array\.isArray\(TESTIMONIALS\) && TESTIMONIALS\.length > 0/);
 });

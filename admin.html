@@ -190,16 +190,28 @@
 
   <!-- ======================= EXPORT ======================= -->
   <section class="adm-panel" data-panel="export">
-    <div class="adm-warn">
-      <svg class="icon"><use href="#i-error"></use></svg>
+    <div id="admDiff" class="adm-diff" style="margin-bottom:20px"></div>
+
+    <div class="adm-step adm-step-publish">
       <div>
-        <strong>Cet export ne publie rien automatiquement.</strong> Vos modifications sont enregistrées
-        dans <em>ce navigateur uniquement</em>. Téléchargez les fichiers ci-dessous, puis remplacez-les
-        manuellement chez votre hébergeur pour que les visiteurs voient les changements.
+        <h4>Publier en ligne</h4>
+        <p>Envoie directement vos modifications sur le site — aucun fichier à télécharger ni à
+        déposer. Le site public reflète le changement en ligne sous environ une minute.</p>
+        <button class="btn btn-primary btn-sm" id="admPublish">
+          <svg class="icon icon-sm"><use href="#i-publish"></use></svg>Publier en ligne maintenant
+        </button>
+        <p class="adm-publish-status" id="admPublishStatus" role="status" aria-live="polite"></p>
       </div>
     </div>
 
-    <div id="admDiff" class="adm-diff" style="margin-bottom:20px"></div>
+    <div class="adm-warn" style="margin-top:24px">
+      <svg class="icon"><use href="#i-error"></use></svg>
+      <div>
+        <strong>Solution de secours hors ligne.</strong> Si la publication en ligne ci-dessus est
+        indisponible, vous pouvez toujours télécharger les fichiers ci-dessous et les déposer
+        manuellement chez votre hébergeur.
+      </div>
+    </div>
 
     <div class="adm-steps">
       <div class="adm-step">
@@ -278,6 +290,7 @@
 <input type="file" id="admFiles" accept="image/*" multiple hidden>
 
 <script src="js/animated-testimonials.js"></script>
+<script src="js/stateful-button.js"></script>
 <script src="js/data.js"></script>
 <script src="js/site-config.js"></script>
 <script src="js/admin.js"></script>
