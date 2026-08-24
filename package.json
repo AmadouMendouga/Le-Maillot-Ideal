@@ -16,5 +16,8 @@
   },
   "devDependencies": {
     "playwright": "1.62.1"
+  },
+  "dependencies": {
+    "@vercel/functions": "3.9.5"
   }
 }

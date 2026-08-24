@@ -6,3 +6,6 @@ test-results/
 # Archives locales d'administration : ne jamais les publier.
 *-admin.zip
 images-le-maillot-ideal.zip
+
+.vercel
+.env*

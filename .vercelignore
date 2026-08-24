@@ -1,0 +1,17 @@
+# Fichiers internes à ne jamais publier — voir DEPLOIEMENT.md.
+# package.json et package-lock.json restent présents : nécessaires à
+# l'installation de @vercel/functions pour le middleware. L'accès direct
+# à /package.json est bloqué par middleware.js à la place.
+CLAUDE.md
+DEPLOIEMENT.md
+PROMPT-PRELANCEMENT.md
+tests/
+scripts/
+node_modules/
+.gitignore
+.htaccess
+*.zip
+.git/
+.codex/
+.agents/
+.env*
