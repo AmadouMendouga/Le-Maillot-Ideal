@@ -1,0 +1,40 @@
+# Configuration Apache de production — ignorée lors d'une ouverture locale en file://.
+Options -Indexes
+ErrorDocument 404 /404.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(?:node_modules|scripts|tests)(?:/|$) - [F,L,NC]
+  RewriteRule ^\.(?:git|codex|agents)(?:/|$) - [F,L,NC]
+  RewriteRule ^\.env(?:\.|$) - [F,L,NC]
+  # Ne rediriger que /index.html demandé par le navigateur. Sans THE_REQUEST,
+  # le sous-appel DirectoryIndex pour / peut provoquer une boucle sur Apache.
+  RewriteCond %{THE_REQUEST} \s/+index\.html(?:[?\s]) [NC]
+  RewriteRule ^index\.html$ / [R=301,L]
+  RewriteRule ^shop$ /shop.html [R=301,L]
+  RewriteRule ^product$ /product.html [R=301,L]
+  RewriteRule ^phototheque$ /phototheque.html [R=301,L]
+  RewriteRule ^confidentialite$ /confidentialite.html [R=301,L]
+</IfModule>
+
+# L'administration reste un outil local. Les archives et documents internes
+# ne doivent jamais être servis par le site public.
+<FilesMatch "^(admin\.html|admin\.js|admin\.css|CLAUDE\.md|DEPLOIEMENT\.md|PROMPT-PRELANCEMENT\.md|package(?:-lock)?\.json|\.gitignore|\.env(?:\..*)?|.*\.zip)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  Header always set Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'self'; form-action 'self'; connect-src 'none'; font-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+
+  <FilesMatch "\.(?:html|css|js|json|xml)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(?:jpg|jpeg|png|svg|woff2)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>

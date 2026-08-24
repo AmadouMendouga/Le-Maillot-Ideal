@@ -1,0 +1,8 @@
+node_modules/
+playwright-report/
+test-results/
+*.log
+
+# Archives locales d'administration : ne jamais les publier.
+*-admin.zip
+images-le-maillot-ideal.zip

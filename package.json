@@ -1,0 +1,20 @@
+{
+  "name": "le-maillot-ideal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Boutique statique Le Maillot Idéal",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "generate:products": "node scripts/generate-product-pages.mjs",
+    "check:generated": "node scripts/generate-product-pages.mjs --check",
+    "test": "node --test tests/static.test.mjs",
+    "test:browser": "node tests/browser-audit.mjs",
+    "check": "npm run check:generated && npm run test && npm run test:browser"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

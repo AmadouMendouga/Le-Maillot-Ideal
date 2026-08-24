@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f6fb"/>
+      <stop offset="1" stop-color="#e7ebf5"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="16" fill="url(#bg)"/>
+  <g fill="#008C45" stroke="#006431" stroke-width="3" stroke-linejoin="round">
+    
+<path d="M70 20 L55 5 L30 15 L10 40 L25 55 L35 48 L35 150 Q35 158 43 158 L157 158 Q165 158 165 150 L165 48 L175 55 L190 40 L170 15 L145 5 L130 20
+Q115 35 100 35 Q85 35 70 20 Z" />
+
+  </g>
+  <rect x="35" y="70" width="130" height="16" fill="#006431" opacity="0.35"/>
+  <text x="100" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="30" fill="#ffffff" stroke="#006431" stroke-width="1">A</text>
+  <text x="100" y="185" text-anchor="middle" font-family="Arial, sans-serif" font-weight="600" font-size="12" fill="#33415c">Atalanta</text>
+</svg>
