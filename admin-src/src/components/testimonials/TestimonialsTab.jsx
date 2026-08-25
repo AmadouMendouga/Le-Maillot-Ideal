@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { useDraftState } from "../../state/useDraftState.jsx";
 import { readImage, reportImageError, toSquare } from "../../lib/image.js";
 
-export default function TestimonialsTab() {
+export default function TestimonialsTab({ active }) {
   const { state, dispatch } = useDraftState();
   const fileInputRef = useRef(null);
   const pendingIndexRef = useRef(null);
@@ -43,7 +43,7 @@ export default function TestimonialsTab() {
   }
 
   return (
-    <section className="adm-panel active" data-panel="avis">
+    <section className={"adm-panel" + (active ? " active" : "")} data-panel="avis">
       <div className="adm-warn">
         <svg className="icon" aria-hidden="true"><use href="#i-error"></use></svg>
         <div>
@@ -53,7 +53,7 @@ export default function TestimonialsTab() {
         </div>
       </div>
       <div className="adm-toolbar">
-        <button type="button" className="btn btn-tonal btn-sm" onClick={addTestimonial}>
+        <button type="button" id="admAddTesti" className="btn btn-tonal btn-sm" onClick={addTestimonial}>
           <svg className="icon icon-sm" aria-hidden="true"><use href="#i-add"></use></svg>Ajouter un avis
         </button>
       </div>

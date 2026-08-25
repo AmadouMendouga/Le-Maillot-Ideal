@@ -12,7 +12,7 @@ function nextGalleryIndex(gallery) {
   return max + 1;
 }
 
-export default function GalleryTab() {
+export default function GalleryTab({ active }) {
   const { state, dispatch } = useDraftState();
   const addInputRef = useRef(null);
   const swapInputRef = useRef(null);
@@ -86,7 +86,7 @@ export default function GalleryTab() {
   }
 
   return (
-    <section className="adm-panel active" data-panel="galerie">
+    <section className={"adm-panel" + (active ? " active" : "")} data-panel="galerie">
       <div className="adm-info">
         <svg className="icon" aria-hidden="true"><use href="#i-info"></use></svg>
         <div>

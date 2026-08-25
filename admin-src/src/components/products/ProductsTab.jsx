@@ -21,7 +21,11 @@ function filterProducts(products, touched, filters) {
   });
 }
 
-export default function ProductsTab() {
+// Toujours monté (comme les autres onglets) : la validation croisée de
+// l'onglet Exporter interroge le DOM réel des autres onglets (comme
+// l'original), donc tous les panneaux restent dans le DOM en permanence,
+// seule la classe .active (CSS) bascule la visibilité — cf. App.jsx.
+export default function ProductsTab({ active }) {
   const { state, dispatch } = useDraftState();
   const [filters, setFilters] = useState({ q: "", league: "", status: "" });
   // editingSlug pilote l'ouverture réelle ; displaySlug reste sur le dernier
@@ -62,7 +66,7 @@ export default function ProductsTab() {
   }
 
   return (
-    <section className="adm-panel active" data-panel="produits">
+    <section className={"adm-panel" + (active ? " active" : "")} data-panel="produits">
       <div className="adm-toolbar">
         <span className="field-wrap grow">
           <svg className="icon" aria-hidden="true"><use href="#i-search"></use></svg>

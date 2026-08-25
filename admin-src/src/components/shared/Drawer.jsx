@@ -50,6 +50,7 @@ export default function Drawer({ open, onClose, titleIcon = "edit", title, child
       <div className={"adm-overlay" + (open ? " open" : "")} onClick={onClose} />
       <aside
         ref={drawerRef}
+        id="admDrawer"
         className={"adm-drawer" + (open ? " open" : "")}
         role="dialog"
         aria-modal="true"

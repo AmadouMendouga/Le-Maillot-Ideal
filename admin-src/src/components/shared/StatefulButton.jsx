@@ -8,9 +8,13 @@
 // y insère les icônes spinner/coche). React ne les touche plus ensuite tant
 // que les enfants JSX qu'on lui passe restent identiques d'un rendu à
 // l'autre — ne jamais rendre ce bouton avec un contenu dynamique.
-export default function StatefulButton({ innerRef, onRun, children, className, ...rest }) {
+// validate (optionnel) : appelée avant de lancer l'animation — si elle
+// renvoie false, .run() n'est jamais appelé (ex. formulaire invalide),
+// comme l'original qui valide avant même de démarrer window.StatefulButton.run().
+export default function StatefulButton({ innerRef, onRun, validate, children, className, ...rest }) {
   function handleClick(el) {
     if (!el || !window.StatefulButton) return;
+    if (validate && !validate()) return;
     window.StatefulButton.run(el, onRun);
   }
 

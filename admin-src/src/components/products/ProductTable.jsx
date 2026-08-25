@@ -76,7 +76,7 @@ export default function ProductTable({ products, touched, resolveImage, onEdit, 
               </td>
               <td>
                 <div className="adm-row-actions">
-                  <button type="button" className="icon-btn" aria-label="Modifier" onClick={() => onEdit(p.slug)}>
+                  <button type="button" className="icon-btn" data-edit={p.slug} aria-label="Modifier" onClick={() => onEdit(p.slug)}>
                     <svg className="icon icon-sm" aria-hidden="true"><use href="#i-edit"></use></svg>
                   </button>
                 </div>
