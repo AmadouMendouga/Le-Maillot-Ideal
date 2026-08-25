@@ -2,10 +2,10 @@ import { useState } from "react";
 import { DraftProvider, useDraftState } from "./state/useDraftState.jsx";
 import AdminHeader from "./components/layout/AdminHeader.jsx";
 import Tabs, { TAB_DEFS } from "./components/layout/Tabs.jsx";
+import ProductsTab from "./components/products/ProductsTab.jsx";
 
-// Panneau provisoire (phase 3, CLAUDE.md §12) : prouve que l'état partagé
-// (compteurs réels tirés du brouillon) et la navigation par onglets
-// fonctionnent avant de porter le contenu de chaque onglet (phase 4).
+// Panneau provisoire (phase 3, CLAUDE.md §12) — onglets pas encore portés :
+// Photothèque, Avis, Textes du site, Exporter (phase 4b-4e).
 function PlaceholderPanel({ tab }) {
   const { state } = useDraftState();
   const count = tab.countKey ? state[tab.countKey].length : null;
@@ -30,7 +30,7 @@ function AdminApp() {
       <Tabs active={activeTab} onChange={setActiveTab} counts={counts} />
       <main className="container">
         <h1 className="sr-only">Administration du site Le Maillot Idéal</h1>
-        <PlaceholderPanel tab={activeTabDef} />
+        {activeTab === "produits" ? <ProductsTab /> : <PlaceholderPanel tab={activeTabDef} />}
       </main>
     </>
   );
