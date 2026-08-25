@@ -63,7 +63,7 @@ le-maillot-ideal/
 ├── merci.html            confirmation après commande (noindex)
 ├── 404.html               page d'erreur personnalisée (noindex)
 ├── confidentialite.html  politique de confidentialité
-├── admin.html            console d'administration hors ligne (voir §12, noindex)
+├── admin.html            console d'administration (voir §12, noindex, protégée par middleware.js)
 ├── css/
 │   ├── style.css         TOUT le style du site public (~1400 lignes, un seul fichier)
 │   └── admin.css         styles de l'admin uniquement — seule exception à la règle
@@ -85,10 +85,18 @@ le-maillot-ideal/
 │   ├── testimonials/     6 portraits SVG placeholder
 │   ├── avatars/          6 avatars initiales
 │   └── og-cover.jpg      image de partage réseaux sociaux (1200×630)
+├── api/
+│   └── publish.js        fonction serverless Vercel : publication en un clic (voir §12)
+├── lib/
+│   └── generate-site.mjs logique de génération partagée entre le script local et api/publish.js
+├── middleware.js         Basic Auth serveur sur /admin.html, js/admin.js, css/admin.css, /api/publish
+├── vercel.json           en-têtes de sécurité, redirections, durée max de api/publish.js
+├── .vercelignore         exclut admin.html et les fichiers internes du déploiement public
 ├── robots.txt            interdit /admin.html et /admin/
-├── scripts/              générateur local des fiches produit et du sitemap
+├── scripts/              générateur local des fiches produit et du sitemap (solution de secours)
 ├── tests/                tests statiques et audit Playwright
 ├── package.json          commandes de génération et de contrôle
+├── DEPLOIEMENT.md        procédure de publication et de mise en ligne
 └── sitemap.xml           79 ou 80 URLs selon que la photothèque contient du contenu publié
 ```
 
@@ -529,38 +537,83 @@ et les textes sans toucher au code.
 
 ### Comment ça marche
 
-Le site est **statique** : il n'y a ni serveur, ni base de données. L'admin ne
-peut donc rien écrire en ligne. Elle fonctionne en trois temps :
+Le site public reste **statique** — aucune base de données, aucune requête
+réseau pour les visiteurs. L'admin, elle, s'appuie depuis le 24/08/2026 sur une
+petite fonction serveur (`api/publish.js`, sur Vercel) qui publie en un clic.
+L'export manuel décrit plus bas reste une **solution de secours** (jeton GitHub
+indisponible, fonction en panne, hébergement non-Vercel).
+
+#### Publication en un clic (méthode principale)
 
 1. **Modifier** — tout se passe dans le navigateur, sur un brouillon enregistré
-   dans `localStorage` (clé `lmi_admin_draft_v2`). Rien n'est envoyé nulle part.
-2. **Exporter** — l'onglet « Exporter » génère `js/data.js`, `js/site-config.js`
-   et une archive `images-le-maillot-ideal.zip` contenant uniquement les photos
-   modifiées, déjà redimensionnées.
-3. **Régénérer** — après remplacement local des exports, exécuter
-   `npm run generate:products` pour synchroniser les pages HTML publiques,
-   `produits/` et `sitemap.xml`.
-4. **Déposer** — le client envoie les exports, les pages HTML régénérées, les
-   fiches et le sitemap chez son hébergeur. Sans Node.js, il transmet les exports
-   au mainteneur.
+   dans `localStorage` (clé `lmi_admin_draft_v2`). Rien n'est envoyé tant que le
+   bouton n'est pas cliqué.
+2. **Publier** — onglet « Exporter » → bouton « Publier en ligne maintenant » →
+   `POST /api/publish` avec l'état complet du brouillon.
+3. `api/publish.js` régénère tout côté serveur (`lib/generate-site.mjs`, la
+   même logique que `scripts/generate-product-pages.mjs`) puis commite sur
+   `master` via l'API GitHub : les images passent par l'API Contents (le jeton
+   fine-grained ne peut pas créer de blob binaire via l'API Git bas niveau),
+   le reste (données, pages HTML, sitemap) part dans un **commit atomique**
+   via l'API Git (trees/commits/refs).
+4. Le push déclenche le redéploiement automatique Vercel (connecté au dépôt) —
+   le site est à jour en ligne sous environ une minute.
+
+**Résilience :** une photo qui échoue à se publier (permission GitHub mal
+configurée, image illisible…) ne bloque plus le reste — prix, stocks et textes
+se publient quand même, l'ancienne photo reste affichée jusqu'au prochain
+essai, et le message montré à l'admin est en français simple, jamais l'erreur
+brute de l'API GitHub. Voir `failedImages` dans la réponse de `api/publish.js`
+et le traitement correspondant dans `js/admin.js` (`#admPublish`).
+
+**Prérequis (variables d'environnement Vercel) :**
+
+- `GITHUB_TOKEN` — jeton GitHub **fine-grained**, accès limité à ce dépôt,
+  permission **Contents: Read and write** explicitement cochée (elle est sur
+  « No access » par défaut à la création — piège rencontré le 24/08/2026,
+  provoquait un `403 Resource not accessible by personal access token` sur
+  toute tentative de publication). Sans expiration si possible, sinon noter la
+  date pour renouveler avant l'échéance — sinon la publication s'arrête
+  silencieusement.
+- `ADMIN_USER` / `ADMIN_PASS` — protègent `/admin.html`, `js/admin.js`,
+  `css/admin.css` et `/api/publish` (voir Sécurité plus bas).
+
+**Limite :** ~4 Mo d'images modifiées par publication (`MAX_IMAGES_BYTES` dans
+`api/publish.js`), filet de sécurité sous la limite de requête Vercel
+(~4,5 Mo). Au-delà, publier en plusieurs fois.
+
+#### Export manuel (solution de secours)
+
+1. Onglet « Exporter » → télécharge `js/data.js`, `js/site-config.js` et une
+   archive `images-le-maillot-ideal.zip` (photos modifiées uniquement, déjà
+   redimensionnées).
+2. Remplacer ces fichiers localement, exécuter `npm run generate:products`
+   pour synchroniser les pages HTML publiques, `produits/` et `sitemap.xml`.
+3. Déposer les fichiers publics régénérés chez l'hébergeur — jamais
+   `admin.html`, `js/admin.js` ni `css/admin.css` (voir `DEPLOIEMENT.md`).
 
 Les images sont retaillées côté navigateur avec `<canvas>` : **600×600 qualité
-0,82** pour les vignettes, **1400 px qualité 0,80** pour la galerie. Le client
-dépose ses photos brutes, il n'a rien à préparer.
+0,82** pour les vignettes, **1400 px qualité 0,80** pour la galerie, que ce
+soit pour la publication en un clic ou l'export. Le client dépose ses photos
+brutes, il n'a rien à préparer.
 
-L'archive ZIP est écrite à la main dans `js/admin.js` (méthode « stockée », sans
-compression, avec CRC32). **Aucune bibliothèque externe** : les JPEG sont déjà
-compressés, la compression n'apporterait rien et JSZip violerait la règle §1.
+L'archive ZIP (export manuel) est écrite à la main dans `js/admin.js` (méthode
+« stockée », sans compression, avec CRC32). **Aucune bibliothèque externe** :
+les JPEG sont déjà compressés, la compression n'apporterait rien et JSZip
+violerait la règle §1.
 
 ### Fichiers
 
 | Fichier | Rôle |
 |---|---|
 | `admin.html` | l'interface, 5 onglets |
-| `js/admin.js` | toute la logique (état, redimensionnement, export, ZIP) |
+| `js/admin.js` | toute la logique (état, redimensionnement, publication, export, ZIP) |
 | `css/admin.css` | **seule exception à la règle « un seul fichier CSS »** : ces styles ne doivent pas être livrés aux visiteurs |
 | `js/site-config.js` | textes et coordonnées modifiables (`window.SITE`) |
 | `js/config-apply.js` | applique `SITE` aux éléments `[data-cfg]` du site public |
+| `api/publish.js` | fonction serverless Vercel : régénère le site et commite sur GitHub |
+| `lib/generate-site.mjs` | génération partagée entre `scripts/generate-product-pages.mjs` (local) et `api/publish.js` (serveur) — ne pas dupliquer cette logique |
+| `middleware.js` | Basic Auth côté serveur sur l'admin et `/api/publish` |
 
 Les textes restent **en dur dans le HTML** (référencement + repli sans JS) ;
 `config-apply.js` ne les remplace que s'ils diffèrent de la config. Pour rendre
@@ -578,42 +631,51 @@ déjà réécrits automatiquement par `config-apply.js` sans avoir besoin de
 au site public (accueil ou ailleurs), pense à te demander s'il doit, lui aussi,
 devenir modifiable depuis l'onglet « Textes du site ».
 
-### ⚠️ Sécurité — à lire avant mise en ligne
+### ⚠️ Sécurité — à lire avant de toucher à l'authentification
 
 **Ne mets JAMAIS un mot de passe en JavaScript sur cette page.** Le code est
 téléchargé par le visiteur : un mot de passe dans le JS se lit en deux clics dans
 l'inspecteur. C'est exactement la faille « vérification côté client » de la vidéo
 que le client a partagée. Une fausse protection est pire que pas de protection,
-parce qu'elle donne un sentiment de sécurité.
+parce qu'elle donne un sentiment de sécurité. Ce principe reste vrai quelle que
+soit l'évolution de l'admin — ne jamais vérifier un rôle ou un mot de passe dans
+du code exécuté côté navigateur.
 
-Trois options réellement sûres, par ordre de simplicité :
-
-1. **Ne pas déployer `admin.html`** — le client la garde en local et ne met en
-   ligne que les fichiers exportés. C'est le plus sûr et ça suffit dans ce cas.
-2. **Protection par l'hébergeur** — `.htaccess` + `.htpasswd` en Apache, ou
-   `basic_auth` en Nginx, ou la protection par mot de passe de Netlify/Vercel.
-   La vérification se fait côté serveur, avant même d'envoyer le fichier.
-3. **Un vrai backend** si un jour le client veut publier en un clic — voir
-   ci-dessous.
+**État actuel (depuis le 24/08/2026, déploiement Vercel) :** `admin.html`,
+`js/admin.js`, `css/admin.css` et `/api/publish` sont protégés **côté serveur**
+par Basic Auth (`middleware.js`), identifiants dans les variables
+d'environnement `ADMIN_USER`/`ADMIN_PASS` — jamais dans le code. La
+vérification se fait avant même d'envoyer le fichier au navigateur.
 
 `robots.txt` contient déjà `Disallow: /admin.html` et la page porte
-`<meta name="robots" content="noindex, nofollow">`. **Ce n'est pas une sécurité**,
-seulement une politesse envers les moteurs : n'importe qui connaissant l'URL y
-accède. Les points 1 ou 2 restent indispensables.
+`<meta name="robots" content="noindex, nofollow">`. **Ce n'est pas une
+sécurité**, seulement une politesse envers les moteurs : n'importe qui
+connaissant l'URL contournerait cette protection sans le Basic Auth. Si un jour
+le déploiement change et que Vercel + `middleware.js` ne sont plus utilisés,
+reproduire l'équivalent côté nouvel hébergeur (`.htaccess`/`.htpasswd` en
+Apache, `basic_auth` en Nginx…) — ou, à défaut, revenir à la solution la plus
+sûre de toutes : ne pas déployer `admin.html` et garder l'export manuel comme
+seule voie de publication.
 
-### Si le client veut publier sans manipuler de fichiers
+### Aller plus loin qu'un commit GitHub
 
-Il faudra un backend. Trois pistes, à discuter avec lui car chacune a un coût :
+Le besoin « publier sans manipuler de fichiers » (§ ci-dessus) est déjà couvert
+par `api/publish.js` — sans base de données, en gardant le site statique. Un
+vrai backend (Firebase, Supabase…) ne serait justifié que si le besoin change
+de nature : édition **multi-utilisateurs simultanée**, données qui doivent
+être lues en direct par le site (plus de génération à l'avance), ou volumétrie
+qui dépasse ce qu'un commit Git peut raisonnablement porter. Ce n'est pas le
+cas aujourd'hui. Pistes si ce jour arrive, chacune avec un coût réel :
 
-- **Firebase** (il l'utilise déjà pour son app Flutter) : Firestore pour les
-  données, Storage pour les images, Auth pour la connexion. Le plus cohérent
-  avec son écosystème. Attention : la vérification du rôle admin doit être dans
-  les **Firestore Security Rules**, pas dans l'interface.
-- **CMS sur Git** (Decap CMS, Tina) : l'admin écrit dans le dépôt, l'hébergeur
-  reconstruit. Gratuit, pas de backend à maintenir, mais introduit une étape de
-  build — contraire à la règle §1.
+- **Firebase** (le client l'utilise déjà pour son app Flutter) : Firestore
+  pour les données, Storage pour les images, Auth pour la connexion. Le plus
+  cohérent avec son écosystème. Attention : la vérification du rôle admin doit
+  être dans les **Firestore Security Rules**, pas dans l'interface.
+- **CMS sur Git** (Decap CMS, Tina) : proche de ce qui existe déjà (écrit dans
+  le dépôt, l'hébergeur reconstruit), mais avec une interface plus riche.
 - **Supabase** : équivalent à Firebase, base PostgreSQL.
 
-Dans les trois cas le site cesse d'être purement statique. **Ne pas s'engager
-là-dedans sans validation explicite du client** : c'est un changement d'échelle,
-pas une amélioration.
+Dans les trois cas, si les pages produit passent en lecture dynamique, le site
+cesse d'être purement statique — refonte du référencement et de la contrainte
+§1 à reconstruire. **Ne pas s'engager là-dedans sans validation explicite du
+client** : c'est un changement d'échelle, pas une amélioration.

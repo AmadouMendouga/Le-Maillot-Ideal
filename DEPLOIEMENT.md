@@ -17,6 +17,20 @@ GitHub *fine-grained*, limité à ce dépôt, permission « Contents: Read and
 write ») ainsi que `ADMIN_USER`/`ADMIN_PASS` (protection de `/admin.html`,
 voir `middleware.js`).
 
+**Piège rencontré le 24/08/2026 :** à la création d'un jeton fine-grained, la
+permission « Contents » est sur *No access* par défaut — il faut explicitement
+la passer à *Read and write*, sinon toute publication échoue avec
+`403 Resource not accessible by personal access token`. Préférer une
+expiration « No expiration » si le compte le permet ; sinon noter la date
+d'échéance quelque part, sans quoi la publication s'arrêtera silencieusement
+ce jour-là.
+
+Si une photo échoue à se publier (jeton insuffisant, image illisible…), le
+reste — prix, stocks, textes — se publie quand même ; l'ancienne photo reste
+affichée jusqu'au prochain essai. Limite : ~4 Mo d'images modifiées par
+publication (`MAX_IMAGES_BYTES` dans `api/publish.js`) ; au-delà, publier en
+plusieurs fois.
+
 Les étapes manuelles ci-dessous restent une **solution de secours** — jeton
 indisponible, fonction en panne, ou hébergement non-Vercel sans backend.
 
