@@ -35,11 +35,58 @@ export function draftReducer(state, action) {
     case "RESET_DRAFT":
       return createInitialState();
 
-    // Remplace une tranche entière du brouillon (ex. réordonner la
-    // photothèque, ajouter/supprimer un avis) — les onglets Photothèque et
-    // Avis (phase 4) l'utilisent pour leurs mutations de tableau.
+    // Remplace une tranche entière du brouillon — repli générique pour les
+    // mutations en bloc (ex. onglet Textes du site, phase 4d).
     case "REPLACE_SLICE":
       return { ...state, [action.key]: action.value };
+
+    case "GALLERY_MOVE": {
+      const target = action.index + action.direction;
+      if (target < 0 || target >= state.gallery.length) return state;
+      const list = state.gallery.slice();
+      const tmp = list[action.index];
+      list[action.index] = list[target];
+      list[target] = tmp;
+      return { ...state, gallery: list };
+    }
+
+    case "GALLERY_DELETE":
+      return { ...state, gallery: state.gallery.filter((_, i) => i !== action.index) };
+
+    case "GALLERY_ADD":
+      return {
+        ...state,
+        gallery: [...state.gallery, ...action.items],
+        newImages: { ...state.newImages, ...action.newImages },
+      };
+
+    case "GALLERY_REPLACE_IMAGE": {
+      const item = state.gallery[action.index];
+      if (!item) return state;
+      return {
+        ...state,
+        newImages: { ...state.newImages, [item.thumb]: action.thumbDataUrl, [item.src]: action.wideDataUrl },
+      };
+    }
+
+    case "TESTI_ADD":
+      return { ...state, testimonials: [...state.testimonials, action.item] };
+
+    case "TESTI_DELETE":
+      return { ...state, testimonials: state.testimonials.filter((_, i) => i !== action.index) };
+
+    case "TESTI_UPDATE": {
+      const list = state.testimonials.slice();
+      list[action.index] = { ...list[action.index], [action.field]: action.value };
+      return { ...state, testimonials: list };
+    }
+
+    case "TESTI_SET_IMAGE": {
+      const list = state.testimonials.slice();
+      if (!list[action.index]) return state;
+      list[action.index] = { ...list[action.index], src: action.path };
+      return { ...state, testimonials: list, newImages: { ...state.newImages, [action.path]: action.dataUrl } };
+    }
 
     case "SET_PRODUCT":
       return {

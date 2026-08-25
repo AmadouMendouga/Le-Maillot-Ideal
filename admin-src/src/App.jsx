@@ -3,9 +3,11 @@ import { DraftProvider, useDraftState } from "./state/useDraftState.jsx";
 import AdminHeader from "./components/layout/AdminHeader.jsx";
 import Tabs, { TAB_DEFS } from "./components/layout/Tabs.jsx";
 import ProductsTab from "./components/products/ProductsTab.jsx";
+import GalleryTab from "./components/gallery/GalleryTab.jsx";
+import TestimonialsTab from "./components/testimonials/TestimonialsTab.jsx";
 
 // Panneau provisoire (phase 3, CLAUDE.md §12) — onglets pas encore portés :
-// Photothèque, Avis, Textes du site, Exporter (phase 4b-4e).
+// Textes du site, Exporter (phase 4d-4e).
 function PlaceholderPanel({ tab }) {
   const { state } = useDraftState();
   const count = tab.countKey ? state[tab.countKey].length : null;
@@ -18,11 +20,18 @@ function PlaceholderPanel({ tab }) {
   );
 }
 
+const TAB_COMPONENTS = {
+  produits: ProductsTab,
+  galerie: GalleryTab,
+  avis: TestimonialsTab,
+};
+
 function AdminApp() {
   const { state } = useDraftState();
   const [activeTab, setActiveTab] = useState("produits");
   const activeTabDef = TAB_DEFS.find((t) => t.key === activeTab);
   const counts = { products: state.products.length, gallery: state.gallery.length, testimonials: state.testimonials.length };
+  const ActiveTabComponent = TAB_COMPONENTS[activeTab];
 
   return (
     <>
@@ -30,7 +39,7 @@ function AdminApp() {
       <Tabs active={activeTab} onChange={setActiveTab} counts={counts} />
       <main className="container">
         <h1 className="sr-only">Administration du site Le Maillot Idéal</h1>
-        {activeTab === "produits" ? <ProductsTab /> : <PlaceholderPanel tab={activeTabDef} />}
+        {ActiveTabComponent ? <ActiveTabComponent /> : <PlaceholderPanel tab={activeTabDef} />}
       </main>
     </>
   );
