@@ -1,4 +1,4 @@
-// Données du site — publié depuis admin.html le 25/08/2026 02:19:33
+// Données du site — publié depuis admin.html le 25/08/2026 02:21:29
 window.PRODUCTS = [
   {
     "id": 1,
@@ -263,9 +263,9 @@ window.PRODUCTS = [
     ],
     "kidsAvailable": false,
     "description": "Maillot domicile réplique Strasbourg, saison 2026/2027. Tissu respirant, floquage haute qualité résistant au lavage, coupe sport confortable.",
-    "image": "images/photos/photo-09.jpg",
+    "image": "images/photos/maillot-domicile-strasbourg.jpg",
     "imageSvg": "images/products/maillot-domicile-strasbourg.svg",
-    "imageWide": "images/gallery/gallery-09.jpg",
+    "imageWide": "images/photos/maillot-domicile-strasbourg.jpg",
     "stock": 30,
     "rating": null,
     "reviews": 0
