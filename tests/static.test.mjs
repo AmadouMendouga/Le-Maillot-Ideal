@@ -15,7 +15,7 @@ const filesIn = (directory, extension) =>
 const filesInRecursive = (directory, extension) => {
   const start = path.join(root, directory);
   const files = [];
-  const ignoredDirectories = new Set([".git", "node_modules", "reports"]);
+  const ignoredDirectories = new Set([".git", "node_modules", "reports", "admin-src", "dist"]);
   const visit = (current) => {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const target = path.join(current, entry.name);

@@ -2,6 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": false,
   "trailingSlash": false,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "functions": {
     "api/publish.js": { "maxDuration": 30 }
   },
@@ -10,6 +12,9 @@
     { "source": "/product", "destination": "/product.html", "permanent": true },
     { "source": "/phototheque", "destination": "/phototheque.html", "permanent": true },
     { "source": "/confidentialite", "destination": "/confidentialite.html", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin/index.html" }
   ],
   "headers": [
     {

@@ -4,10 +4,17 @@
 // voir CLAUDE.md §12 : un mot de passe côté client se lit dans l'inspecteur.
 import { next } from '@vercel/functions';
 
+// Transitoire (CLAUDE.md §12) : l'ancien admin.html/js/admin.js reste protégé
+// pendant que /admin (nouvelle admin React) est développée en parallèle.
+// Retirer les deux entrées `/admin.html` et `/js/admin.js` (et la fonction
+// isProtectedPath ci-dessous) à la bascule finale, une fois admin.html et
+// js/admin.js supprimés du dépôt.
 export const config = {
   matcher: [
     '/admin.html',
     '/js/admin.js',
+    '/admin',
+    '/admin/:path*',
     '/css/admin.css',
     '/api/publish',
     '/package.json',
@@ -15,7 +22,11 @@ export const config = {
   ],
 };
 
-const PROTECTED_PREFIXES = ['/admin.html', '/js/admin.js', '/css/admin.css', '/api/publish'];
+const EXACT_PROTECTED = new Set(['/admin.html', '/js/admin.js', '/admin', '/css/admin.css', '/api/publish']);
+
+function isProtectedPath(pathname) {
+  return EXACT_PROTECTED.has(pathname) || pathname.startsWith('/admin/');
+}
 
 function unauthorized() {
   return new Response('Authentification requise.', {
@@ -31,7 +42,7 @@ function notFound() {
 export default function middleware(request) {
   const { pathname } = new URL(request.url);
 
-  if (!PROTECTED_PREFIXES.includes(pathname)) {
+  if (!isProtectedPath(pathname)) {
     // package.json / package-lock.json : présents pour l'installation des
     // dépendances de build, jamais destinés à être servis au public.
     return notFound();
