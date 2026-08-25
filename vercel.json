@@ -11,7 +11,8 @@
     { "source": "/shop", "destination": "/shop.html", "permanent": true },
     { "source": "/product", "destination": "/product.html", "permanent": true },
     { "source": "/phototheque", "destination": "/phototheque.html", "permanent": true },
-    { "source": "/confidentialite", "destination": "/confidentialite.html", "permanent": true }
+    { "source": "/confidentialite", "destination": "/confidentialite.html", "permanent": true },
+    { "source": "/admin.html", "destination": "/admin", "permanent": true }
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" }

@@ -2,6 +2,7 @@
 import { useRef } from "react";
 import { useDraftState } from "../../state/useDraftState.jsx";
 import { readImage, reportImageError, toSquare, toWide } from "../../lib/image.js";
+import { resolveImageSrc } from "../../lib/resolveImage.js";
 
 function nextGalleryIndex(gallery) {
   let max = 0;
@@ -17,7 +18,7 @@ export default function GalleryTab({ active }) {
   const addInputRef = useRef(null);
   const swapInputRef = useRef(null);
   const swapIndexRef = useRef(null);
-  const resolveImage = (path) => state.newImages[path] || path;
+  const resolveImage = (path) => resolveImageSrc(state.newImages, path);
 
   function move(index, direction) {
     dispatch({ type: "GALLERY_MOVE", index, direction });

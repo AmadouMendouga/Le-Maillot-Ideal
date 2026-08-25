@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useDraftState } from "../../state/useDraftState.jsx";
 import { readImage, reportImageError, toSquare } from "../../lib/image.js";
+import { resolveImageSrc } from "../../lib/resolveImage.js";
 import ProductTable from "./ProductTable.jsx";
 import ProductEditDrawer from "./ProductEditDrawer.jsx";
 
@@ -43,7 +44,7 @@ export default function ProductsTab({ active }) {
     () => filterProducts(state.products, state.touched, filters),
     [state.products, state.touched, filters],
   );
-  const resolveImage = (path) => state.newImages[path] || path;
+  const resolveImage = (path) => resolveImageSrc(state.newImages, path);
 
   function openEditor(slug) {
     setDisplaySlug(slug);

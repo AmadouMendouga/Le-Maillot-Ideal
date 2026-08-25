@@ -158,7 +158,7 @@ test("les références locales des pages HTML existent", () => {
 
 test("les contenus fictifs ne sont plus présentés comme des preuves réelles", () => {
   const publicFiles = [
-    ...filesInRecursive(".", ".html").filter((file) => path.basename(file) !== "admin.html"),
+    ...filesInRecursive(".", ".html"),
     ...filesIn("js", ".js"),
   ];
   const source = publicFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
@@ -167,21 +167,11 @@ test("les contenus fictifs ne sont plus présentés comme des preuves réelles",
   assert.doesNotMatch(source, /maillots? de football officiels/i);
 });
 
-test("l'administration exporte les témoignages", () => {
-  const admin = read("js/admin.js");
-  assert.match(admin, /window\.TESTIMONIALS\s*=/);
-  assert.match(admin, /el\.checkValidity\(\)/);
-  assert.match(admin, /Number\.isInteger\((?:Number\(p\.stock\)|stock)\)/);
-  const html = read("admin.html");
-  assert.match(html, /data-site="showGallery"/);
-  assert.match(html, /data-site="showTestimonials"/);
-});
-
 test("les règles Apache protègent les outils locaux et évitent un cache CSS périmé", () => {
   const apache = read(".htaccess");
-  assert.match(apache, /RewriteRule \^\(\?:node_modules\|scripts\|tests\)/);
+  assert.match(apache, /RewriteRule \^\(\?:node_modules\|scripts\|tests\|admin-src\|dist\)/);
   assert.match(apache, /RewriteRule \^\\\.\(\?:git\|codex\|agents\)/);
   assert.match(apache, /RewriteCond %\{THE_REQUEST\} .*index\\\.html/);
-  assert.match(apache, /admin\\\.html/);
+  assert.match(apache, /admin\\\.css/);
   assert.match(apache, /<FilesMatch "\\\.\(\?:html\|css\|js\|json\|xml\)\$">/);
 });

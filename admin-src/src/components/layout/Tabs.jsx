@@ -16,6 +16,7 @@ export default function Tabs({ active, onChange, counts }) {
         <button
           key={tab.key}
           type="button"
+          data-tab={tab.key}
           className={"adm-tab" + (active === tab.key ? " active" : "")}
           onClick={() => {
             onChange(tab.key);

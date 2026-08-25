@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useDraftState } from "../../state/useDraftState.jsx";
 import { readImage, reportImageError, toSquare } from "../../lib/image.js";
+import { resolveImageSrc } from "../../lib/resolveImage.js";
 import Drawer from "../shared/Drawer.jsx";
 import ImageDropZone from "../shared/ImageDropZone.jsx";
 
@@ -97,7 +98,7 @@ export default function ProductEditDrawer({ slug, open, onClose }) {
     <Drawer open={open} onClose={onClose} title={product ? product.name : ""} titleIcon="edit" footer={footer}>
       {product ? (
         <>
-          <ImageDropZone previewSrc={state.newImages[product.image] || product.image} onFile={handleImageFile} />
+          <ImageDropZone previewSrc={resolveImageSrc(state.newImages, product.image)} onFile={handleImageFile} />
 
           <div className="adm-field" style={{ marginTop: 18 }}>
             <label>Nom affiché</label>

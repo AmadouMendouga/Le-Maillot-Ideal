@@ -5,7 +5,12 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// dist/ (pas la racine du dépôt) : nécessaire pour /admin, construit par
+// Vite (voir CLAUDE.md §12) — copy-public.mjs y recopie le site public à
+// l'identique, donc servir depuis dist/ reste équivalent pour les autres
+// routes. Exécuter `npm run build` avant ce script (déjà fait par `npm run
+// check`, voir package.json).
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 const mime = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -22,8 +27,18 @@ function startServer() {
     const server = http.createServer((request, response) => {
       const url = new URL(request.url, "http://127.0.0.1");
       const relative = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
-      const target = path.resolve(root, `.${relative}`);
-      if (!target.startsWith(`${root}${path.sep}`) || !fs.existsSync(target) || fs.statSync(target).isDirectory()) {
+      let target = path.resolve(root, `.${relative}`);
+      if (!target.startsWith(`${root}${path.sep}`)) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Not found");
+        return;
+      }
+      // Repli répertoire -> index.html (ex. /admin/ -> dist/admin/index.html),
+      // nécessaire pour l'admin React construite par Vite.
+      if (fs.existsSync(target) && fs.statSync(target).isDirectory()) {
+        target = path.join(target, "index.html");
+      }
+      if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) {
         response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
         response.end("Not found");
         return;
@@ -56,7 +71,7 @@ try {
     "merci.html",
     "confidentialite.html",
     "404.html",
-    "admin.html",
+    "admin/",
   ];
 
   for (const route of routes) {
@@ -160,7 +175,7 @@ try {
       const labels = await page.locator(".quick-add").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") || ""));
       check(labels.length > 0 && labels.every((label) => /Ajouter .+ au panier|indisponible/i.test(label)), "les ajouts rapides n'ont pas de nom accessible précis");
     }
-    if (route === "admin.html") {
+    if (route === "admin/") {
       check(await page.locator("#admDrawer").evaluate((drawer) => drawer.inert), "le tiroir admin fermé reste tabulable");
       await page.locator("[data-edit]").first().click();
       check(

@@ -15,7 +15,6 @@ const distDir = path.join(root, "dist");
 // intention que .vercelignore pour l'ancien mode de déploiement passthrough.
 const PUBLIC_ENTRIES = [
   "404.html",
-  "admin.html", // supprimé du dépôt à la bascule finale ; ce script n'aura alors plus rien à copier pour cette entrée
   "confidentialite.html",
   "css",
   "fonts",

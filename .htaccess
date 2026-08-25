@@ -4,7 +4,7 @@ ErrorDocument 404 /404.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteRule ^(?:node_modules|scripts|tests)(?:/|$) - [F,L,NC]
+  RewriteRule ^(?:node_modules|scripts|tests|admin-src|dist)(?:/|$) - [F,L,NC]
   RewriteRule ^\.(?:git|codex|agents)(?:/|$) - [F,L,NC]
   RewriteRule ^\.env(?:\.|$) - [F,L,NC]
   # Ne rediriger que /index.html demandé par le navigateur. Sans THE_REQUEST,
@@ -19,7 +19,7 @@ ErrorDocument 404 /404.html
 
 # L'administration reste un outil local. Les archives et documents internes
 # ne doivent jamais être servis par le site public.
-<FilesMatch "^(admin\.html|admin\.js|admin\.css|CLAUDE\.md|DEPLOIEMENT\.md|PROMPT-PRELANCEMENT\.md|package(?:-lock)?\.json|\.gitignore|\.env(?:\..*)?|.*\.zip)$">
+<FilesMatch "^(admin\.css|CLAUDE\.md|DEPLOIEMENT\.md|PROMPT-PRELANCEMENT\.md|package(?:-lock)?\.json|\.gitignore|\.env(?:\..*)?|.*\.zip)$">
   Require all denied
 </FilesMatch>
 

@@ -2,12 +2,13 @@
 import { useRef } from "react";
 import { useDraftState } from "../../state/useDraftState.jsx";
 import { readImage, reportImageError, toSquare } from "../../lib/image.js";
+import { resolveImageSrc } from "../../lib/resolveImage.js";
 
 export default function TestimonialsTab({ active }) {
   const { state, dispatch } = useDraftState();
   const fileInputRef = useRef(null);
   const pendingIndexRef = useRef(null);
-  const resolveImage = (path) => state.newImages[path] || path;
+  const resolveImage = (path) => resolveImageSrc(state.newImages, path);
 
   function addTestimonial() {
     dispatch({

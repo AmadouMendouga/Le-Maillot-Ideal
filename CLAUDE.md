@@ -63,7 +63,6 @@ le-maillot-ideal/
 ├── merci.html            confirmation après commande (noindex)
 ├── 404.html               page d'erreur personnalisée (noindex)
 ├── confidentialite.html  politique de confidentialité
-├── admin.html            console d'administration (voir §12, noindex, protégée par middleware.js)
 ├── css/
 │   ├── style.css         TOUT le style du site public (~1400 lignes, un seul fichier)
 │   └── admin.css         styles de l'admin uniquement — seule exception à la règle
@@ -74,10 +73,9 @@ le-maillot-ideal/
 │   ├── navbar-menu.js    barre de navigation (composant Aceternity)
 │   ├── animated-testimonials.js
 │   ├── direction-aware-hover.js
-│   ├── stateful-button.js
+│   ├── stateful-button.js  chargé aussi par l'admin, voir §12
 │   ├── site-config.js    textes/coordonnées modifiables (window.SITE, voir §12)
-│   ├── config-apply.js   applique SITE aux éléments [data-cfg] du site public
-│   └── admin.js          logique de la console d'administration (voir §12)
+│   └── config-apply.js   applique SITE aux éléments [data-cfg] du site public
 ├── fonts/                IBM Plex Sans 400/500/600/700 (woff2, 100 Ko)
 ├── images/
 │   ├── photos/           vignettes produits 600×600 (DÉMO — à remplacer)
@@ -85,17 +83,24 @@ le-maillot-ideal/
 │   ├── testimonials/     6 portraits SVG placeholder
 │   ├── avatars/          6 avatars initiales
 │   └── og-cover.jpg      image de partage réseaux sociaux (1200×630)
+├── admin-src/            console d'administration React — voir §12, noindex, protégée par middleware.js
+│   ├── index.html        page hôte de la SPA
+│   ├── vite.config.js
+│   └── src/               state/, lib/, components/
+├── dist/                 sortie de build (généré, non versionné) : site public copié + admin/
 ├── api/
 │   └── publish.js        fonction serverless Vercel : publication en un clic (voir §12)
 ├── lib/
 │   └── generate-site.mjs logique de génération partagée entre le script local et api/publish.js
-├── middleware.js         Basic Auth serveur sur /admin.html, js/admin.js, css/admin.css, /api/publish
-├── vercel.json           en-têtes de sécurité, redirections, durée max de api/publish.js
-├── .vercelignore         exclut admin.html et les fichiers internes du déploiement public
-├── robots.txt            interdit /admin.html et /admin/
-├── scripts/              générateur local des fiches produit et du sitemap (solution de secours)
-├── tests/                tests statiques et audit Playwright
-├── package.json          commandes de génération et de contrôle
+├── middleware.js         Basic Auth serveur sur /admin, /admin/*, css/admin.css, /api/publish
+├── vercel.json           build (Vite), en-têtes de sécurité, redirections, durée max de api/publish.js
+├── .vercelignore         exclut la doc interne et les archives (PAS admin-src/ ni scripts/ : requis au build)
+├── robots.txt            interdit /admin et /admin.html (ancienne URL)
+├── scripts/
+│   ├── generate-product-pages.mjs  générateur local des fiches produit et du sitemap (solution de secours)
+│   └── copy-public.mjs   copie le site public tel quel dans dist/ avant le build de l'admin
+├── tests/                tests statiques et audit Playwright (dont admin-lib.test.mjs, logique pure de l'admin)
+├── package.json          commandes de génération, de build et de contrôle
 ├── DEPLOIEMENT.md        procédure de publication et de mise en ligne
 └── sitemap.xml           79 ou 80 URLs selon que la photothèque contient du contenu publié
 ```
@@ -105,8 +110,9 @@ le-maillot-ideal/
 `navbar-menu.js`, `direction-aware-hover.js`, `stateful-button.js`, `main.js`,
 `config-apply.js` (en tout dernier, il doit s'exécuter après que `main.js` ait
 construit le DOM dynamique). `animated-testimonials.js` avant `site-config.js`
-sur `index.html` et `phototheque.html`. `admin.html` ne charge pas `main.js` ni
-`config-apply.js` : c'est une page autonome (voir §12).
+sur `index.html` et `phototheque.html`. `admin-src/index.html` (§12) ne charge
+ni `main.js` ni `config-apply.js` : juste `icons.js`, `site-config.js`,
+`data.js` et `stateful-button.js`, puis le bundle React.
 
 ---
 
@@ -530,12 +536,50 @@ tokens de la §4 et les paramètres de la §5.
 
 ---
 
-## 12. Console d'administration — `admin.html`
+## 12. Console d'administration — `/admin` (React, `admin-src/`)
 
 Ajoutée à la demande du client pour changer les photos, les prix, la photothèque
-et les textes sans toucher au code.
+et les textes sans toucher au code. Réécrite le 25/08/2026 en application React
+(Vite) — l'admin d'origine était en HTML/JS vanilla, le client a explicitement
+demandé « une vraie application avec build » à la place. Le site public, lui,
+**n'a pas changé** : toujours statique, zéro build, zéro dépendance réseau (§1,
+non négociable). Ne pas confondre les deux : introduire un build pour l'admin
+n'autorise pas à en introduire un pour le site public.
 
-### Comment ça marche
+### Architecture du build
+
+Un seul dépôt, un seul projet Vercel. `vercel.json` déclare
+`"buildCommand": "npm run build"` + `"outputDirectory": "dist"` :
+
+1. `scripts/copy-public.mjs` (`npm run build:public`) copie le site public tel
+   quel dans `dist/` — aucune transformation, c'est le même contenu qu'avant.
+2. `vite build --config admin-src/vite.config.js` (`npm run build:admin`)
+   construit l'admin React dans `dist/admin/`.
+
+Ce choix (même dépôt/projet plutôt qu'un second projet Vercel séparé) évite le
+CORS sur `/api/publish` et garde le Basic Auth de `middleware.js` valable en
+same-origin. Les fonctions serverless (`api/*.js`) et `middleware.js` sont
+auto-détectées par Vercel indépendamment de `outputDirectory` — elles n'ont pas
+besoin d'être dans `dist/`.
+
+**`npm run dev:admin`** lance Vite en mode développement (HMR rapide) ; un
+petit plugin dans `admin-src/vite.config.js` sert `/css`, `/js`, `/images`,
+`/fonts` depuis la racine du dépôt pour que le dev serveur se comporte comme la
+production sans dupliquer ces fichiers dans `admin-src/`.
+
+**Piège vécu à la mise en place (24-25/08/2026) — chemins d'image relatifs.**
+Les données (`window.PRODUCTS`/`GALLERY`/`TESTIMONIALS`) stockent des chemins
+relatifs à la racine du site (`"images/photos/photo-01.jpg"`, sans `/`
+initial). Sous l'ancien `admin.html` (servi à la racine), ça se résolvait
+correctement. Sous `/admin/` (avec le slash final, résolution relative au
+*répertoire* `/admin/`), le navigateur les résolvait en
+`/admin/images/photos/photo-01.jpg` → 404 sur toutes les photos. Corrigé une
+fois pour toutes dans `admin-src/src/lib/resolveImage.js` (force un chemin
+absolu) plutôt que dans chaque composant — si tu ajoutes un nouvel endroit qui
+affiche une image depuis les données, passe par cette fonction, pas par un
+accès direct à `state.newImages[path] || path`.
+
+### Comment ça marche (publication)
 
 Le site public reste **statique** — aucune base de données, aucune requête
 réseau pour les visiteurs. L'admin, elle, s'appuie depuis le 24/08/2026 sur une
@@ -564,7 +608,7 @@ configurée, image illisible…) ne bloque plus le reste — prix, stocks et tex
 se publient quand même, l'ancienne photo reste affichée jusqu'au prochain
 essai, et le message montré à l'admin est en français simple, jamais l'erreur
 brute de l'API GitHub. Voir `failedImages` dans la réponse de `api/publish.js`
-et le traitement correspondant dans `js/admin.js` (`#admPublish`).
+et le traitement correspondant dans `admin-src/src/components/export/ExportTab.jsx`.
 
 **Prérequis (variables d'environnement Vercel) :**
 
@@ -575,7 +619,7 @@ et le traitement correspondant dans `js/admin.js` (`#admPublish`).
   toute tentative de publication). Sans expiration si possible, sinon noter la
   date pour renouveler avant l'échéance — sinon la publication s'arrête
   silencieusement.
-- `ADMIN_USER` / `ADMIN_PASS` — protègent `/admin.html`, `js/admin.js`,
+- `ADMIN_USER` / `ADMIN_PASS` — protègent `/admin`, `/admin/*`,
   `css/admin.css` et `/api/publish` (voir Sécurité plus bas).
 
 **Limite :** ~4 Mo d'images modifiées par publication (`MAX_IMAGES_BYTES` dans
@@ -590,30 +634,44 @@ et le traitement correspondant dans `js/admin.js` (`#admPublish`).
 2. Remplacer ces fichiers localement, exécuter `npm run generate:products`
    pour synchroniser les pages HTML publiques, `produits/` et `sitemap.xml`.
 3. Déposer les fichiers publics régénérés chez l'hébergeur — jamais
-   `admin.html`, `js/admin.js` ni `css/admin.css` (voir `DEPLOIEMENT.md`).
+   `admin-src/` ni `css/admin.css` (voir `DEPLOIEMENT.md`).
 
 Les images sont retaillées côté navigateur avec `<canvas>` : **600×600 qualité
 0,82** pour les vignettes, **1400 px qualité 0,80** pour la galerie, que ce
 soit pour la publication en un clic ou l'export. Le client dépose ses photos
-brutes, il n'a rien à préparer.
+brutes, il n'a rien à préparer. Logique dans `admin-src/src/lib/image.js`.
 
-L'archive ZIP (export manuel) est écrite à la main dans `js/admin.js` (méthode
-« stockée », sans compression, avec CRC32). **Aucune bibliothèque externe** :
-les JPEG sont déjà compressés, la compression n'apporterait rien et JSZip
-violerait la règle §1.
+L'archive ZIP (export manuel) est écrite à la main dans
+`admin-src/src/lib/zip.js` (méthode « stockée », sans compression, avec
+CRC32). **Aucune bibliothèque externe** : les JPEG sont déjà compressés, la
+compression n'apporterait rien et JSZip violerait la règle §1.
 
 ### Fichiers
 
 | Fichier | Rôle |
 |---|---|
-| `admin.html` | l'interface, 5 onglets |
-| `js/admin.js` | toute la logique (état, redimensionnement, publication, export, ZIP) |
-| `css/admin.css` | **seule exception à la règle « un seul fichier CSS »** : ces styles ne doivent pas être livrés aux visiteurs |
+| `admin-src/index.html` | page hôte de la SPA — charge `css/style.css`, `css/admin.css`, `js/icons.js`, `js/site-config.js`, `js/data.js`, `js/stateful-button.js` en chemins **absolus** (la page vit sous `/admin`), puis le bundle React |
+| `admin-src/vite.config.js` | config Vite : `base: "/admin/"`, sortie dans `dist/admin/`, plugin de passthrough `/css`/`/js`/`/images`/`/fonts` pour `npm run dev:admin` |
+| `admin-src/src/state/` | `useDraftState.jsx` (Context + `useReducer`, persistance `lmi_admin_draft_v2`) et `draftReducer.js` (actions) |
+| `admin-src/src/lib/` | logique pure portée depuis l'ancien `js/admin.js`, sans dépendance React ni DOM (sauf `image.js`) : `image.js`, `validation.js`, `exportBuilders.js`, `zip.js`, `format.js`, `resolveImage.js` — testée par `tests/admin-lib.test.mjs` |
+| `admin-src/src/components/` | un dossier par onglet (`products/`, `gallery/`, `testimonials/`, `site/`, `export/`) + `shared/` (`Drawer`, `ImageDropZone`, `StatefulButton`) + `layout/` (`AdminHeader`, `Tabs`) |
+| `css/admin.css` | **seule exception à la règle « un seul fichier CSS »** : ces styles ne doivent pas être livrés aux visiteurs. Les composants React réutilisent les **mêmes `className`** qu'avant (`adm-table`, `adm-drawer`, `adm-gcard`…) — pas de CSS Modules, zéro régression visuelle à craindre en ajoutant une règle |
 | `js/site-config.js` | textes et coordonnées modifiables (`window.SITE`) |
 | `js/config-apply.js` | applique `SITE` aux éléments `[data-cfg]` du site public |
 | `api/publish.js` | fonction serverless Vercel : régénère le site et commite sur GitHub |
 | `lib/generate-site.mjs` | génération partagée entre `scripts/generate-product-pages.mjs` (local) et `api/publish.js` (serveur) — ne pas dupliquer cette logique |
 | `middleware.js` | Basic Auth côté serveur sur l'admin et `/api/publish` |
+| `scripts/copy-public.mjs` | copie le site public tel quel dans `dist/` avant le build Vite de l'admin |
+
+**Tous les onglets restent montés en permanence** (visibilité en CSS via
+`.adm-panel`/`.active`, comme l'admin d'origine) plutôt que montés/démontés à
+la navigation — nécessaire car l'onglet Exporter valide les champs
+`[data-site]` réels du DOM et les données des autres onglets avant de
+publier/exporter (`ExportTab.jsx`, fonction `validateSiteNow`), exactement le
+flux que `tests/browser-audit.mjs` vérifie (ajouter un avis vide → cocher
+`showTestimonials` dans Textes du site → aller dans Exporter → la publication
+doit être bloquée avec un message précis). Si tu ajoutes un 6ᵉ onglet ou
+modifies la navigation, garde ce comportement.
 
 Les textes restent **en dur dans le HTML** (référencement + repli sans JS) ;
 `config-apply.js` ne les remplace que s'ils diffèrent de la config. Pour rendre
@@ -641,20 +699,22 @@ parce qu'elle donne un sentiment de sécurité. Ce principe reste vrai quelle qu
 soit l'évolution de l'admin — ne jamais vérifier un rôle ou un mot de passe dans
 du code exécuté côté navigateur.
 
-**État actuel (depuis le 24/08/2026, déploiement Vercel) :** `admin.html`,
-`js/admin.js`, `css/admin.css` et `/api/publish` sont protégés **côté serveur**
-par Basic Auth (`middleware.js`), identifiants dans les variables
-d'environnement `ADMIN_USER`/`ADMIN_PASS` — jamais dans le code. La
-vérification se fait avant même d'envoyer le fichier au navigateur.
+**État actuel (depuis le 24/08/2026, déploiement Vercel) :** `/admin`, `/admin/*`
+(le bundle React, noms de fichiers hashés — matcher en préfixe, pas en chemin
+exact), `css/admin.css` et `/api/publish` sont protégés **côté serveur** par
+Basic Auth (`middleware.js`), identifiants dans les variables d'environnement
+`ADMIN_USER`/`ADMIN_PASS` — jamais dans le code. La vérification se fait avant
+même d'envoyer le fichier au navigateur.
 
-`robots.txt` contient déjà `Disallow: /admin.html` et la page porte
+`robots.txt` contient `Disallow: /admin` et `/admin.html` (ancienne URL,
+gardée par précaution) ; la page porte
 `<meta name="robots" content="noindex, nofollow">`. **Ce n'est pas une
 sécurité**, seulement une politesse envers les moteurs : n'importe qui
 connaissant l'URL contournerait cette protection sans le Basic Auth. Si un jour
 le déploiement change et que Vercel + `middleware.js` ne sont plus utilisés,
 reproduire l'équivalent côté nouvel hébergeur (`.htaccess`/`.htpasswd` en
 Apache, `basic_auth` en Nginx…) — ou, à défaut, revenir à la solution la plus
-sûre de toutes : ne pas déployer `admin.html` et garder l'export manuel comme
+sûre de toutes : ne pas déployer `admin-src/` et garder l'export manuel comme
 seule voie de publication.
 
 ### Aller plus loin qu'un commit GitHub
