@@ -1,4 +1,4 @@
-/* Textes du site — publié depuis admin.html le 24/08/2026 22:34:51 */
+/* Textes du site — publié depuis admin.html le 25/08/2026 02:19:33 */
 window.SITE = {
   "businessName": "Le Maillot Idéal",
   "siteUrl": "https://le-maillot-ideal.com/",
@@ -47,13 +47,13 @@ window.SITE = {
     {
       "zone": "Douala",
       "delay": "24h",
-      "cost": "Gratuit dès 15 000 FCFA",
+      "cost": "Gratuit dès 15 000 FCFA",
       "payment": "Espèces ou Mobile Money à la réception"
     },
     {
       "zone": "Yaoundé",
       "delay": "24-48h",
-      "cost": "Gratuit dès 15 000 FCFA",
+      "cost": "Gratuit dès 15 000 FCFA",
       "payment": "Espèces ou Mobile Money à la réception"
     },
     {
