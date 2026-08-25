@@ -1,5 +1,45 @@
-// Phase 1 (plan de réécriture, CLAUDE.md §12) : preuve que la chaîne de
-// build/déploiement fonctionne avant de porter les 5 onglets de l'admin.
+import { useState } from "react";
+import { DraftProvider, useDraftState } from "./state/useDraftState.jsx";
+import AdminHeader from "./components/layout/AdminHeader.jsx";
+import Tabs, { TAB_DEFS } from "./components/layout/Tabs.jsx";
+
+// Panneau provisoire (phase 3, CLAUDE.md §12) : prouve que l'état partagé
+// (compteurs réels tirés du brouillon) et la navigation par onglets
+// fonctionnent avant de porter le contenu de chaque onglet (phase 4).
+function PlaceholderPanel({ tab }) {
+  const { state } = useDraftState();
+  const count = tab.countKey ? state[tab.countKey].length : null;
+  return (
+    <section className="adm-panel active" data-panel={tab.key}>
+      <p className="hint">
+        Onglet « {tab.label} »{count !== null ? " — " + count + " élément(s) dans le brouillon" : ""} : à venir (phase 4).
+      </p>
+    </section>
+  );
+}
+
+function AdminApp() {
+  const { state } = useDraftState();
+  const [activeTab, setActiveTab] = useState("produits");
+  const activeTabDef = TAB_DEFS.find((t) => t.key === activeTab);
+  const counts = { products: state.products.length, gallery: state.gallery.length, testimonials: state.testimonials.length };
+
+  return (
+    <>
+      <AdminHeader onGoExport={() => setActiveTab("export")} />
+      <Tabs active={activeTab} onChange={setActiveTab} counts={counts} />
+      <main className="container">
+        <h1 className="sr-only">Administration du site Le Maillot Idéal</h1>
+        <PlaceholderPanel tab={activeTabDef} />
+      </main>
+    </>
+  );
+}
+
 export default function App() {
-  return <h1 style={{ padding: 24 }}>Admin React — plomberie en place.</h1>;
+  return (
+    <DraftProvider>
+      <AdminApp />
+    </DraftProvider>
+  );
 }
