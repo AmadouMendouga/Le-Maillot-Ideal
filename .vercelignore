@@ -2,11 +2,13 @@
 # package.json et package-lock.json restent présents : nécessaires à
 # l'installation de @vercel/functions pour le middleware. L'accès direct
 # à /package.json est bloqué par middleware.js à la place.
+# scripts/ doit rester visible : scripts/copy-public.mjs est exécuté par
+# `npm run build` sur Vercel (voir vercel.json buildCommand). Il n'est pas
+# servi pour autant — scripts/copy-public.mjs ne le copie pas dans dist/.
 CLAUDE.md
 DEPLOIEMENT.md
 PROMPT-PRELANCEMENT.md
 tests/
-scripts/
 node_modules/
 .gitignore
 .htaccess
