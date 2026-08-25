@@ -888,12 +888,26 @@
           return data;
         });
       }).then(function (data) {
-        statusEl.className = "adm-publish-status is-ok";
-        statusEl.innerHTML = "Publié — le site sera à jour dans environ une minute. " +
-          '<a href="' + esc(data.commitUrl) + '" target="_blank" rel="noopener">Voir le commit</a>.';
+        var failed = data.failedImages || [];
+        if (failed.length) {
+          statusEl.className = "adm-publish-status is-warning";
+          statusEl.innerHTML = "Publié — les prix, stocks et textes sont à jour en ligne. " +
+            "⚠ " + failed.length + " photo" + (failed.length > 1 ? "s n'ont" : " n'a") +
+            " pas pu être envoyée" + (failed.length > 1 ? "s" : "") +
+            ", l'ancienne reste affichée. Réessayez « Publier » dans quelques minutes. " +
+            '<a href="' + esc(data.commitUrl) + '" target="_blank" rel="noopener">Voir le commit</a>.';
+          console.warn("Photos non publiées :", failed);
+        } else {
+          statusEl.className = "adm-publish-status is-ok";
+          statusEl.innerHTML = "Publié — le site sera à jour dans environ une minute. " +
+            '<a href="' + esc(data.commitUrl) + '" target="_blank" rel="noopener">Voir le commit</a>.';
+        }
       }).catch(function (error) {
+        console.error("Publication échouée :", error);
         statusEl.className = "adm-publish-status is-error";
-        statusEl.textContent = error.message || "La publication a échoué.";
+        statusEl.textContent = /resource not accessible|401|403/i.test(error.message || "")
+          ? "La publication n'est pas encore configurée correctement côté serveur. Contactez le développeur avant de réessayer."
+          : (error.message || "La publication a échoué. Réessayez dans quelques minutes.");
         throw error;
       });
     });

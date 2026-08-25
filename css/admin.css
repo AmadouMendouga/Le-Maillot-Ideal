@@ -218,6 +218,7 @@ html[data-theme="dark"] .adm-drawer-foot { background: var(--surface-container);
 .adm-publish-status { margin: 10px 0 0; font-size: .84rem; font-weight: 600; min-height: 1.1em; }
 .adm-publish-status:empty { display: none; }
 .adm-publish-status.is-ok { color: var(--secondary); }
+.adm-publish-status.is-warning { color: var(--tertiary); }
 .adm-publish-status.is-error { color: var(--error); }
 .adm-publish-status a { color: inherit; text-decoration: underline; }
 

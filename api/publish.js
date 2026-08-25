@@ -29,6 +29,7 @@ function gh(token, path, init) {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "le-maillot-ideal-admin",
+      ...(init && init.body ? { "Content-Type": "application/json" } : null),
       ...(init && init.headers),
     },
   }).then(async (res) => {
@@ -93,10 +94,17 @@ export async function POST(request) {
 
     // --- images : commitées individuellement via l'API Contents (le jeton
     //     fine-grained ne peut pas créer de blob binaire via l'API Git bas
-    //     niveau) avant le commit atomique du reste des fichiers texte ---
+    //     niveau) avant le commit atomique du reste des fichiers texte.
+    //     Une photo en échec (ex. jeton mal configuré) ne doit jamais bloquer
+    //     la publication des prix/stocks/textes : elle est mise de côté, et
+    //     l'ancienne image reste en ligne jusqu'au prochain essai. ---
+    const failedImages = [];
     for (const [path, dataUrl] of Object.entries(newImages)) {
       const comma = String(dataUrl).indexOf(",");
-      if (comma < 0) throw new HttpError(400, `Image illisible : ${path}.`);
+      if (comma < 0) {
+        failedImages.push({ path, error: "Image illisible." });
+        continue;
+      }
       let existingSha;
       try {
         const existing = await gh(token, `/repos/${OWNER}/${REPO}/contents/${path}?ref=${BRANCH}`);
@@ -104,15 +112,19 @@ export async function POST(request) {
       } catch {
         existingSha = undefined; // le fichier n'existe pas encore
       }
-      await gh(token, `/repos/${OWNER}/${REPO}/contents/${path}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          message: `Publication depuis l'admin — image ${path}`,
-          content: dataUrl.slice(comma + 1),
-          branch: BRANCH,
-          sha: existingSha,
-        }),
-      });
+      try {
+        await gh(token, `/repos/${OWNER}/${REPO}/contents/${path}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            message: `Publication depuis l'admin — image ${path}`,
+            content: dataUrl.slice(comma + 1),
+            branch: BRANCH,
+            sha: existingSha,
+          }),
+        });
+      } catch (error) {
+        failedImages.push({ path, error: error.message || "Erreur inconnue." });
+      }
     }
 
     // --- état actuel du dépôt (après les éventuels commits d'images) ---
@@ -197,6 +209,7 @@ export async function POST(request) {
       ok: true,
       commitSha: newCommit.sha,
       commitUrl: `https://github.com/${OWNER}/${REPO}/commit/${newCommit.sha}`,
+      failedImages,
     });
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 500;
