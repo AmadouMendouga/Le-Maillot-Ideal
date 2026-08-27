@@ -1,4 +1,4 @@
-/* Textes du site — publié depuis admin.html le 25/08/2026 02:21:29 */
+/* Textes du site — publié depuis admin.html le 27/08/2026 18:39:37 */
 window.SITE = {
   "businessName": "Le Maillot Idéal",
   "siteUrl": "https://le-maillot-ideal.com/",
