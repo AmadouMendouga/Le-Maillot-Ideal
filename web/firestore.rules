@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Toutes les écritures passent par les Server Actions Next.js (Admin SDK, qui
+// contourne ces règles côté serveur) — jamais d'écriture directe du client.
+// Voir web/lib/firebase/admin.ts et le plan §3.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /leagues/{leagueId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /gallery/{itemId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /testimonials/{itemId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Tout le reste (futures collections orders/users en Phase 2/3) : fermé par
+    // défaut tant que la logique n'est pas explicitement écrite ici.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
