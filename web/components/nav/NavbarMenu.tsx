@@ -346,7 +346,15 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
 
       <div
         ref={cardRef}
-        className={"am-card" + (morphing ? " morphing" : "")}
+        // "open" reste imposé aussi par classList.add/remove (openMenu/closeMenu,
+        // synchrone, nécessaire au timing exact du FLIP à la première ouverture)
+        // mais DOIT aussi dépendre de openId ici : sans ça, le prochain rendu React
+        // déclenché pendant un changement de menu (setDisplayedId/setMorphing après
+        // le minuteur de bascule) réécrit className depuis ce seul template et efface
+        // "open" silencieusement, alors que le menu reste ouvert côté JS — panneau
+        // vide en apparence. openId reste non-null tout au long d'un changement de
+        // menu à un autre, donc le dériver ici referme ce trou.
+        className={"am-card" + (openId ? " open" : "") + (morphing ? " morphing" : "")}
         id="amCard"
         onMouseEnter={clearCloseTimer}
       >
