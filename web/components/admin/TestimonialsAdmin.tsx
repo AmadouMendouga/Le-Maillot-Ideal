@@ -4,6 +4,7 @@
 // champ s'enregistre directement dans Firestore (débounce léger sur le texte pour
 // éviter une écriture par frappe) — plus de brouillon local à publier plus tard.
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
@@ -14,8 +15,9 @@ import {
   setTestimonialImageAction,
   updateTestimonialAction,
 } from "@/lib/actions/testimonials";
+import { approveTestimonialSubmissionAction, rejectTestimonialSubmissionAction } from "@/lib/actions/orders";
 import { uploadAdminImage, SQUARE_TRANSFORMATION } from "@/lib/cloudinaryUpload";
-import type { Testimonial } from "@/lib/types";
+import type { Testimonial, TestimonialSubmission } from "@/lib/types";
 
 function TestimonialCard({
   testimonial,
@@ -89,7 +91,56 @@ function TestimonialCard({
   );
 }
 
-export function TestimonialsAdmin({ initialTestimonials }: { initialTestimonials: Testimonial[] }) {
+function PendingSubmissionCard({
+  submission,
+  onApprove,
+  onReject,
+  busy,
+}: {
+  submission: TestimonialSubmission;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="adm-tcard">
+      <div className="top">
+        {submission.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={submission.photoUrl} alt="" />
+        ) : (
+          <div className="adm-thumb" aria-hidden="true" />
+        )}
+        <div style={{ flex: 1 }}>
+          <strong>{submission.name}</strong>
+          {submission.designation ? <div className="sub">{submission.designation}</div> : null}
+        </div>
+      </div>
+      <p style={{ margin: "0 0 12px", fontSize: ".88rem" }}>{submission.quote}</p>
+      <div className="adm-row-actions">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => onApprove(submission.id)}>
+          <Icon name="check-circle" size="sm" />
+          Approuver
+        </button>
+        <button type="button" className="icon-btn danger" aria-label="Rejeter" disabled={busy} onClick={() => onReject(submission.id)}>
+          <Icon name="close" size="sm" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function TestimonialsAdmin({
+  initialTestimonials,
+  initialPendingSubmissions,
+}: {
+  initialTestimonials: Testimonial[];
+  initialPendingSubmissions: TestimonialSubmission[];
+}) {
+  const router = useRouter();
+  const [pendingSubmissions, setPendingSubmissions] = useState(initialPendingSubmissions);
+  const [pendingBusyId, setPendingBusyId] = useState<string | null>(null);
+
   const [testimonials, setTestimonials] = useState(initialTestimonials);
   const [busyId, setBusyId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +152,33 @@ export function TestimonialsAdmin({ initialTestimonials }: { initialTestimonials
     });
     return unsub;
   }, []);
+
+  async function approveSubmission(id: string) {
+    setPendingBusyId(id);
+    try {
+      const result = await approveTestimonialSubmissionAction(id);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      setPendingSubmissions((list) => list.filter((s) => s.id !== id));
+      showToast("Avis publié", "check-circle");
+      router.refresh();
+    } finally {
+      setPendingBusyId(null);
+    }
+  }
+  async function rejectSubmission(id: string) {
+    if (!confirm("Rejeter cet avis ? Il ne sera jamais publié.")) return;
+    setPendingBusyId(id);
+    try {
+      await rejectTestimonialSubmissionAction(id);
+      setPendingSubmissions((list) => list.filter((s) => s.id !== id));
+      showToast("Avis rejeté", "delete");
+    } finally {
+      setPendingBusyId(null);
+    }
+  }
 
   async function addTestimonial() {
     await addTestimonialAction();
@@ -151,6 +229,29 @@ export function TestimonialsAdmin({ initialTestimonials }: { initialTestimonials
           d&apos;utiliser son nom ou son visage.
         </div>
       </div>
+
+      {pendingSubmissions.length > 0 ? (
+        <>
+          <h2 style={{ fontSize: "1rem", margin: "0 0 12px" }}>
+            En attente de validation
+            <span className="cnt" style={{ marginLeft: 8 }}>
+              {pendingSubmissions.length}
+            </span>
+          </h2>
+          <div className="adm-testi" style={{ marginBottom: 28 }}>
+            {pendingSubmissions.map((s) => (
+              <PendingSubmissionCard
+                key={s.id}
+                submission={s}
+                onApprove={approveSubmission}
+                onReject={rejectSubmission}
+                busy={pendingBusyId === s.id}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
       <div className="adm-toolbar">
         <button type="button" className="btn btn-tonal btn-sm" onClick={addTestimonial}>
           <Icon name="add" size="sm" />

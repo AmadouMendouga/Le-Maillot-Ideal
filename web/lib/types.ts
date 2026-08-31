@@ -55,6 +55,30 @@ export interface Testimonial {
   order: number;
 }
 
+export type OrderStatus = "confirmee" | "livree";
+
+export interface Order {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  orderSummary: string;
+  status: OrderStatus;
+  createdAt: string;
+  deliveredAt: string | null;
+  reviewToken: string | null;
+  reviewSubmitted: boolean;
+}
+
+export interface TestimonialSubmission {
+  id: string;
+  orderId: string;
+  name: string;
+  designation: string;
+  quote: string;
+  photoUrl: string;
+  submittedAt: string;
+}
+
 export interface DeliveryRow {
   zone: string;
   delay: string;

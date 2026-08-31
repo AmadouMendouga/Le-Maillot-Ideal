@@ -26,7 +26,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Tout le reste (futures collections orders/users en Phase 2/3) : fermé par
+    // Commandes et avis en attente de validation (addendum suivi de commandes) :
+    // fermées en lecture ET en écriture, y compris pour un client authentifié —
+    // tout accès (dont la page publique /avis/[token]) passe par une Server
+    // Action (Admin SDK), jamais par une lecture Firestore directe. Un client ne
+    // doit jamais pouvoir lister les commandes ou lire l'avis d'un autre.
+    match /orders/{orderId} {
+      allow read, write: if false;
+    }
+    match /testimonialSubmissions/{submissionId} {
+      allow read, write: if false;
+    }
+
+    // Tout le reste (futures collections users en Phase 2/3) : fermé par
     // défaut tant que la logique n'est pas explicitement écrite ici.
     match /{document=**} {
       allow read, write: if false;

@@ -599,6 +599,23 @@ html[data-theme="dark"] .contact-card { background: var(--surface-container-low)
 .form-row textarea { min-height: 110px; resize: vertical; }
 .form-note { font-size: .76rem; color: var(--on-surface-variant); margin-top: 10px; font-weight: 400; }
 
+/* Dépôt d'avis (/avis/[token]) : addendum suivi de commandes. */
+.review-photo-picker {
+  display: flex; align-items: center; gap: 14px; padding: 12px;
+  border: 1px dashed var(--outline-variant); border-radius: var(--r-item);
+  cursor: pointer; background: var(--surface-container-high); width: 100%; text-align: left;
+}
+.review-photo-picker img { width: 52px; height: 52px; border-radius: var(--r-item); object-fit: cover; flex-shrink: 0; }
+.review-photo-picker .ic {
+  width: 52px; height: 52px; border-radius: var(--r-item); flex-shrink: 0;
+  background: var(--primary-container); color: var(--on-primary-container);
+  display: flex; align-items: center; justify-content: center;
+}
+.review-photo-picker span { font-size: .85rem; color: var(--on-surface-variant); }
+.review-thanks { text-align: center; padding: 30px 0; }
+.review-thanks .icon-xl { color: var(--secondary); margin-bottom: 10px; }
+.review-thanks h3 { margin: 0 0 8px; }
+
 .social-row { display: flex; gap: 8px; margin-top: 16px; }
 .social-row a {
   width: 40px; height: 40px; border-radius: var(--r-item);

@@ -12,13 +12,14 @@ interface TabDef {
   href: string;
   label: string;
   icon: IconName;
-  countKey?: "products" | "gallery" | "testimonials";
+  countKey?: "products" | "gallery" | "testimonials" | "orders";
 }
 
 const TABS: TabDef[] = [
   { href: "/admin", label: "Produits", icon: "inventory", countKey: "products" },
   { href: "/admin/galerie", label: "Photothèque", icon: "photo-library", countKey: "gallery" },
   { href: "/admin/avis", label: "Avis", icon: "star", countKey: "testimonials" },
+  { href: "/admin/commandes", label: "Commandes", icon: "shipping", countKey: "orders" },
   { href: "/admin/textes", label: "Textes du site", icon: "edit" },
 ];
 

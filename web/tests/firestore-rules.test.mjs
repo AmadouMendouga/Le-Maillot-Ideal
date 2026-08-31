@@ -77,8 +77,22 @@ test("écriture directe refusée même pour un compte portant le custom claim ad
   await assertFails(setDoc(doc(db, "testimonials", "avis-nouveau"), { name: "Faux avis" }));
 });
 
-test("collections non prévues (ex. futures commandes/comptes) refusées en lecture et en écriture", async () => {
+test("commandes et avis en attente refusés en lecture et en écriture, même pour un admin authentifié", async () => {
+  // orders/testimonialSubmissions ne sont jamais lus par le SDK client, même
+  // par l'admin — la page /avis/[token] et l'onglet Commandes passent tous les
+  // deux par des Server Actions (Admin SDK). Voir l'addendum du plan.
+  const anon = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(anon, "orders", "commande-test")));
+  await assertFails(setDoc(doc(anon, "orders", "commande-test"), { total: 1 }));
+  await assertFails(getDoc(doc(anon, "testimonialSubmissions", "avis-test")));
+
+  const admin = testEnv.authenticatedContext("admin-uid", { admin: true }).firestore();
+  await assertFails(getDoc(doc(admin, "orders", "commande-test")));
+  await assertFails(setDoc(doc(admin, "testimonialSubmissions", "avis-test"), { name: "x" }));
+});
+
+test("collections non prévues (ex. futurs comptes clients) refusées en lecture et en écriture", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
-  await assertFails(getDoc(doc(db, "orders", "commande-test")));
-  await assertFails(setDoc(doc(db, "orders", "commande-test"), { total: 1 }));
+  await assertFails(getDoc(doc(db, "users", "compte-test")));
+  await assertFails(setDoc(doc(db, "users", "compte-test"), { role: "admin" }));
 });
