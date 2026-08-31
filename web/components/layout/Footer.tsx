@@ -85,7 +85,7 @@ export function Footer({ leagues, settings }: { leagues: League[]; settings: Sit
             <ul>
               <li>
                 <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener">
-                  <Icon name="chat" size="sm" />
+                  <Icon name="whatsapp" size="sm" />
                   <span>{settings.whatsappDisplay}</span>
                 </a>
               </li>

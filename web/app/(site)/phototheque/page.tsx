@@ -118,7 +118,7 @@ export default async function PhototequePage() {
                 rel="noopener"
                 onRun={() => wait(700)}
               >
-                <Icon name="chat" />
+                <Icon name="whatsapp" />
                 Nous contacter sur WhatsApp
               </StatefulButton>
             </div>

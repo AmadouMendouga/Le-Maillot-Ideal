@@ -8,7 +8,7 @@ export const ICON_NAMES = [
   "phone", "photo-library", "print", "publish", "qr-scanner", "refresh",
   "remove", "ruler", "save", "schedule", "search", "settings", "shield",
   "shipping", "soccer", "sort", "star", "star-fill", "star-half",
-  "storefront", "swap", "tune", "verified", "visibility", "zoom",
+  "storefront", "swap", "tune", "verified", "visibility", "whatsapp", "zoom",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];

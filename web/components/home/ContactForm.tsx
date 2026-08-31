@@ -74,7 +74,7 @@ export function ContactForm({ settings }: { settings: SiteSettings }) {
         onValidate={validate}
         onRun={() => wait(800)}
       >
-        <Icon name="chat" />
+        <Icon name="whatsapp" />
         Envoyer sur WhatsApp
       </StatefulButton>
       <p className="form-note">

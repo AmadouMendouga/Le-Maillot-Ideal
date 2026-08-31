@@ -11,7 +11,7 @@ export function WhatsAppFloat({ settings }: { settings: SiteSettings }) {
       rel="noopener"
       aria-label="Nous contacter sur WhatsApp"
     >
-      <Icon name="chat" />
+      <Icon name="whatsapp" />
     </a>
   );
 }

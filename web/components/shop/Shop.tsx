@@ -144,7 +144,7 @@ export function Shop({
             )}
 
             <a className="btn btn-tonal btn-block" href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener">
-              <Icon name="chat" size="sm" />
+              <Icon name="whatsapp" size="sm" />
               Une question ?
             </a>
           </div>

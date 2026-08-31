@@ -65,8 +65,8 @@
 
   --hero-bg: #6259f5;
   --hero-fg: #ffffff;
-  --whatsapp: #075e54;            /* couleur exacte du bouton facture WhatsApp */
-  --whatsapp-hover: #0a7365;
+  --whatsapp: #22c55e;            /* vert du site de référence le-maillot-ideal.com (grass-500) */
+  --whatsapp-hover: #16a34a;      /* grass-600 */
 
   /* formes (CardTheme / ElevatedButtonTheme / InputDecorationTheme) */
   --r-card: 16px;
@@ -128,8 +128,8 @@ html[data-theme="dark"] {
 
   --hero-bg: #332c7a;
   --hero-fg: #e8e5ff;
-  --whatsapp: #075e54;          /* même vert qu'en thème clair */
-  --whatsapp-hover: #0a7365;
+  --whatsapp: #22c55e;          /* même vert qu'en thème clair */
+  --whatsapp-hover: #16a34a;
 
   /* en sombre l'app passe les cartes en elevation 0 */
   --e1: none;
@@ -192,7 +192,7 @@ p { margin: 0 0 1em; }
 .btn:active { transform: scale(.985); }
 .btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: var(--e8); }
 .btn-primary:hover { background: color-mix(in srgb, var(--primary) 88%, #000); }
-.btn-whatsapp { background: var(--whatsapp); color: #fff; box-shadow: 0 6px 18px rgba(7, 94, 84, .3); }
+.btn-whatsapp { background: var(--whatsapp); color: #fff; box-shadow: 0 6px 18px rgba(34, 197, 94, .3); }
 .btn-whatsapp:hover { background: var(--whatsapp-hover); }
 .btn-tonal { background: var(--primary-container); color: var(--on-primary-container); }
 .btn-tonal:hover { background: color-mix(in srgb, var(--primary-container) 88%, var(--primary)); }

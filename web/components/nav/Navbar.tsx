@@ -33,7 +33,7 @@ export function Navbar({ leagues, products, settings }: NavbarProps) {
             <Icon name="shipping" size="sm" /> <span>{settings.topbarInfo}</span>
           </span>
           <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener">
-            <Icon name="chat" size="sm" /> <span>{settings.topbarHelp}</span>
+            <Icon name="whatsapp" size="sm" /> <span>{settings.topbarHelp}</span>
           </a>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function Navbar({ leagues, products, settings }: NavbarProps) {
                 rel="noopener"
                 onRun={() => wait(600)}
               >
-                <Icon name="chat" size="sm" />
+                <Icon name="whatsapp" size="sm" />
                 Commander
               </StatefulButton>
               <MobileNav />

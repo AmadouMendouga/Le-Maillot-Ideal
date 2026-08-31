@@ -147,7 +147,7 @@ export function ProductDetail({ product, settings }: { product: Product; setting
           </StatefulButton>
           {canOrder ? (
             <StatefulButton className="btn btn-whatsapp btn-lg" href={whatsappLink} target="_blank" rel="noopener" onRun={() => wait(600)}>
-              <Icon name="chat" />
+              <Icon name="whatsapp" />
               Commander sur WhatsApp
             </StatefulButton>
           ) : (
@@ -157,7 +157,7 @@ export function ProductDetail({ product, settings }: { product: Product; setting
               tabIndex={-1}
               onClick={() => showToast(`${product.name} est indisponible`, "error", true)}
             >
-              <Icon name="chat" />
+              <Icon name="whatsapp" />
               Indisponible
             </button>
           )}

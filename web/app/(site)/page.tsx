@@ -77,7 +77,7 @@ export default async function HomePage() {
                 Voir la boutique
               </Link>
               <a className="btn btn-outline btn-lg" href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener">
-                <Icon name="chat" />
+                <Icon name="whatsapp" />
                 Commander sur WhatsApp
               </a>
             </div>
@@ -110,7 +110,7 @@ export default async function HomePage() {
           <div className="services-grid">
             <div className="service-item">
               <span className="ic">
-                <Icon name="chat" size="lg" />
+                <Icon name="whatsapp" size="lg" />
               </span>
               <div>
                 <h4>Commande WhatsApp</h4>
@@ -285,7 +285,7 @@ export default async function HomePage() {
                   Basé au Cameroun
                 </span>
                 <span>
-                  <Icon name="chat" size="sm" />
+                  <Icon name="whatsapp" size="sm" />
                   Joignable directement sur WhatsApp
                 </span>
               </div>
@@ -325,7 +325,7 @@ export default async function HomePage() {
               <ul className="contact-list">
                 <li>
                   <span className="ic">
-                    <Icon name="chat" />
+                    <Icon name="whatsapp" />
                   </span>
                   <div>
                     <strong>WhatsApp</strong>

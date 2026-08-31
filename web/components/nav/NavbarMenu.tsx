@@ -86,7 +86,7 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
       )}
       <div className="am-sep" />
       <a href={`https://wa.me/${whatsappNumber(settings)}`} target="_blank" rel="noopener">
-        <Icon name="chat" size="sm" />
+        <Icon name="whatsapp" size="sm" />
         Commander sur WhatsApp
       </a>
     </div>
