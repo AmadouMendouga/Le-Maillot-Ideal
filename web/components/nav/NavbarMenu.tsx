@@ -119,7 +119,7 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
               <div>
                 <h4>{league.label}</h4>
                 <p>
-                  {count} maillot{count > 1 ? "s" : ""} en catalogue, saison 2026/2027
+                  {count} maillot{count > 1 ? "s" : ""}
                 </p>
               </div>
             </Link>
@@ -368,6 +368,12 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
             ref={(el) => {
               ghostRefs.current[menu.id] = el;
             }}
+            // "am-card-inner" (pas juste un div nu) : la vraie carte applique son
+            // padding de 16px via cette classe (voir plus bas). Sans elle, la
+            // mesure ici sous-estime systématiquement la taille réelle du
+            // panneau de ~32px dans les deux axes, et le contenu déborde ensuite
+            // de la vraie carte — qui a overflow:hidden — coupant le dernier lien.
+            className="am-card-inner"
             style={{ position: "absolute", top: 0, left: 0 }}
           >
             {menu.renderPanel()}
