@@ -37,6 +37,12 @@ service cloud.firestore {
     match /testimonialSubmissions/{submissionId} {
       allow read, write: if false;
     }
+    // Comptes clients (addendum 2). Comme orders, tout accès passe par les
+    // Server Actions (Admin SDK) — même un client connecté ne lit jamais son
+    // propre profil directement via le SDK client.
+    match /customers/{uid} {
+      allow read, write: if false;
+    }
 
     // Tout le reste (futures collections users en Phase 2/3) : fermé par
     // défaut tant que la logique n'est pas explicitement écrite ici.

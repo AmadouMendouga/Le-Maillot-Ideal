@@ -57,6 +57,12 @@ export interface Testimonial {
 
 export type OrderStatus = "confirmee" | "livree";
 
+export interface OrderItem {
+  slug: string;
+  size: string;
+  qty: number;
+}
+
 export interface Order {
   id: string;
   customerName: string;
@@ -67,6 +73,16 @@ export interface Order {
   deliveredAt: string | null;
   reviewToken: string | null;
   reviewSubmitted: boolean;
+  uid: string | null;
+  items?: OrderItem[];
+  total?: number;
+}
+
+export interface Customer {
+  uid: string;
+  name: string;
+  phone: string;
+  createdAt: string;
 }
 
 export interface TestimonialSubmission {

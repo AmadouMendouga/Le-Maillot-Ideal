@@ -16,3 +16,16 @@ export const getPendingTestimonialSubmissions = cache(async (): Promise<Testimon
   const snap = await adminDb.collection("testimonialSubmissions").orderBy("submittedAt", "desc").get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TestimonialSubmission, "id">) }));
 });
+
+// Addendum 2 : historique de commandes d'un client. Filtrée côté serveur par
+// uid (jamais par le SDK client, fermé en lecture) — un client ne voit donc
+// jamais que ses propres commandes. Tri fait ici plutôt qu'avec .orderBy() :
+// where("uid")+orderBy("createdAt") sur des champs différents demanderait un
+// index composite à déployer (même friction que firestore.rules) — inutile
+// vu le volume par client.
+export const getOrdersForCustomer = cache(async (uid: string): Promise<Order[]> => {
+  const snap = await adminDb.collection("orders").where("uid", "==", uid).get();
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, "id">) }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+});

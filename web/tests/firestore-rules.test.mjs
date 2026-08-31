@@ -91,7 +91,20 @@ test("commandes et avis en attente refusés en lecture et en écriture, même po
   await assertFails(setDoc(doc(admin, "testimonialSubmissions", "avis-test"), { name: "x" }));
 });
 
-test("collections non prévues (ex. futurs comptes clients) refusées en lecture et en écriture", async () => {
+test("comptes clients refusés en lecture et en écriture, même pour le propriétaire du compte", async () => {
+  // customers/{uid} (addendum 2) : même garantie que orders — tout passe par
+  // des Server Actions (Admin SDK), y compris pour le client lui-même en
+  // lisant son propre profil.
+  const anon = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(anon, "customers", "client-test")));
+  await assertFails(setDoc(doc(anon, "customers", "client-test"), { name: "x" }));
+
+  const owner = testEnv.authenticatedContext("client-test").firestore();
+  await assertFails(getDoc(doc(owner, "customers", "client-test")));
+  await assertFails(setDoc(doc(owner, "customers", "client-test"), { name: "x" }));
+});
+
+test("collections non prévues refusées en lecture et en écriture", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
   await assertFails(getDoc(doc(db, "users", "compte-test")));
   await assertFails(setDoc(doc(db, "users", "compte-test"), { role: "admin" }));

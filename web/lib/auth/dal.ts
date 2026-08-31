@@ -38,3 +38,33 @@ export async function requireAdminOrRedirect() {
     redirect("/admin/connexion");
   }
 }
+
+/**
+ * Miroir de verifyAdminSession() pour les comptes clients (addendum 2) — cookie
+ * séparé (`customer_session`, posé par app/api/customer-session/route.ts), donc
+ * aucun risque de confusion avec une session admin. Pas de contrôle de custom
+ * claim ici : tout compte qui s'authentifie avec succès via ce cookie est un
+ * client, il n'y a pas de rôle à vérifier.
+ */
+export const verifyCustomerSession = cache(async () => {
+  const sessionCookie = (await cookies()).get("customer_session")?.value;
+  if (!sessionCookie) throw new AuthError("Aucune session.");
+
+  let decoded;
+  try {
+    decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+  } catch {
+    throw new AuthError("Session invalide ou expirée.");
+  }
+
+  return { uid: decoded.uid, email: decoded.email ?? null };
+});
+
+/** Variante pour les Server Components de page : redirige plutôt que de jeter. */
+export async function requireCustomerOrRedirect() {
+  try {
+    return await verifyCustomerSession();
+  } catch {
+    redirect("/compte/connexion");
+  }
+}

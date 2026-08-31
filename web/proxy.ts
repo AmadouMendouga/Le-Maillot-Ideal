@@ -7,16 +7,30 @@ import { NextResponse, type NextRequest } from "next/server";
  * fait réellement autorité vit dans web/lib/auth/dal.ts et s'exécute près de
  * la donnée, jamais ici.
  */
-export function proxy(request: NextRequest) {
-  const hasSession = request.cookies.has("session");
+const COMPTE_PUBLIC_PATHS = ["/compte/connexion", "/compte/inscription"];
 
-  if (!hasSession && request.nextUrl.pathname.startsWith("/admin") && request.nextUrl.pathname !== "/admin/connexion") {
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (
+    !request.cookies.has("session") &&
+    pathname.startsWith("/admin") &&
+    pathname !== "/admin/connexion"
+  ) {
     return NextResponse.redirect(new URL("/admin/connexion", request.url));
+  }
+
+  if (
+    !request.cookies.has("customer_session") &&
+    pathname.startsWith("/compte") &&
+    !COMPTE_PUBLIC_PATHS.includes(pathname)
+  ) {
+    return NextResponse.redirect(new URL("/compte/connexion", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: "/admin/:path*",
+  matcher: ["/admin/:path*", "/compte/:path*"],
 };

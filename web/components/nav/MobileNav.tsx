@@ -20,6 +20,7 @@ const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: "/#championnats", label: "Championnats", icon: "inventory" },
   { href: "/#faq", label: "Aide", icon: "info" },
   { href: "/#contact", label: "Contact", icon: "person" },
+  { href: "/compte", label: "Mon compte", icon: "verified" },
 ];
 
 export function MobileNav() {

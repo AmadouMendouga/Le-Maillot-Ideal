@@ -54,6 +54,9 @@ export function Navbar({ leagues, products, settings }: NavbarProps) {
             <NavbarMenu shellRef={shellRef} leagues={leagues} products={products} settings={settings} />
 
             <div className="header-actions">
+              <Link href="/compte" className="icon-btn plain" aria-label="Mon compte">
+                <Icon name="person" />
+              </Link>
               <ThemeToggle />
               <button
                 className="cart-btn"

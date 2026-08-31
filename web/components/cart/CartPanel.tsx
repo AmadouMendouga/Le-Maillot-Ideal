@@ -5,6 +5,8 @@ import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
 import { showToast } from "@/components/Toast";
 import { useCart } from "@/components/cart/CartContext";
+import { auth } from "@/lib/firebase/client";
+import { createCustomerOrderAction } from "@/lib/actions/orders";
 import { FCFA, freeShippingThreshold } from "@/lib/cart";
 import type { SiteSettings } from "@/lib/types";
 
@@ -12,6 +14,24 @@ const DELIVERY_CHECK_DELAY = 1400;
 
 export function CartPanel({ settings }: { settings: SiteSettings }) {
   const { details, count, total, isPanelOpen, whatsappLink, removeFromCart, changeQty, closePanel } = useCart();
+
+  // Best effort : si un client est connecté (addendum 2), on enregistre aussi
+  // la commande côté serveur pour qu'elle apparaisse dans « Mes commandes ».
+  // N'affecte jamais le lien wa.me ni ne bloque la commande WhatsApp si ça
+  // échoue — c'est ce canal-là qui compte réellement pour le client.
+  async function recordCustomerOrder() {
+    if (!auth.currentUser) return;
+    try {
+      const orderSummary = details.map((d) => `${d.qty}x ${d.product.name} (${d.size})`).join(", ");
+      await createCustomerOrderAction({
+        items: details.map((d) => ({ slug: d.slug, size: d.size, qty: d.qty })),
+        orderSummary,
+        total,
+      });
+    } catch {
+      // silencieux — voir le commentaire ci-dessus
+    }
+  }
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [deliveryChecking, setDeliveryChecking] = useState(false);
@@ -215,7 +235,9 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
           showToast("Votre panier est vide", "error", true);
           return false;
         }}
-        onRun={() => new Promise<void>((r) => setTimeout(r, 700))}
+        onRun={async () => {
+          await Promise.all([recordCustomerOrder(), new Promise<void>((r) => setTimeout(r, 700))]);
+        }}
       >
         <span>Commander sur WhatsApp</span>
         <span className="right">

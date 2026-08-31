@@ -9,12 +9,12 @@
 // navigateur (CLAUDE.md §12).
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { verifyAdminSession } from "@/lib/auth/dal";
+import { verifyAdminSession, verifyCustomerSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import { signUpload } from "@/lib/cloudinary";
 import { SQUARE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 import type { UploadSignature } from "@/lib/actions/upload";
-import type { Order, TestimonialSubmission } from "@/lib/types";
+import type { Order, OrderItem, TestimonialSubmission } from "@/lib/types";
 
 async function findOrderByToken(token: string): Promise<(Order & { id: string }) | null> {
   const cleanToken = String(token || "").trim();
@@ -57,6 +57,49 @@ export async function createOrderAction(
     deliveredAt: null,
     reviewToken: null,
     reviewSubmitted: false,
+    uid: null,
+  });
+
+  return { ok: true, id: ref.id };
+}
+
+// --- Client connecté (verifyCustomerSession) ----------------------------
+
+export interface CreateCustomerOrderInput {
+  items: OrderItem[];
+  orderSummary: string;
+  total: number;
+}
+
+// Appelée depuis CartPanel au clic sur « Commander sur WhatsApp », en plus de
+// l'ouverture du lien wa.me (jamais à la place) — voir l'addendum 2. Best
+// effort : si ça échoue, la commande WhatsApp reste le canal qui compte,
+// l'appelant n'affiche pas d'erreur au client pour ça.
+export async function createCustomerOrderAction(
+  input: CreateCustomerOrderInput
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const session = await verifyCustomerSession();
+
+  if (!Array.isArray(input.items) || input.items.length === 0) {
+    return { ok: false, error: "Panier vide." };
+  }
+
+  const profileSnap = await adminDb.collection("customers").doc(session.uid).get();
+  if (!profileSnap.exists) return { ok: false, error: "Profil introuvable." };
+  const profile = profileSnap.data() as { name: string; phone: string };
+
+  const ref = await adminDb.collection("orders").add({
+    customerName: profile.name,
+    customerPhone: profile.phone,
+    orderSummary: input.orderSummary.trim(),
+    items: input.items,
+    total: input.total,
+    status: "confirmee",
+    createdAt: new Date().toISOString(),
+    deliveredAt: null,
+    reviewToken: null,
+    reviewSubmitted: false,
+    uid: session.uid,
   });
 
   return { ok: true, id: ref.id };
