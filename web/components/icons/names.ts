@@ -1,4 +1,4 @@
-// Généré depuis les symboles présents dans sprite-content.ts (js/icons.js).
+// Généré depuis les symboles présents dans sprite-content.ts (Phosphor Icons).
 export const ICON_NAMES = [
   "add", "arrow-back", "arrow-forward", "basket", "bolt", "cart", "chat",
   "check-circle", "chevron-left", "chevron-right", "close", "cloud-off",
