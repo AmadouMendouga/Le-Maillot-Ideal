@@ -14,17 +14,19 @@ import { showToast } from "@/components/Toast";
 import { updateProductAction } from "@/lib/actions/products";
 import { uploadAdminImage, SQUARE_TRANSFORMATION } from "@/lib/cloudinaryUpload";
 import { productPatchError } from "@/lib/validation";
-import type { Kit, Product } from "@/lib/types";
+import type { Kit, League, Product } from "@/lib/types";
 
 const SIZES = ["S", "M", "L", "XL", "2XL"];
 const KITS: Kit[] = ["Domicile", "Extérieur", "Third"];
 
 export function ProductEditDrawer({
   product,
+  leagues,
   open,
   onClose,
 }: {
   product: Product | null;
+  leagues: League[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -34,6 +36,7 @@ export function ProductEditDrawer({
   const [name, setName] = useState(product?.name ?? "");
   const [team, setTeam] = useState(product?.team ?? "");
   const [kit, setKit] = useState<Kit>(product?.kit ?? KITS[0]);
+  const [league, setLeague] = useState(product?.league ?? leagues[0]?.key ?? "");
   const [season, setSeason] = useState(product?.season ?? "");
   const [price, setPrice] = useState(product ? String(product.price) : "");
   const [priceOriginal, setPriceOriginal] = useState(product ? String(product.priceOriginal) : "");
@@ -93,7 +96,7 @@ export function ProductEditDrawer({
         });
         images = { square };
       }
-      const result = await updateProductAction({ slug: product.slug, ...patch, images });
+      const result = await updateProductAction({ slug: product.slug, ...patch, league, images });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -147,6 +150,17 @@ export function ProductEditDrawer({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="adm-field">
+            <label>Championnat</label>
+            <select value={league} onChange={(e) => setLeague(e.target.value)}>
+              {leagues.map((l) => (
+                <option key={l.key} value={l.key}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="adm-grid3">

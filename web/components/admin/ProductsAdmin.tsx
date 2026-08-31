@@ -10,6 +10,8 @@ import { db } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
 import { FCFA } from "@/lib/cart";
 import { ProductEditDrawer } from "@/components/admin/ProductEditDrawer";
+import { ProductCreateDrawer } from "@/components/admin/ProductCreateDrawer";
+import { LeaguesManager } from "@/components/admin/LeaguesManager";
 import type { League, Product } from "@/lib/types";
 
 function StockBadge({ product }: { product: Product }) {
@@ -43,6 +45,8 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [displaySlug, setDisplaySlug] = useState<string | null>(null);
   const [openNonce, setOpenNonce] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [managingLeagues, setManagingLeagues] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "products"), (snap) => {
@@ -79,6 +83,14 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
   return (
     <section>
       <div className="adm-toolbar">
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+          <Icon name="add" size="sm" />
+          Ajouter un maillot
+        </button>
+        <button type="button" className="btn btn-tonal btn-sm" onClick={() => setManagingLeagues(true)}>
+          <Icon name="storefront" size="sm" />
+          Gérer les championnats
+        </button>
         <span className="field-wrap grow">
           <Icon name="search" />
           <input
@@ -199,9 +211,17 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
       <ProductEditDrawer
         key={displaySlug + ":" + openNonce}
         product={displayProduct}
+        leagues={leagues}
         open={editingSlug !== null}
         onClose={closeEditor}
       />
+      <ProductCreateDrawer
+        leagues={leagues}
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreated={openEditor}
+      />
+      <LeaguesManager leagues={leagues} open={managingLeagues} onClose={() => setManagingLeagues(false)} />
     </section>
   );
 }
