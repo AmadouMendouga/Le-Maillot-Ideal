@@ -25,47 +25,53 @@
   src: url("/fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2");
 }
 
-/* ---------- Tokens Material 3 (thème clair = AppTheme.lightTheme) ---------- */
+/* ---------- Tokens (thème clair) — palette du site de référence
+   le-maillot-ideal.com : vert « grass » comme accent principal, neutres
+   « pitch » (navy quasi noir) pour le texte et le hero, orange « flame »
+   pour les promos. Extraite le 31/08/2026 depuis les classes Tailwind et
+   variables --color-* réellement chargées par ce site (pas une
+   approximation) ; les rôles Material (--primary, --secondary…) sont
+   conservés pour ne pas casser les composants, mais pointent maintenant
+   vers cette palette plutôt que le seed violet #6259f5 de l'app Flutter. ---------- */
 :root {
-  /* couleurs figées dans AppTheme */
-  --primary: #6259f5;
+  --primary: #22c55e;             /* grass-500 */
   --on-primary: #ffffff;
-  --primary-container: #e4e0ff;
-  --on-primary-container: #191357;
-  --primary-fixed-dim: #cac6ff;
+  --primary-container: #dcfce7;   /* grass-100 */
+  --on-primary-container: #14532d;
+  --primary-fixed-dim: #86efac;   /* grass-300 */
 
-  --secondary: #075e54;          /* aligné sur le vert WhatsApp */
+  --secondary: #16a34a;           /* grass-600 */
   --on-secondary: #ffffff;
-  --secondary-container: #9ff2e3;
-  --on-secondary-container: #00201c;
+  --secondary-container: #bbf7d0; /* grass-200 */
+  --on-secondary-container: #14532d;
 
-  --tertiary: #7a5900;
-  --tertiary-container: #ffdea6;
-  --on-tertiary-container: #271900;
+  --tertiary: #ff6b00;            /* flame — couleur promo du site de référence */
+  --tertiary-container: #ffe4cc;
+  --on-tertiary-container: #7c2d00;
 
-  --error: #b3261e;
+  --error: #ef4444;
   --on-error: #ffffff;
-  --error-container: #f9dedc;
-  --on-error-container: #410e0b;
+  --error-container: #fee2e2;
+  --on-error-container: #7f1d1d;
 
-  --background: #f2f2f7;          /* AppTheme.backgroundColor */
-  --surface: #ffffff;             /* AppTheme.surfaceColor */
+  --background: #f4f6fb;          /* pitch-50 */
+  --surface: #ffffff;
   --surface-container-lowest: #ffffff;
-  --surface-container-low: #f7f4fc;
-  --surface-container: #f1eef8;
-  --surface-container-high: #ebe7f3;
-  --surface-container-highest: #e5e1ee;
+  --surface-container-low: #f8f9fc;
+  --surface-container: #f4f6fb;   /* pitch-50 */
+  --surface-container-high: #e6eaf4;   /* pitch-100 */
+  --surface-container-highest: #cdd6e8; /* pitch-200 */
 
-  --on-surface: #1c1b22;
-  --on-surface-variant: #48464f;
-  --outline: #79767f;
-  --outline-variant: #cac4d0;
-  --inverse-surface: #313036;
-  --on-inverse-surface: #f4eff7;
+  --on-surface: #1e2440;          /* pitch-900 */
+  --on-surface-variant: #48598c;  /* pitch-600 (plus lisible que pitch-400 en texte) */
+  --outline: #7b90be;             /* pitch-400 */
+  --outline-variant: #cdd6e8;     /* pitch-200 */
+  --inverse-surface: #12162b;     /* pitch-950 */
+  --on-inverse-surface: #f4f6fb;
 
-  --hero-bg: #6259f5;
+  --hero-bg: #12162b;             /* pitch-950 — identique au bandeau du site de référence */
   --hero-fg: #ffffff;
-  --whatsapp: #22c55e;            /* vert du site de référence le-maillot-ideal.com (grass-500) */
+  --whatsapp: #22c55e;            /* grass-500 */
   --whatsapp-hover: #16a34a;      /* grass-600 */
 
   /* formes (CardTheme / ElevatedButtonTheme / InputDecorationTheme) */
@@ -78,60 +84,62 @@
   --r-sheet: 24px;
   --r-pill: 999px;
 
-  /* élévations Material */
+  /* élévations */
   --e1: 0 1px 2px rgba(0, 0, 0, .08);
   --e2: 0 2px 4px rgba(0, 0, 0, .08);
   --e4: 0 4px 12px rgba(0, 0, 0, .10);
-  --e8: 0 8px 22px rgba(98, 89, 245, .28);
+  --e8: 0 8px 22px rgba(34, 197, 94, .28);
   --e-up: 0 -4px 10px rgba(0, 0, 0, .08);
 
   --max: 1180px;
   --appbar-h: 64px;
 }
 
-/* ---------- Thème sombre (= AppTheme.darkTheme) ---------- */
+/* ---------- Thème sombre — le site de référence n'en a pas, celui-ci est
+   dérivé de la même palette « pitch »/« grass »/« flame » pour rester
+   cohérent : pitch-950 (déjà la couleur du hero en clair) devient le fond,
+   le vert s'éclaircit (grass-400) pour rester lisible sur fond sombre. ---------- */
 html[data-theme="dark"] {
-  --primary: #c6bfff;
-  --on-primary: #2c2178;
-  --primary-container: #443b90;
-  --on-primary-container: #e4e0ff;
+  --primary: #4ade80;             /* grass-400 */
+  --on-primary: #052e16;
+  --primary-container: #166534;   /* grass-800 */
+  --on-primary-container: #bbf7d0;
 
-  --secondary: #6ed6c3;
-  --on-secondary: #003731;
-  --secondary-container: #00504700;
-  --secondary-container: #005047;
-  --on-secondary-container: #9ff2e3;
+  --secondary: #4ade80;
+  --on-secondary: #052e16;
+  --secondary-container: #15803d; /* grass-700 */
+  --on-secondary-container: #dcfce7;
 
-  --tertiary: #ecc06c;
-  --tertiary-container: #5c4200;
-  --on-tertiary-container: #ffdea6;
+  --tertiary: #ff8c3c;            /* flame éclairci */
+  --tertiary-container: #7c2d00;
+  --on-tertiary-container: #ffe4cc;
 
   --error: #f2b8b5;
   --on-error: #601410;
   --error-container: #8c1d18;
   --on-error-container: #f9dedc;
 
-  --background: #121318;          /* AppTheme.darkBackgroundColor */
-  --surface: #1b1c23;             /* AppTheme.darkSurfaceColor */
-  --surface-container-lowest: #0d0e12;
-  --surface-container-low: #1f2028;
-  --surface-container: #24252e;
-  --surface-container-high: #2a2b35;
-  --surface-container-highest: #35363f;
+  --background: #12162b;          /* pitch-950 */
+  --surface: #1a1f38;
+  --surface-container-lowest: #0d1020;
+  --surface-container-low: #171c33;
+  --surface-container: #1e2440;   /* pitch-900 */
+  --surface-container-high: #262c4a;
+  --surface-container-highest: #333e61; /* pitch-800 */
 
-  --on-surface: #e5e1e9;
-  --on-surface-variant: #c9c5d0;
-  --outline: #948f9a;
-  --outline-variant: #48464f;
-  --inverse-surface: #e5e1e9;
-  --on-inverse-surface: #313036;
+  --on-surface: #e6eaf4;          /* pitch-100 */
+  --on-surface-variant: #a7b6d5;  /* pitch-300 */
+  --outline: #5b70a7;             /* pitch-500 */
+  --outline-variant: #3c4973;     /* pitch-700 */
+  --inverse-surface: #f4f6fb;
+  --on-inverse-surface: #12162b;
 
-  --hero-bg: #332c7a;
-  --hero-fg: #e8e5ff;
-  --whatsapp: #22c55e;          /* même vert qu'en thème clair */
+  --hero-bg: #0a0c1a;             /* plus sombre que le fond pour rester distinct */
+  --hero-fg: #ffffff;
+  --whatsapp: #22c55e;            /* même vert qu'en thème clair */
   --whatsapp-hover: #16a34a;
 
-  /* en sombre l'app passe les cartes en elevation 0 */
+  /* en sombre, cartes en elevation réduite */
   --e1: none;
   --e2: 0 1px 2px rgba(0, 0, 0, .35);
   --e4: 0 4px 12px rgba(0, 0, 0, .35);
@@ -331,9 +339,9 @@ p { margin: 0 0 1em; }
 .hero h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); margin-bottom: .3em; letter-spacing: -.8px; }
 .hero p.lead { font-size: 1rem; opacity: .92; max-width: 46ch; font-weight: 500; }
 .hero-ctas { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
-.hero .btn-primary { background: #fff; color: #4b42d6; box-shadow: 0 8px 22px rgba(0,0,0,.22); }
-.hero .btn-primary:hover { background: #f2efff; }
-html[data-theme="dark"] .hero .btn-primary { background: var(--primary); color: var(--on-primary); }
+/* .btn-primary est déjà vert (--primary) : sur le hero quasi noir du site de
+   référence, le bouton plein vert d'origine se suffit à lui-même, plus
+   besoin du bouton blanc à texte teinté qu'exigeait l'ancien hero violet. */
 .hero .btn-outline { color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.55); }
 .hero .btn-outline:hover { background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px #fff; }
 .hero-stats { display: flex; gap: 28px; margin-top: 32px; flex-wrap: wrap; }
@@ -405,19 +413,32 @@ html[data-theme="dark"] .league-card { background: var(--surface-container-low);
   transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
 }
 html[data-theme="dark"] .product-card { background: var(--surface-container-low); border-color: var(--outline-variant); }
-.product-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+.product-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: var(--e8); }
 .product-media { position: relative; background: var(--surface-container-high); aspect-ratio: 1/1; display: block; }
 .product-media img { width: 100%; height: 100%; object-fit: cover; }
 .product-badges { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 
-/* badges pilule (product_list_page.dart : radius 999 + container colors) */
+/* Sur la grille boutique, l'image reprend l'effet du site de référence
+   (léger zoom au survol de la carte, pas de pan directionnel) plutôt que
+   Direction Aware Hover — DAH reste actif ailleurs (galerie, hero, voir
+   CLAUDE.md §5.3) où le survol dirigé garde son intérêt. */
+/* !important : la règle de base .dah .dah-img (plus bas dans ce fichier,
+   même spécificité) fixe un transform piloté par --dah-x/--dah-y en JS —
+   sans !important elle l'emporterait à spécificité égale et écraserait ce
+   zoom simple à chaque mousemove. */
+.product-card .dah-img { transform: none !important; transition: transform .5s cubic-bezier(.4,.05,.35,1) !important; }
+.product-card:hover .dah-img { transform: scale(1.05) !important; }
+.product-card .dah-overlay, .product-card .dah-caption { display: none; }
+
+/* badges pilule — couleurs pleines du site de référence (grass-500 / flame),
+   plus les containers teintés Material d'origine. */
 .badge {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: .68rem; font-weight: 700; padding: 5px 10px; border-radius: var(--r-pill);
   border: 1px solid transparent;
 }
-.badge-new { background: var(--primary-container); color: var(--on-primary-container); border-color: color-mix(in srgb, var(--on-primary-container) 22%, transparent); }
-.badge-promo { background: var(--tertiary-container); color: var(--on-tertiary-container); border-color: color-mix(in srgb, var(--on-tertiary-container) 22%, transparent); }
+.badge-new { background: var(--primary); color: var(--on-primary); }
+.badge-promo { background: var(--tertiary); color: #fff; }
 .badge-stock-ok { background: var(--secondary-container); color: var(--on-secondary-container); border-color: color-mix(in srgb, var(--on-secondary-container) 22%, transparent); }
 .badge-stock-low { background: var(--tertiary-container); color: var(--on-tertiary-container); border-color: color-mix(in srgb, var(--on-tertiary-container) 22%, transparent); }
 .badge-stock-out { background: var(--error-container); color: var(--on-error-container); border-color: color-mix(in srgb, var(--on-error-container) 22%, transparent); }
@@ -431,6 +452,7 @@ html[data-theme="dark"] .product-card { background: var(--surface-container-low)
 .product-title a:hover { color: var(--primary); }
 .price-row { display: flex; align-items: baseline; gap: 8px; margin-top: auto; flex-wrap: wrap; }
 .price-now { font-size: 1.05rem; font-weight: 700; color: var(--on-surface); letter-spacing: -.4px; }
+.price-row:has(.price-old) .price-now { color: var(--secondary); }
 .price-old { font-size: .8rem; color: var(--on-surface-variant); text-decoration: line-through; font-weight: 500; }
 .discount-pill { font-size: .72rem; font-weight: 700; color: var(--secondary); }
 .product-actions { display: flex; gap: 8px; margin-top: 4px; }
