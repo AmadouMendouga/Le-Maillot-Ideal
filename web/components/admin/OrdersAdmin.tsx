@@ -139,18 +139,30 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
 
   async function requestLocation() {
     setLoading(true);
+    // Ouvert tout de suite, dans le même tick que le clic (geste utilisateur) :
+    // si l'ouverture attend la fin de getOrCreateLocationTokenAction ci-dessous,
+    // le navigateur la traite comme un pop-up non sollicité et la bloque
+    // silencieusement — d'où le « premier clic ne fait rien, le deuxième
+    // marche » (le jeton est alors déjà en cache, plus d'attente avant
+    // l'ouverture). Pas de `noopener` ici : on doit garder la référence pour
+    // naviguer l'onglet une fois le jeton prêt ; wa.me est un domaine de
+    // confiance, le compromis est sûr.
+    const newTab = window.open("about:blank", "_blank");
     try {
       let t = token;
       if (!t) {
         const result = await getOrCreateLocationTokenAction(order.id);
         if (!result.ok) {
+          newTab?.close();
           alert(result.error);
           return;
         }
         t = result.token;
         setToken(t);
       }
-      window.open(locationRequestLink(order, settings.siteUrl, t), "_blank", "noopener");
+      const url = locationRequestLink(order, settings.siteUrl, t);
+      if (newTab) newTab.location.href = url;
+      else window.open(url, "_blank");
     } finally {
       setLoading(false);
     }
