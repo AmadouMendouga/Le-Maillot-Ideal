@@ -65,6 +65,7 @@ export async function initiateCampayPaymentAction(
     customerName: profile.name,
     customerPhone: profile.phone,
     orderSummary: summaryParts.join(", "),
+    address: null,
     items: input.items,
     total,
     status: "confirmee",

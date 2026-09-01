@@ -43,6 +43,7 @@ export interface CreateOrderInput {
   customerName: string;
   customerPhone: string;
   orderSummary: string;
+  address?: string;
 }
 
 export async function createOrderAction(
@@ -64,6 +65,7 @@ export async function createOrderAction(
     customerName,
     customerPhone,
     orderSummary,
+    address: input.address?.trim() || null,
     status: "confirmee",
     createdAt: new Date().toISOString(),
     deliveredAt: null,
@@ -74,6 +76,23 @@ export async function createOrderAction(
   });
 
   return { ok: true, id: ref.id };
+}
+
+// Léger, exprès : l'adresse/zone est souvent connue seulement après coup (la
+// négociation continue sur WhatsApp après l'enregistrement de la commande),
+// donc une action à part plutôt que de forcer sa saisie à la création.
+export async function updateOrderAddressAction(
+  id: string,
+  address: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await verifyAdminSession();
+
+  const ref = adminDb.collection("orders").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
+
+  await ref.update({ address: address.trim() || null });
+  return { ok: true };
 }
 
 // --- Client connecté (verifyCustomerSession) ----------------------------
@@ -105,6 +124,7 @@ export async function createCustomerOrderAction(
     customerName: profile.name,
     customerPhone: profile.phone,
     orderSummary: input.orderSummary.trim(),
+    address: null,
     items: input.items,
     total: input.total,
     status: "confirmee",

@@ -71,6 +71,7 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   orderSummary: string;
+  address: string | null;
   status: OrderStatus;
   createdAt: string;
   deliveredAt: string | null;

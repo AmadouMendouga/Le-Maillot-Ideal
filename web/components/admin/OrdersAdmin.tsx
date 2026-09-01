@@ -11,7 +11,7 @@ import { Drawer } from "@/components/admin/Drawer";
 import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
 import { showToast } from "@/components/Toast";
-import { createOrderAction, markOrderDeliveredAction } from "@/lib/actions/orders";
+import { createOrderAction, markOrderDeliveredAction, updateOrderAddressAction } from "@/lib/actions/orders";
 import type { Order, SiteSettings } from "@/lib/types";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -42,11 +42,70 @@ function reviewRequestLink(order: Order, siteUrl: string): string {
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
 }
 
+function AddressCell({ order }: { order: Order }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(order.address || "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const result = await updateOrderAddressAction(order.id, value);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Adresse / zone"
+          style={{ minWidth: 160 }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+        <button type="button" className="icon-btn" aria-label="Enregistrer l'adresse" disabled={saving} onClick={save}>
+          <Icon name="check-circle" size="sm" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="icon-btn"
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, width: "auto", padding: "4px 8px" }}
+      onClick={() => setEditing(true)}
+    >
+      <Icon name="location" size="sm" />
+      <span className="sub" style={{ maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {order.address || "Non renseignée"}
+      </span>
+    </button>
+  );
+}
+
 function NewOrderForm({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderSummary, setOrderSummary] = useState("");
+  const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -55,7 +114,7 @@ function NewOrderForm({ onClose }: { onClose: () => void }) {
     setSaving(true);
     setError("");
     try {
-      const result = await createOrderAction({ customerName, customerPhone, orderSummary });
+      const result = await createOrderAction({ customerName, customerPhone, orderSummary, address });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -98,6 +157,17 @@ function NewOrderForm({ onClose }: { onClose: () => void }) {
           onChange={(e) => setOrderSummary(e.target.value)}
           placeholder="2x PSG domicile L, 1x OM domicile M"
         />
+      </div>
+      <div className="adm-field">
+        <label>Adresse / zone de livraison (facultatif)</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Ex. Bonamoussadi, derrière la pharmacie…"
+        />
+        <p className="hint" style={{ fontSize: ".78rem", color: "var(--on-surface-variant)", margin: "4px 0 0" }}>
+          Pas encore connue ? Laissez vide, vous pourrez la renseigner plus tard depuis le tableau.
+        </p>
       </div>
       <button type="button" className="btn btn-primary btn-block" onClick={handleSave} disabled={saving}>
         <Icon name="check-circle" size="sm" />
@@ -159,6 +229,7 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
             <tr>
               <th>Client</th>
               <th>Commande</th>
+              <th style={{ width: 180 }}>Adresse / zone</th>
               <th style={{ width: 120 }}>État</th>
               <th style={{ width: 260 }}></th>
             </tr>
@@ -166,7 +237,7 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
           <tbody>
             {initialOrders.length === 0 ? (
               <tr>
-                <td colSpan={4}>
+                <td colSpan={5}>
                   <div className="adm-empty">
                     <Icon name="shipping" />
                     <div>Aucune commande enregistrée pour le moment.</div>
@@ -182,6 +253,9 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
                   </td>
                   <td>
                     <div className="sub">{order.orderSummary}</div>
+                  </td>
+                  <td>
+                    <AddressCell order={order} />
                   </td>
                   <td>{statusBadge(order)}</td>
                   <td>
