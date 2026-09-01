@@ -143,6 +143,12 @@ function LocationMapDrawer({
           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
           Livreur
         </span>
+        {customerTrack.current && courierTrack.current ? (
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 12, height: 2, background: "#1e3a8a", display: "inline-block" }} />
+            Itinéraire suggéré
+          </span>
+        ) : null}
       </div>
       <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
         {statusLine("Client", customerTrack)}

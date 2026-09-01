@@ -50,6 +50,38 @@ function markerHtml(role: "customer" | "courier", sharing: boolean): string {
   );
 }
 
+// OSRM : service d'itinéraire routier gratuit, sans clé API (instance de
+// démonstration publique — pas de garantie de disponibilité, voir le
+// commentaire plus bas où l'appel est fait). Le but de la carte est
+// justement d'aider le livreur à retrouver le client : les deux positions
+// seules (ou leurs traces de déplacement passé) ne suffisent pas, il faut le
+// chemin réel entre les deux, en suivant les rues.
+async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }): Promise<[number, number][] | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const coords = data?.routes?.[0]?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    return coords.map(([lng, lat]: [number, number]) => [lat, lng]);
+  } catch {
+    return null; // best effort — une carte sans itinéraire routé reste utilisable (marqueurs + traces)
+  }
+}
+
+// Distance approximative en mètres (formule équirectangulaire, largement
+// suffisante à l'échelle d'une ville) — sert seulement à décider si la
+// position a assez bougé pour justifier un nouvel appel à OSRM.
+function approxMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const meanLat = ((a.lat + b.lat) / 2) * (Math.PI / 180);
+  const x = dLng * Math.cos(meanLat);
+  return Math.sqrt(dLat * dLat + x * x) * R;
+}
+
 export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; courier: DeliveryTrack }) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type Leaflet réel, importé dynamiquement (pas de dépendance de type au niveau module)
@@ -61,6 +93,13 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- objets Leaflet réels, importés dynamiquement
   type TrackLayers = { line: any; marker: any | null };
   const tracksRef = useRef<{ customer: TrackLayers; courier: TrackLayers } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- polyligne Leaflet réelle
+  const routeLineRef = useRef<any>(null);
+  // Évite de rappeler OSRM à chaque sondage (toutes les 6s) si personne n'a
+  // vraiment bougé — voir routeThrottleMs plus bas.
+  const routeStateRef = useRef<{ from: { lat: number; lng: number }; to: { lat: number; lng: number }; fetchedAt: number } | null>(
+    null
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +137,13 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
         customer: { line: L.polyline([], { color: "#ff6b00", weight: 4, opacity: 0.85 }).addTo(map), marker: null },
         courier: { line: L.polyline([], { color: "#16a34a", weight: 4, opacity: 0.85 }).addTo(map), marker: null },
       };
+      // Itinéraire routier (OSRM) entre le livreur et le client — but même de
+      // la carte : aider à se retrouver, pas juste montrer deux traces
+      // séparées. Style neutre et pointillé pour ne pas se confondre avec les
+      // deux traces de déplacement passé (pleines, colorées par personne).
+      routeLineRef.current = L.polyline([], { color: "#1e3a8a", weight: 4, opacity: 0.75, dashArray: "2 10", lineCap: "round" }).addTo(
+        map
+      );
     });
 
     // Réagit si l'admin bascule clair/sombre (bouton de thème) pendant que
@@ -116,6 +162,8 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
         mapRef.current = null;
         glLayerRef.current = null;
         tracksRef.current = null;
+        routeLineRef.current = null;
+        routeStateRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialisation unique, la mise à jour se fait dans l'effet suivant
@@ -149,6 +197,28 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
         t.marker.getElement()?.querySelector(".dlv-marker")?.classList.toggle("idle", !track.sharing);
       }
       lasts.push([last.lat, last.lng]);
+    }
+
+    // Itinéraire livreur → client, tant que les deux partagent une position.
+    // Throttlé (30s + 25m de mouvement minimum) pour ne pas saturer
+    // l'instance OSRM publique (gratuite, sans clé, mais pas garantie —
+    // best effort : en cas d'échec, l'ancien itinéraire affiché ne bouge
+    // pas plutôt que de disparaître).
+    if (customer.current && courier.current && routeLineRef.current) {
+      const from = courier.current;
+      const to = customer.current;
+      const prev = routeStateRef.current;
+      const stale = !prev || Date.now() - prev.fetchedAt > 30000;
+      const moved = !prev || approxMeters(prev.from, from) > 25 || approxMeters(prev.to, to) > 25;
+      if (stale && moved) {
+        routeStateRef.current = { from, to, fetchedAt: Date.now() };
+        fetchRoute(from, to).then((coords) => {
+          if (coords) routeLineRef.current?.setLatLngs(coords);
+        });
+      }
+    } else {
+      routeLineRef.current?.setLatLngs([]);
+      routeStateRef.current = null;
     }
 
     if (lasts.length) {
@@ -200,7 +270,7 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
       <div
         ref={containerRef}
         role="img"
-        aria-label="Carte de livraison — position du client et du livreur ; le détail (statut, dernière position, nombre de points) est repris en texte juste en dessous"
+        aria-label="Carte de livraison — position du client, du livreur, et itinéraire suggéré entre les deux ; le détail (statut, dernière position, nombre de points) est repris en texte juste en dessous"
         style={{ width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }}
       />
       {activeCount > 0 ? (
