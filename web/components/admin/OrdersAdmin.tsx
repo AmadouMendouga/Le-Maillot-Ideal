@@ -21,7 +21,7 @@ import {
   getOrderLocationHistoryAction,
   type LocationPoint,
 } from "@/lib/actions/orders";
-import type { Order, SiteSettings } from "@/lib/types";
+import type { Order, OrderItem, Product, SiteSettings } from "@/lib/types";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -269,21 +269,39 @@ function AddressCell({ order }: { order: Order }) {
   );
 }
 
-function NewOrderForm({ onClose }: { onClose: () => void }) {
+function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () => void }) {
   const router = useRouter();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderSummary, setOrderSummary] = useState("");
   const [address, setAddress] = useState("");
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [pickSlug, setPickSlug] = useState("");
+  const [pickSize, setPickSize] = useState("");
+  const [pickQty, setPickQty] = useState("1");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const pickedProduct = products.find((p) => p.slug === pickSlug);
+
+  function addItem() {
+    const qty = Number(pickQty);
+    if (!pickSlug || !pickSize || !Number.isFinite(qty) || qty < 1) return;
+    setItems((list) => [...list, { slug: pickSlug, size: pickSize, qty }]);
+    setPickSlug("");
+    setPickSize("");
+    setPickQty("1");
+  }
+  function removeItem(index: number) {
+    setItems((list) => list.filter((_, i) => i !== index));
+  }
 
   async function handleSave() {
     if (saving) return;
     setSaving(true);
     setError("");
     try {
-      const result = await createOrderAction({ customerName, customerPhone, orderSummary, address });
+      const result = await createOrderAction({ customerName, customerPhone, orderSummary, address, items });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -327,6 +345,78 @@ function NewOrderForm({ onClose }: { onClose: () => void }) {
           placeholder="2x PSG domicile L, 1x OM domicile M"
         />
       </div>
+
+      <div className="adm-field">
+        <label>Articles vendus (facultatif — met à jour le stock)</label>
+        {items.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+            {items.map((item, i) => {
+              const p = products.find((x) => x.slug === item.slug);
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    padding: "6px 10px",
+                    background: "var(--surface-container-low)",
+                    borderRadius: "var(--r-item)",
+                  }}
+                >
+                  <span className="sub">
+                    {item.qty}x {p?.name || item.slug} ({item.size})
+                  </span>
+                  <button type="button" className="icon-btn danger" aria-label="Retirer cet article" onClick={() => removeItem(i)}>
+                    <Icon name="close" size="sm" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <select
+            value={pickSlug}
+            onChange={(e) => {
+              setPickSlug(e.target.value);
+              setPickSize("");
+            }}
+            style={{ flex: "1 1 160px" }}
+          >
+            <option value="">Choisir un maillot…</option>
+            {products.map((p) => (
+              <option key={p.slug} value={p.slug}>
+                {p.name} ({p.stock} en stock)
+              </option>
+            ))}
+          </select>
+          <select value={pickSize} onChange={(e) => setPickSize(e.target.value)} disabled={!pickedProduct} style={{ flex: "0 1 90px" }}>
+            <option value="">Taille</option>
+            {pickedProduct?.sizes.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="1"
+            value={pickQty}
+            onChange={(e) => setPickQty(e.target.value)}
+            style={{ flex: "0 1 64px" }}
+          />
+          <button type="button" className="btn btn-tonal btn-sm" onClick={addItem} disabled={!pickSlug || !pickSize}>
+            <Icon name="add" size="sm" />
+            Ajouter
+          </button>
+        </div>
+        <p className="hint" style={{ fontSize: ".78rem", color: "var(--on-surface-variant)", margin: "6px 0 0" }}>
+          Laissez vide si vous préférez juste décrire la commande sans toucher au stock.
+        </p>
+      </div>
+
       <div className="adm-field">
         <label>Adresse / zone de livraison (facultatif)</label>
         <input
@@ -346,7 +436,15 @@ function NewOrderForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[]; settings: SiteSettings }) {
+export function OrdersAdmin({
+  initialOrders,
+  products,
+  settings,
+}: {
+  initialOrders: Order[];
+  products: Product[];
+  settings: SiteSettings;
+}) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formNonce, setFormNonce] = useState(0);
@@ -470,7 +568,7 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
       </div>
 
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Nouvelle commande" titleIcon="shipping">
-        <NewOrderForm key={formNonce} onClose={() => setDrawerOpen(false)} />
+        <NewOrderForm key={formNonce} products={products} onClose={() => setDrawerOpen(false)} />
       </Drawer>
     </section>
   );

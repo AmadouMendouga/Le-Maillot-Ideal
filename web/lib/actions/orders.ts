@@ -14,7 +14,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { signUpload } from "@/lib/cloudinary";
 import { SQUARE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 import type { UploadSignature } from "@/lib/actions/upload";
-import type { Order, OrderItem, TestimonialSubmission } from "@/lib/types";
+import type { Order, OrderItem, Product, TestimonialSubmission } from "@/lib/types";
 
 // Champs de paiement par défaut pour une commande qui ne passe pas par
 // CamPay (WhatsApp/admin) — payée à la livraison comme aujourd'hui, hors
@@ -27,6 +27,40 @@ const UNPAID_PAYMENT_FIELDS = {
   paidAt: null,
   paymentFailureReason: null,
 };
+
+// Décompte le stock au moment où la vente est enregistrée (pas à la
+// livraison) : « j'achète les 8 derniers, le stock passe direct en rupture »
+// — sinon un deuxième client pourrait commander le même article pendant que
+// le premier est encore en cours de livraison. Toutes les lectures d'abord,
+// puis toutes les écritures (règle des transactions Firestore, voir
+// lib/paymentHelpers.ts qui suit déjà ce principe pour CamPay).
+async function decrementStockForItems(items: OrderItem[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!items.length) return { ok: true };
+
+  try {
+    await adminDb.runTransaction(async (tx) => {
+      const refs = items.map((item) => adminDb.collection("products").doc(item.slug));
+      const snaps = await Promise.all(refs.map((ref) => tx.get(ref)));
+
+      for (let i = 0; i < items.length; i++) {
+        const snap = snaps[i];
+        if (!snap.exists) throw new Error(`Article introuvable : ${items[i].slug}.`);
+        const product = snap.data() as Product;
+        if (product.stock < items[i].qty) {
+          throw new Error(`Stock insuffisant pour ${product.name} (${product.stock} restant(s)).`);
+        }
+      }
+      for (let i = 0; i < items.length; i++) {
+        const product = snaps[i].data() as Product;
+        tx.update(refs[i], { stock: product.stock - items[i].qty });
+      }
+    });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Stock insuffisant." };
+  }
+
+  return { ok: true };
+}
 
 async function findOrderByToken(
   token: string,
@@ -47,6 +81,7 @@ export interface CreateOrderInput {
   customerPhone: string;
   orderSummary: string;
   address?: string;
+  items?: OrderItem[];
 }
 
 export async function createOrderAction(
@@ -57,6 +92,7 @@ export async function createOrderAction(
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.replace(/\D/g, "");
   const orderSummary = input.orderSummary.trim();
+  const items = (input.items || []).filter((item) => item.slug && item.qty > 0);
 
   if (!customerName) return { ok: false, error: "Le nom du client est obligatoire." };
   if (customerPhone.length < 8 || customerPhone.length > 15) {
@@ -64,11 +100,20 @@ export async function createOrderAction(
   }
   if (!orderSummary) return { ok: false, error: "Décrivez le contenu de la commande." };
 
+  // Facultatif : sans articles renseignés, la commande est enregistrée comme
+  // avant (juste un résumé libre), sans toucher au stock — on ne décompte
+  // que ce qu'on sait précisément avoir vendu.
+  if (items.length) {
+    const stockResult = await decrementStockForItems(items);
+    if (!stockResult.ok) return stockResult;
+  }
+
   const ref = await adminDb.collection("orders").add({
     customerName,
     customerPhone,
     orderSummary,
     address: input.address?.trim() || null,
+    ...(items.length ? { items } : {}),
     locationToken: null,
     locationSharing: false,
     liveLocation: null,
@@ -80,6 +125,12 @@ export async function createOrderAction(
     uid: null,
     ...UNPAID_PAYMENT_FIELDS,
   });
+
+  if (items.length) {
+    revalidatePath("/boutique");
+    revalidatePath("/");
+    for (const item of items) revalidatePath(`/produits/${item.slug}`);
+  }
 
   return { ok: true, id: ref.id };
 }
@@ -126,6 +177,9 @@ export async function createCustomerOrderAction(
   if (!profileSnap.exists) return { ok: false, error: "Profil introuvable." };
   const profile = profileSnap.data() as { name: string; phone: string };
 
+  const stockResult = await decrementStockForItems(input.items);
+  if (!stockResult.ok) return stockResult;
+
   const ref = await adminDb.collection("orders").add({
     customerName: profile.name,
     customerPhone: profile.phone,
@@ -144,6 +198,10 @@ export async function createCustomerOrderAction(
     uid: session.uid,
     ...UNPAID_PAYMENT_FIELDS,
   });
+
+  revalidatePath("/boutique");
+  revalidatePath("/");
+  for (const item of input.items) revalidatePath(`/produits/${item.slug}`);
 
   return { ok: true, id: ref.id };
 }
