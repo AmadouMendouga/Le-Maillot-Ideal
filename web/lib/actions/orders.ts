@@ -28,10 +28,13 @@ const UNPAID_PAYMENT_FIELDS = {
   paymentFailureReason: null,
 };
 
-async function findOrderByToken(token: string): Promise<(Order & { id: string }) | null> {
+async function findOrderByToken(
+  token: string,
+  field: "reviewToken" | "locationToken" = "reviewToken"
+): Promise<(Order & { id: string }) | null> {
   const cleanToken = String(token || "").trim();
   if (!cleanToken) return null;
-  const snap = await adminDb.collection("orders").where("reviewToken", "==", cleanToken).limit(1).get();
+  const snap = await adminDb.collection("orders").where(field, "==", cleanToken).limit(1).get();
   if (snap.empty) return null;
   const d = snap.docs[0];
   return { id: d.id, ...(d.data() as Omit<Order, "id">) };
@@ -66,6 +69,9 @@ export async function createOrderAction(
     customerPhone,
     orderSummary,
     address: input.address?.trim() || null,
+    locationToken: null,
+    locationSharing: false,
+    liveLocation: null,
     status: "confirmee",
     createdAt: new Date().toISOString(),
     deliveredAt: null,
@@ -125,6 +131,9 @@ export async function createCustomerOrderAction(
     customerPhone: profile.phone,
     orderSummary: input.orderSummary.trim(),
     address: null,
+    locationToken: null,
+    locationSharing: false,
+    liveLocation: null,
     items: input.items,
     total: input.total,
     status: "confirmee",
@@ -154,9 +163,46 @@ export async function markOrderDeliveredAction(
     status: "livree",
     deliveredAt: order.deliveredAt || new Date().toISOString(),
     reviewToken,
+    // La livraison est faite, plus besoin de suivre la position — évite
+    // qu'un onglet resté ouvert continue de remonter des positions inutiles.
+    locationSharing: false,
   });
 
   return { ok: true, reviewToken };
+}
+
+// Léger, sur le même principe que reviewToken : un identifiant à usage
+// dédié (pas de session client requise) pour la page publique de partage de
+// position, envoyée par WhatsApp comme le lien d'avis.
+export async function getOrCreateLocationTokenAction(
+  id: string
+): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  await verifyAdminSession();
+
+  const ref = adminDb.collection("orders").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
+
+  const order = snap.data() as Order;
+  const token = order.locationToken || randomUUID();
+  if (!order.locationToken) await ref.update({ locationToken: token });
+
+  return { ok: true, token };
+}
+
+export async function getOrderLocationAction(
+  id: string
+): Promise<
+  | { ok: true; locationSharing: boolean; liveLocation: Order["liveLocation"] }
+  | { ok: false; error: string }
+> {
+  await verifyAdminSession();
+
+  const snap = await adminDb.collection("orders").doc(id).get();
+  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
+  const order = snap.data() as Order;
+
+  return { ok: true, locationSharing: order.locationSharing, liveLocation: order.liveLocation };
 }
 
 export async function approveTestimonialSubmissionAction(
@@ -277,5 +323,55 @@ export async function submitTestimonialAction(
     return { ok: false, error: "Ce lien n'est plus valide — il a peut-être déjà servi." };
   }
 
+  return { ok: true };
+}
+
+// --- Public, gardées par locationToken (aucune session) -----------------
+// Partage de position en direct pendant la livraison. Même principe de
+// sécurité que le dépôt d'avis : un jeton à usage dédié, jamais une session.
+// Une seule position est conservée (écrasée à chaque mise à jour) — pas
+// d'historique de trajet stocké, pour limiter l'exposition de données de
+// localisation à ce qui sert réellement la livraison en cours.
+
+export async function getOrderForLocationAction(
+  token: string
+): Promise<{ ok: true; customerName: string; sharing: boolean } | { ok: false; error: string }> {
+  const order = await findOrderByToken(token, "locationToken");
+  if (!order) return { ok: false, error: "Ce lien n'est pas valide." };
+  if (order.status !== "confirmee") {
+    return { ok: false, error: "Cette commande n'est plus en attente de livraison." };
+  }
+  return { ok: true, customerName: order.customerName, sharing: order.locationSharing };
+}
+
+export async function updateLiveLocationAction(
+  token: string,
+  lat: number,
+  lng: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const order = await findOrderByToken(token, "locationToken");
+  if (!order) return { ok: false, error: "Lien invalide." };
+  if (order.status !== "confirmee") return { ok: false, error: "Livraison déjà terminée." };
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return { ok: false, error: "Position invalide." };
+  }
+
+  await adminDb
+    .collection("orders")
+    .doc(order.id)
+    .update({
+      locationSharing: true,
+      liveLocation: { lat, lng, updatedAt: new Date().toISOString() },
+    });
+
+  return { ok: true };
+}
+
+export async function stopLocationSharingAction(token: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const order = await findOrderByToken(token, "locationToken");
+  if (!order) return { ok: false, error: "Lien invalide." };
+
+  await adminDb.collection("orders").doc(order.id).update({ locationSharing: false });
   return { ok: true };
 }

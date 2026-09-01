@@ -72,6 +72,9 @@ export interface Order {
   customerPhone: string;
   orderSummary: string;
   address: string | null;
+  locationToken: string | null;
+  locationSharing: boolean;
+  liveLocation: { lat: number; lng: number; updatedAt: string } | null;
   status: OrderStatus;
   createdAt: string;
   deliveredAt: string | null;

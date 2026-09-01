@@ -11,7 +11,13 @@ import { Drawer } from "@/components/admin/Drawer";
 import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
 import { showToast } from "@/components/Toast";
-import { createOrderAction, markOrderDeliveredAction, updateOrderAddressAction } from "@/lib/actions/orders";
+import {
+  createOrderAction,
+  markOrderDeliveredAction,
+  updateOrderAddressAction,
+  getOrCreateLocationTokenAction,
+  getOrderLocationAction,
+} from "@/lib/actions/orders";
 import type { Order, SiteSettings } from "@/lib/types";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -40,6 +46,103 @@ function reviewRequestLink(order: Order, siteUrl: string): string {
     `Pourriez-vous nous laisser un avis en quelques secondes ? ${url}\n\n` +
     "Merci beaucoup !";
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
+}
+
+function locationRequestLink(order: Order, siteUrl: string, token: string): string {
+  const url = `${siteUrl.replace(/\/$/, "")}/livraison/${token}`;
+  const msg =
+    `Bonjour ${order.customerName} 👋 pour faciliter votre livraison, pourriez-vous partager votre position ici : ${url}\n\n` +
+    "Ça ne prend que quelques secondes, merci !";
+  return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
+}
+
+function timeAgo(iso: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `il y a ${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return `il y a ${hours} h`;
+}
+
+function LocationCell({ order, settings }: { order: Order; settings: SiteSettings }) {
+  const [token, setToken] = useState(order.locationToken);
+  const [location, setLocation] = useState(order.liveLocation);
+  const [sharing, setSharing] = useState(order.locationSharing);
+  const [loading, setLoading] = useState(false);
+
+  async function requestLocation() {
+    setLoading(true);
+    try {
+      let t = token;
+      if (!t) {
+        const result = await getOrCreateLocationTokenAction(order.id);
+        if (!result.ok) {
+          alert(result.error);
+          return;
+        }
+        t = result.token;
+        setToken(t);
+      }
+      window.open(locationRequestLink(order, settings.siteUrl, t), "_blank", "noopener");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const result = await getOrderLocationAction(order.id);
+      if (result.ok) {
+        setLocation(result.liveLocation);
+        setSharing(result.locationSharing);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!location) {
+    return (
+      <button type="button" className="btn btn-tonal btn-sm" disabled={loading} onClick={requestLocation}>
+        <Icon name="location" size="sm" />
+        {token ? "Renvoyer" : "Demander"}
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: sharing ? "var(--secondary)" : "var(--on-surface-variant)",
+          }}
+        />
+        <a
+          href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="sub"
+          style={{ color: "var(--primary)", fontWeight: 600 }}
+        >
+          Ouvrir dans Maps
+        </a>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span className="sub">{sharing ? "Partage actif" : "Arrêté"} · {timeAgo(location.updatedAt)}</span>
+        <button type="button" className="icon-btn" aria-label="Actualiser la position" disabled={loading} onClick={refresh}>
+          <Icon name="refresh" size="sm" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function AddressCell({ order }: { order: Order }) {
@@ -230,6 +333,7 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
               <th>Client</th>
               <th>Commande</th>
               <th style={{ width: 180 }}>Adresse / zone</th>
+              <th style={{ width: 170 }}>Position en direct</th>
               <th style={{ width: 120 }}>État</th>
               <th style={{ width: 260 }}></th>
             </tr>
@@ -237,7 +341,7 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
           <tbody>
             {initialOrders.length === 0 ? (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <div className="adm-empty">
                     <Icon name="shipping" />
                     <div>Aucune commande enregistrée pour le moment.</div>
@@ -256,6 +360,9 @@ export function OrdersAdmin({ initialOrders, settings }: { initialOrders: Order[
                   </td>
                   <td>
                     <AddressCell order={order} />
+                  </td>
+                  <td>
+                    <LocationCell order={order} settings={settings} />
                   </td>
                   <td>{statusBadge(order)}</td>
                   <td>
