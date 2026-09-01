@@ -47,6 +47,8 @@ export function ProductEditDrawer({
   const [isNew, setIsNew] = useState(!!product?.isNew);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+  const [gallery, setGallery] = useState<string[]>(product?.images.gallery ?? []);
+  const [pendingGallery, setPendingGallery] = useState<{ file: File; previewUrl: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,6 +63,16 @@ export function ProductEditDrawer({
   function handleFile(file: File) {
     setPendingFile(file);
     setPreviewUrl(URL.createObjectURL(file));
+  }
+
+  function handleGalleryFile(file: File) {
+    setPendingGallery((list) => [...list, { file, previewUrl: URL.createObjectURL(file) }]);
+  }
+  function removeExistingGalleryPhoto(url: string) {
+    setGallery((list) => list.filter((u) => u !== url));
+  }
+  function removePendingGalleryPhoto(previewUrl: string) {
+    setPendingGallery((list) => list.filter((p) => p.previewUrl !== previewUrl));
   }
 
   async function handleSave() {
@@ -87,14 +99,25 @@ export function ProductEditDrawer({
     setSaving(true);
     setError("");
     try {
-      let images: { square?: string } | undefined;
-      if (pendingFile) {
-        const square = await uploadAdminImage(pendingFile, {
-          folder: "le-maillot-ideal/photos",
-          publicId: product.slug,
-          transformation: SQUARE_TRANSFORMATION,
-        });
-        images = { square };
+      let images: { square?: string; gallery?: string[] } | undefined;
+      const galleryChanged = pendingGallery.length > 0 || gallery.length !== (product.images.gallery ?? []).length;
+      if (pendingFile || galleryChanged) {
+        const square = pendingFile
+          ? await uploadAdminImage(pendingFile, {
+              folder: "le-maillot-ideal/photos",
+              publicId: product.slug,
+              transformation: SQUARE_TRANSFORMATION,
+            })
+          : undefined;
+        const uploadedGallery = await Promise.all(
+          pendingGallery.map((p) =>
+            uploadAdminImage(p.file, {
+              folder: `le-maillot-ideal/photos/${product.slug}/gallery`,
+              transformation: SQUARE_TRANSFORMATION,
+            })
+          )
+        );
+        images = { square, gallery: galleryChanged ? [...gallery, ...uploadedGallery] : undefined };
       }
       const result = await updateProductAction({ slug: product.slug, ...patch, league, images });
       if (!result.ok) {
@@ -122,6 +145,60 @@ export function ProductEditDrawer({
       {product ? (
         <>
           <ImageDropZone previewSrc={previewUrl || product.images.square} onFile={handleFile} disabled={saving} />
+
+          <div className="adm-field" style={{ marginTop: 14 }}>
+            <label>Photos supplémentaires</label>
+            {gallery.length > 0 || pendingGallery.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                {gallery.map((url) => (
+                  <div key={url} style={{ position: "relative" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt=""
+                      style={{ width: 64, height: 64, borderRadius: "var(--r-item)", objectFit: "cover" }}
+                    />
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      aria-label="Retirer cette photo"
+                      disabled={saving}
+                      onClick={() => removeExistingGalleryPhoto(url)}
+                      style={{ position: "absolute", top: -8, right: -8, width: 24, height: 24 }}
+                    >
+                      <Icon name="close" size="sm" />
+                    </button>
+                  </div>
+                ))}
+                {pendingGallery.map((p) => (
+                  <div key={p.previewUrl} style={{ position: "relative" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.previewUrl}
+                      alt=""
+                      style={{ width: 64, height: 64, borderRadius: "var(--r-item)", objectFit: "cover" }}
+                    />
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      aria-label="Retirer cette photo"
+                      disabled={saving}
+                      onClick={() => removePendingGalleryPhoto(p.previewUrl)}
+                      style={{ position: "absolute", top: -8, right: -8, width: 24, height: 24 }}
+                    >
+                      <Icon name="close" size="sm" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <ImageDropZone
+              onFile={handleGalleryFile}
+              disabled={saving}
+              label="Ajouter une photo"
+              hint="Cliquez ou déposez une image ici — le client pourra les voir toutes sur la fiche produit"
+            />
+          </div>
 
           {error ? (
             <div className="adm-warn" style={{ marginTop: 14 }}>

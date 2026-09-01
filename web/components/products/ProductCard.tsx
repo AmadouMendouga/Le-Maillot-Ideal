@@ -57,12 +57,7 @@ export function ProductCard({ product, settings }: { product: Product; settings:
     <article className="product-card" ref={cardRef} data-slug={product.slug}>
       <Link className="product-media dah" href={href} aria-label={`Voir ${product.name}`} {...dah}>
         <div className="product-badges">
-          {verified && product.isNew && (
-            <span className="badge badge-new">
-              <Icon name="bolt" size="sm" />
-              Nouveau
-            </span>
-          )}
+          {verified && product.isNew && <span className="badge badge-new">Nouveau</span>}
           {verified && product.discountPct > 0 && (
             <span className="badge badge-promo">
               <Icon name="percent" size="sm" />-{Math.round(product.discountPct)}%

@@ -4,6 +4,8 @@ export interface ProductImages {
   square: string;
   wide: string;
   svgFallback: string;
+  /** Photos supplémentaires du même maillot (optionnel — absent sur les anciens produits). */
+  gallery?: string[];
 }
 
 export interface Product {

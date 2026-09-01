@@ -185,14 +185,7 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
                     <StockBadge product={p} />
                   </td>
                   <td>
-                    {p.isNew ? (
-                      <span className="badge badge-new">
-                        <Icon name="bolt" size="sm" />
-                        Nouveau
-                      </span>
-                    ) : (
-                      <span className="sub">—</span>
-                    )}
+                    {p.isNew ? <span className="badge badge-new">Nouveau</span> : <span className="sub">—</span>}
                   </td>
                   <td>
                     <div className="adm-row-actions">

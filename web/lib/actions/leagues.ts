@@ -25,6 +25,7 @@ function leagueInputError(label: string, color: string): string | null {
 export interface LeagueInput {
   label: string;
   color: string;
+  logo?: string;
 }
 
 export async function createLeagueAction(
@@ -65,7 +66,9 @@ export async function renameLeagueAction(
   const snap = await ref.get();
   if (!snap.exists) return { ok: false, error: "Championnat introuvable." };
 
-  await ref.update({ label, color });
+  const patch: { label: string; color: string; logo?: string } = { label, color };
+  if (input.logo !== undefined) patch.logo = input.logo;
+  await ref.update(patch);
 
   // Les produits gardent une copie de leagueLabel/color pour un affichage
   // direct sans jointure — on les resynchronise pour que le nouveau nom

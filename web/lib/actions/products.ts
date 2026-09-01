@@ -11,7 +11,7 @@ import { productPatchError, type ProductPatch } from "@/lib/validation";
 export interface UpdateProductInput extends ProductPatch {
   slug: string;
   league?: string;
-  images?: { square?: string; wide?: string };
+  images?: { square?: string; wide?: string; gallery?: string[] };
 }
 
 function slugifyPart(value: string): string {
@@ -62,6 +62,7 @@ export async function updateProductAction(input: UpdateProductInput): Promise<{ 
   };
   if (input.images?.square) docPatch["images.square"] = input.images.square;
   if (input.images?.wide) docPatch["images.wide"] = input.images.wide;
+  if (input.images?.gallery !== undefined) docPatch["images.gallery"] = input.images.gallery;
 
   if (input.league) {
     const leagueSnap = await adminDb.collection("leagues").doc(input.league).get();

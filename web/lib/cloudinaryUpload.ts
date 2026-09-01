@@ -4,7 +4,7 @@
 import { getUploadSignatureAction, type UploadSignature, type UploadSignatureParams } from "@/lib/actions/upload";
 import { getReviewUploadSignatureAction } from "@/lib/actions/orders";
 
-export { SQUARE_TRANSFORMATION, WIDE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
+export { SQUARE_TRANSFORMATION, WIDE_TRANSFORMATION, LOGO_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 
 async function uploadSignedFile(file: File, signed: UploadSignature): Promise<string> {
   const form = new FormData();

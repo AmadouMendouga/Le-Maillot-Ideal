@@ -25,6 +25,15 @@ export function ProductDetail({ product, settings }: { product: Product; setting
   const [selectedSize, setSelectedSize] = useState(() => (sizes.includes("M") ? "M" : sizes[0] || ""));
   const [qty, setQty] = useState(1);
 
+  // Photo principale + photos supplémentaires du même maillot (facultatives,
+  // absentes sur la plupart des produits) : on clique une vignette, Lens zoome
+  // sur celle-ci exactement comme sur la photo principale.
+  const photos = useMemo(
+    () => [...new Set([product.images.square, ...(product.images.gallery ?? [])])],
+    [product.images.square, product.images.gallery]
+  );
+  const [activePhoto, setActivePhoto] = useState(photos[0]);
+
   const verified = settings.catalogDataVerified;
   const st = stockInfo(product, verified);
   const canOrder = st.available && !!selectedSize;
@@ -55,13 +64,33 @@ export function ProductDetail({ product, settings }: { product: Product; setting
 
   return (
     <div className="product-detail">
-      <Lens
-        mediaRef={mediaRef}
-        src={product.images.square}
-        alt={`${product.name}, saison ${product.season}`}
-        width={500}
-        height={500}
-      />
+      <div className="pd-media-col">
+        <Lens
+          mediaRef={mediaRef}
+          src={activePhoto}
+          alt={`${product.name}, saison ${product.season}`}
+          width={500}
+          height={500}
+        />
+        {photos.length > 1 && (
+          <div className="pd-thumbs" role="tablist" aria-label="Autres photos de ce maillot">
+            {photos.map((src, i) => (
+              <button
+                key={src}
+                type="button"
+                role="tab"
+                aria-selected={src === activePhoto}
+                aria-label={`Photo ${i + 1} sur ${photos.length}`}
+                className={"pd-thumb" + (src === activePhoto ? " active" : "")}
+                onClick={() => setActivePhoto(src)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="pd-info">
         <h1 className="pd-title">{product.name}</h1>

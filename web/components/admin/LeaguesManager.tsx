@@ -7,30 +7,50 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Drawer } from "@/components/admin/Drawer";
+import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import { Icon } from "@/components/icons/Icon";
 import { showToast } from "@/components/Toast";
 import { createLeagueAction, deleteLeagueAction, renameLeagueAction } from "@/lib/actions/leagues";
+import { uploadAdminImage, LOGO_TRANSFORMATION } from "@/lib/cloudinaryUpload";
 import type { League } from "@/lib/types";
 
 function LeagueRow({ league, onSaved, onDeleted }: { league: League; onSaved: () => void; onDeleted: () => void }) {
   const [label, setLabel] = useState(league.label);
   const [color, setColor] = useState(league.color);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const dirty = label.trim() !== league.label || color !== league.color;
+  const dirty = label.trim() !== league.label || color !== league.color || !!pendingFile;
+
+  function handleFile(file: File) {
+    setPendingFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  }
 
   async function save() {
     setSaving(true);
     setError("");
     try {
-      const result = await renameLeagueAction(league.key, { label, color });
+      let logo: string | undefined;
+      if (pendingFile) {
+        logo = await uploadAdminImage(pendingFile, {
+          folder: "le-maillot-ideal/leagues",
+          publicId: league.key,
+          transformation: LOGO_TRANSFORMATION,
+        });
+      }
+      const result = await renameLeagueAction(league.key, { label, color, logo });
       if (!result.ok) {
         setError(result.error);
         return;
       }
       showToast("Championnat mis à jour", "check-circle");
+      setPendingFile(null);
       onSaved();
+    } catch {
+      setError("Échec de l'envoi du logo. Vérifiez votre connexion et réessayez.");
     } finally {
       setSaving(false);
     }
@@ -54,6 +74,21 @@ function LeagueRow({ league, onSaved, onDeleted }: { league: League; onSaved: ()
   return (
     <div className="adm-tcard">
       <div className="top">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={previewUrl || league.logo || undefined}
+          alt=""
+          style={{
+            width: 36,
+            height: 36,
+            flexShrink: 0,
+            borderRadius: "var(--r-item)",
+            objectFit: "contain",
+            background: "#fff",
+            border: "1px solid var(--outline-variant)",
+            visibility: previewUrl || league.logo ? "visible" : "hidden",
+          }}
+        />
         <input
           type="color"
           value={color}
@@ -72,6 +107,13 @@ function LeagueRow({ league, onSaved, onDeleted }: { league: League; onSaved: ()
           <Icon name="delete" size="sm" />
         </button>
       </div>
+      <ImageDropZone
+        previewSrc={undefined}
+        onFile={handleFile}
+        disabled={saving}
+        label="Changer le logo"
+        hint="Cliquez ou déposez une image ici (PNG transparent conseillé)"
+      />
       {error ? <p style={{ color: "var(--error)", fontSize: ".8rem", margin: "8px 0 0" }}>{error}</p> : null}
       {dirty ? (
         <button type="button" className="btn btn-tonal btn-sm" style={{ marginTop: 10 }} disabled={saving} onClick={save}>
