@@ -211,9 +211,6 @@ html[data-theme="dark"] .adm-drawer-foot { background: var(--surface-container);
 }
 
 /* --- carte de livraison (DeliveryMap) --- */
-/* Pas de fond de carte sombre gratuit fiable sans clé API (CARTO en exige
-   une désormais) — on assombrit les tuiles OSM classiques par filtre CSS. */
-.dlv-map-dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9); }
 /* Marqueur "en direct" façon Gozem/Yango : bonhomme (icône Tabler i-person)
    dans un badge plein + anneau qui respire autour, plutôt qu'un point
    générique — une couleur par rôle (client / livreur), jamais mélangées,

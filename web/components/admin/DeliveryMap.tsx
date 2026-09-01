@@ -13,7 +13,18 @@
 // n'affiche simplement rien tant que personne n'a partagé sa position.
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { LocationPoint } from "@/lib/actions/orders";
+
+// OpenFreeMap : tuiles vectorielles gratuites, sans clé API, sans limite —
+// contrairement à CARTO (testé : exige désormais une clé, "API KEY REQUIRED"
+// en filigrane). Un vrai style sombre existe ("dark"), pas besoin du filtre
+// CSS d'assombrissement qu'on utilisait pour les tuiles OSM classiques.
+// "positron" (épuré) plutôt que "liberty" (coloré) : le fond ne doit pas
+// concurrencer visuellement les tracés et marqueurs, qui sont l'info utile.
+function styleUrlForTheme(dark: boolean): string {
+  return `https://tiles.openfreemap.org/styles/${dark ? "dark" : "positron"}`;
+}
 
 export interface DeliveryTrack {
   points: LocationPoint[];
@@ -45,6 +56,8 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const leafletRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- calque MapLibre réel (binding Leaflet), importé dynamiquement
+  const glLayerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- objets Leaflet réels, importés dynamiquement
   type TrackLayers = { line: any; marker: any | null };
   const tracksRef = useRef<{ customer: TrackLayers; courier: TrackLayers } | null>(null);
@@ -52,25 +65,29 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
   useEffect(() => {
     let cancelled = false;
 
-    import("leaflet").then((L) => {
+    Promise.all([import("leaflet"), import("@maplibre/maplibre-gl-leaflet")]).then(([L, { maplibreGL }]) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
       leafletRef.current = L;
 
       const start = customer.current || courier.current;
-      const map = L.map(containerRef.current, { zoomControl: true, attributionControl: true }).setView(
-        [start?.lat ?? 4.0511, start?.lng ?? 9.7679],
-        14
-      );
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map);
-      // Pas de fond de carte sombre gratuit et fiable sans clé API (CARTO
-      // exige désormais une clé — testé, "API KEY REQUIRED" en filigrane) :
-      // on assombrit les tuiles claires d'OpenStreetMap par filtre CSS
-      // plutôt que de dépendre d'un service tiers, voir .dlv-map-dark dans
-      // admin.css.
-      containerRef.current.classList.toggle("dlv-map-dark", isDarkTheme());
+      // attributionControl: false — le calque MapLibre ajoute la sienne
+      // automatiquement (obligatoire pour OpenFreeMap), doublon sinon.
+      // maxBounds/maxBoundsViscosity/minZoom : recommandés tels quels par
+      // l'exemple officiel de @maplibre/maplibre-gl-leaflet ("restrict bounds
+      // to avoid max latitude issues with MapLibre GL" / "prevent sync issues
+      // at zoom 0") — sans ça, fitBounds() plantait ("Cannot read properties
+      // of null (reading '0')"), reproduit et corrigé ici.
+      const map = L.map(containerRef.current, {
+        zoomControl: true,
+        attributionControl: false,
+        maxBounds: [
+          [180, -Infinity],
+          [-180, Infinity],
+        ],
+        maxBoundsViscosity: 1,
+        minZoom: 1,
+      }).setView([start?.lat ?? 4.0511, start?.lng ?? 9.7679], 14);
+      glLayerRef.current = maplibreGL({ style: styleUrlForTheme(isDarkTheme()) }).addTo(map);
 
       // Couleurs Leaflet en dur (l'API attend une vraie chaîne, pas une
       // variable CSS) — mêmes valeurs que --tertiary (client) et --secondary
@@ -84,9 +101,10 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
     });
 
     // Réagit si l'admin bascule clair/sombre (bouton de thème) pendant que
-    // le tiroir est ouvert — juste le filtre CSS, les tuiles ne changent pas.
+    // le tiroir est ouvert : MapLibre sait changer de style en place (pas
+    // besoin de recréer le calque).
     const observer = new MutationObserver(() => {
-      containerRef.current?.classList.toggle("dlv-map-dark", isDarkTheme());
+      glLayerRef.current?.getMaplibreMap()?.setStyle(styleUrlForTheme(isDarkTheme()));
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
@@ -96,6 +114,7 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        glLayerRef.current = null;
         tracksRef.current = null;
       }
     };
@@ -133,12 +152,43 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
     }
 
     if (lasts.length) {
-      const allLatLngs = [...tracks.customer.line.getLatLngs(), ...tracks.courier.line.getLatLngs(), ...lasts];
+      // Passe par l'API native de MapLibre (getMaplibreMap().fitBounds), pas
+      // par celle de Leaflet : map.fitBounds() plantait ("Cannot read
+      // properties of null" puis "Invalid LatLng object: (NaN, NaN)" une fois
+      // le premier plantage corrigé) — le pont Leaflet↔MapLibre ne calcule
+      // visiblement pas les limites correctement pour ce calque. Les
+      // marqueurs/tracés restent en Leaflet (L.marker/L.polyline), seule la
+      // caméra passe par MapLibre. Attention à l'ordre : MapLibre attend
+      // [lng, lat], Leaflet [lat, lng].
+      const glMap = glLayerRef.current?.getMaplibreMap();
+      if (!glMap) return;
+
+      const allLatLngs: [number, number][] = [
+        ...tracks.customer.line.getLatLngs().map((p: { lat: number; lng: number }) => [p.lat, p.lng] as [number, number]),
+        ...tracks.courier.line.getLatLngs().map((p: { lat: number; lng: number }) => [p.lat, p.lng] as [number, number]),
+        ...lasts,
+      ];
+
       if (allLatLngs.length > 1) {
-        const bounds = L.latLngBounds(allLatLngs);
-        map.fitBounds(bounds.pad(0.25));
+        let west = Infinity;
+        let south = Infinity;
+        let east = -Infinity;
+        let north = -Infinity;
+        for (const [lat, lng] of allLatLngs) {
+          if (lat < south) south = lat;
+          if (lat > north) north = lat;
+          if (lng < west) west = lng;
+          if (lng > east) east = lng;
+        }
+        glMap.fitBounds(
+          [
+            [west, south],
+            [east, north],
+          ],
+          { padding: 40, duration: 300 }
+        );
       } else {
-        map.setView(lasts[0], map.getZoom() < 13 ? 15 : map.getZoom());
+        glMap.easeTo({ center: [lasts[0][1], lasts[0][0]], zoom: Math.max(glMap.getZoom(), 15), duration: 300 });
       }
     }
   }, [customer, courier]);
