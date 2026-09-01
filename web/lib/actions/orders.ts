@@ -16,6 +16,18 @@ import { SQUARE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 import type { UploadSignature } from "@/lib/actions/upload";
 import type { Order, OrderItem, TestimonialSubmission } from "@/lib/types";
 
+// Champs de paiement par défaut pour une commande qui ne passe pas par
+// CamPay (WhatsApp/admin) — payée à la livraison comme aujourd'hui, hors
+// suivi CamPay. Voir addendum 3.
+const UNPAID_PAYMENT_FIELDS = {
+  paymentStatus: "unpaid" as const,
+  paymentReference: null,
+  campayReference: null,
+  ussdCode: null,
+  paidAt: null,
+  paymentFailureReason: null,
+};
+
 async function findOrderByToken(token: string): Promise<(Order & { id: string }) | null> {
   const cleanToken = String(token || "").trim();
   if (!cleanToken) return null;
@@ -58,6 +70,7 @@ export async function createOrderAction(
     reviewToken: null,
     reviewSubmitted: false,
     uid: null,
+    ...UNPAID_PAYMENT_FIELDS,
   });
 
   return { ok: true, id: ref.id };
@@ -100,6 +113,7 @@ export async function createCustomerOrderAction(
     reviewToken: null,
     reviewSubmitted: false,
     uid: session.uid,
+    ...UNPAID_PAYMENT_FIELDS,
   });
 
   return { ok: true, id: ref.id };

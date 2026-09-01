@@ -29,3 +29,14 @@ export const getOrdersForCustomer = cache(async (uid: string): Promise<Order[]> 
     .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, "id">) }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 });
+
+// Addendum 3 : page de paiement /compte/paiement/[orderId]. `ownerUid` doit
+// correspondre au client connecté — sinon on renvoie null plutôt que la
+// commande d'un tiers, même si l'id est deviné.
+export const getOrderById = cache(async (id: string, ownerUid: string): Promise<Order | null> => {
+  const snap = await adminDb.collection("orders").doc(id).get();
+  if (!snap.exists) return null;
+  const order = { id: snap.id, ...(snap.data() as Omit<Order, "id">) };
+  if (order.uid !== ownerUid) return null;
+  return order;
+});

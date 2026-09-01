@@ -1,19 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
 import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
 import { showToast } from "@/components/Toast";
 import { useCart } from "@/components/cart/CartContext";
 import { auth } from "@/lib/firebase/client";
 import { createCustomerOrderAction } from "@/lib/actions/orders";
+import { initiateCampayPaymentAction } from "@/lib/actions/payments";
 import { FCFA, freeShippingThreshold } from "@/lib/cart";
 import type { SiteSettings } from "@/lib/types";
 
 const DELIVERY_CHECK_DELAY = 1400;
 
 export function CartPanel({ settings }: { settings: SiteSettings }) {
+  const router = useRouter();
   const { details, count, total, isPanelOpen, whatsappLink, removeFromCart, changeQty, closePanel } = useCart();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Réactif (pas juste auth.currentUser au clic) : au premier rendu, le SDK
+  // Firebase n'a pas encore restauré la session, on ne peut savoir si un
+  // client est connecté qu'en s'abonnant.
+  useEffect(() => onAuthStateChanged(auth, (user) => setIsLoggedIn(!!user)), []);
 
   // Best effort : si un client est connecté (addendum 2), on enregistre aussi
   // la commande côté serveur pour qu'elle apparaisse dans « Mes commandes ».
@@ -32,6 +42,22 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
       // silencieux — voir le commentaire ci-dessus
     }
   }
+
+  // Addendum 3 : second choix de paiement, uniquement pour les clients
+  // connectés (il faut un numéro de téléphone et un compte à qui rattacher
+  // la commande). Ne remplace jamais « Commander sur WhatsApp », qui reste
+  // le canal principal.
+  async function handlePayOnline() {
+    const result = await initiateCampayPaymentAction({
+      items: details.map((d) => ({ slug: d.slug, size: d.size, qty: d.qty })),
+    });
+    if (!result.ok) {
+      showToast(result.error, "error", true);
+      throw new Error(result.error);
+    }
+    router.push(`/compte/paiement/${result.orderId}`);
+  }
+
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [deliveryChecking, setDeliveryChecking] = useState(false);
@@ -245,6 +271,21 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
           <Icon name="chevron-right" size="sm" />
         </span>
       </StatefulButton>
+
+      {isLoggedIn ? (
+        <StatefulButton
+          className="btn btn-tonal btn-block"
+          onValidate={() => {
+            if (count > 0) return true;
+            showToast("Votre panier est vide", "error", true);
+            return false;
+          }}
+          onRun={handlePayOnline}
+        >
+          <Icon name="payment" size="sm" />
+          Payer par Mobile Money
+        </StatefulButton>
+      ) : null}
     </div>
   );
 }

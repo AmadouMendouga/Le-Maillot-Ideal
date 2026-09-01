@@ -56,6 +56,7 @@ export interface Testimonial {
 }
 
 export type OrderStatus = "confirmee" | "livree";
+export type PaymentStatus = "unpaid" | "pending" | "paid" | "failed";
 
 export interface OrderItem {
   slug: string;
@@ -76,6 +77,12 @@ export interface Order {
   uid: string | null;
   items?: OrderItem[];
   total?: number;
+  paymentStatus: PaymentStatus;
+  paymentReference: string | null;
+  campayReference: string | null;
+  ussdCode: string | null;
+  paidAt: string | null;
+  paymentFailureReason: string | null;
 }
 
 export interface Customer {
