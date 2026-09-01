@@ -1,7 +1,7 @@
 "use client";
 
 // Boutique — porté depuis js/main.js#initShop. Filtre/trie/pagine côté
-// client sur le catalogue déjà chargé (76 produits, pas besoin de requêtes
+// client sur le catalogue déjà chargé (pas besoin de requêtes
 // supplémentaires). L'état initial vient des paramètres d'URL comme
 // l'original (?league=, ?promo=1, ?stock=1, ?tri=, ?q=), lus une seule fois
 // au montage (pas via useSearchParams()/Suspense : sur une page par ailleurs
