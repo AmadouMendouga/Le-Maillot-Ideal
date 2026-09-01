@@ -14,7 +14,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { signUpload } from "@/lib/cloudinary";
 import { SQUARE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 import type { UploadSignature } from "@/lib/actions/upload";
-import type { Order, OrderItem, Product, TestimonialSubmission } from "@/lib/types";
+import type { LiveLocation, Order, OrderItem, Product, TestimonialSubmission } from "@/lib/types";
 
 // Champs de paiement par défaut pour une commande qui ne passe pas par
 // CamPay (WhatsApp/admin) — payée à la livraison comme aujourd'hui, hors
@@ -64,7 +64,7 @@ async function decrementStockForItems(items: OrderItem[]): Promise<{ ok: true } 
 
 async function findOrderByToken(
   token: string,
-  field: "reviewToken" | "locationToken" = "reviewToken"
+  field: "reviewToken" | "locationToken" | "courierLocationToken" = "reviewToken"
 ): Promise<(Order & { id: string }) | null> {
   const cleanToken = String(token || "").trim();
   if (!cleanToken) return null;
@@ -72,6 +72,39 @@ async function findOrderByToken(
   if (snap.empty) return null;
   const d = snap.docs[0];
   return { id: d.id, ...(d.data() as Omit<Order, "id">) };
+}
+
+// Qui livre varie (Djimi lui-même ou une aide ponctuelle, CLAUDE.md) — deux
+// canaux de partage de position séparés, même mécanique, jamais mélangés.
+export type LocationRole = "customer" | "courier";
+
+function locationFields(role: LocationRole) {
+  return role === "courier"
+    ? {
+        token: "courierLocationToken" as const,
+        sharing: "courierLocationSharing" as const,
+        live: "courierLiveLocation" as const,
+        points: "courierLocationPoints",
+      }
+    : {
+        token: "locationToken" as const,
+        sharing: "locationSharing" as const,
+        live: "liveLocation" as const,
+        points: "locationPoints",
+      };
+}
+
+// Le rôle n'est jamais affirmé par l'appelant : on le déduit du champ que le
+// jeton fait correspondre (client ou livreur), donc personne ne peut se
+// faire passer pour l'autre juste en changeant un paramètre.
+async function findOrderByEitherLocationToken(
+  token: string
+): Promise<{ order: Order & { id: string }; role: LocationRole } | null> {
+  const byCustomer = await findOrderByToken(token, "locationToken");
+  if (byCustomer) return { order: byCustomer, role: "customer" };
+  const byCourier = await findOrderByToken(token, "courierLocationToken");
+  if (byCourier) return { order: byCourier, role: "courier" };
+  return null;
 }
 
 // --- Admin (verifyAdminSession) ---------------------------------------
@@ -117,6 +150,9 @@ export async function createOrderAction(
     locationToken: null,
     locationSharing: false,
     liveLocation: null,
+    courierLocationToken: null,
+    courierLocationSharing: false,
+    courierLiveLocation: null,
     status: "confirmee",
     createdAt: new Date().toISOString(),
     deliveredAt: null,
@@ -188,6 +224,9 @@ export async function createCustomerOrderAction(
     locationToken: null,
     locationSharing: false,
     liveLocation: null,
+    courierLocationToken: null,
+    courierLocationSharing: false,
+    courierLiveLocation: null,
     items: input.items,
     total: input.total,
     status: "confirmee",
@@ -224,6 +263,7 @@ export async function markOrderDeliveredAction(
     // La livraison est faite, plus besoin de suivre la position — évite
     // qu'un onglet resté ouvert continue de remonter des positions inutiles.
     locationSharing: false,
+    courierLocationSharing: false,
   });
 
   return { ok: true, reviewToken };
@@ -233,34 +273,36 @@ export async function markOrderDeliveredAction(
 // dédié (pas de session client requise) pour la page publique de partage de
 // position, envoyée par WhatsApp comme le lien d'avis.
 export async function getOrCreateLocationTokenAction(
-  id: string
+  id: string,
+  role: LocationRole = "customer"
 ): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   await verifyAdminSession();
 
+  const fields = locationFields(role);
   const ref = adminDb.collection("orders").doc(id);
   const snap = await ref.get();
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
 
   const order = snap.data() as Order;
-  const token = order.locationToken || randomUUID();
-  if (!order.locationToken) await ref.update({ locationToken: token });
+  const existing = order[fields.token];
+  const token = existing || randomUUID();
+  if (!existing) await ref.update({ [fields.token]: token });
 
   return { ok: true, token };
 }
 
 export async function getOrderLocationAction(
-  id: string
-): Promise<
-  | { ok: true; locationSharing: boolean; liveLocation: Order["liveLocation"] }
-  | { ok: false; error: string }
-> {
+  id: string,
+  role: LocationRole = "customer"
+): Promise<{ ok: true; locationSharing: boolean; liveLocation: LiveLocation } | { ok: false; error: string }> {
   await verifyAdminSession();
 
+  const fields = locationFields(role);
   const snap = await adminDb.collection("orders").doc(id).get();
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
   const order = snap.data() as Order;
 
-  return { ok: true, locationSharing: order.locationSharing, liveLocation: order.liveLocation };
+  return { ok: true, locationSharing: order[fields.sharing], liveLocation: order[fields.live] };
 }
 
 export async function approveTestimonialSubmissionAction(
@@ -384,26 +426,31 @@ export async function submitTestimonialAction(
   return { ok: true };
 }
 
-// --- Public, gardées par locationToken (aucune session) -----------------
-// Partage de position en direct pendant la livraison. Même principe de
-// sécurité que le dépôt d'avis : un jeton à usage dédié, jamais une session.
-// `liveLocation` sur la commande garde la dernière position (lecture rapide,
-// pas de requête sur la sous-collection pour l'affichage courant) ; chaque
-// mise à jour est aussi ajoutée à la sous-collection orders/{id}/locationPoints
-// pour reconstituer le trajet — fermée en lecture/écriture côté client comme
-// le reste (aucune règle explicite dans firestore.rules ⇒ retombe sur le
-// catch-all `allow read, write: if false`), donc uniquement via ces Server
-// Actions (Admin SDK).
+// --- Public, gardées par locationToken/courierLocationToken (aucune session) ---
+// Partage de position en direct pendant la livraison, client ET livreur —
+// même mécanique dupliquée sur deux canaux (voir locationFields ci-dessus).
+// Même principe de sécurité que le dépôt d'avis : un jeton à usage dédié,
+// jamais une session. `liveLocation`/`courierLiveLocation` sur la commande
+// gardent la dernière position (lecture rapide, pas de requête sur la
+// sous-collection pour l'affichage courant) ; chaque mise à jour est aussi
+// ajoutée à la sous-collection correspondante (orders/{id}/locationPoints ou
+// .../courierLocationPoints) pour reconstituer le trajet — fermées en
+// lecture/écriture côté client comme le reste (aucune règle explicite dans
+// firestore.rules ⇒ retombe sur le catch-all `allow read, write: if false`),
+// donc uniquement via ces Server Actions (Admin SDK).
 
-export async function getOrderForLocationAction(
-  token: string
-): Promise<{ ok: true; customerName: string; sharing: boolean } | { ok: false; error: string }> {
-  const order = await findOrderByToken(token, "locationToken");
-  if (!order) return { ok: false, error: "Ce lien n'est pas valide." };
+export async function getOrderForLocationAction(token: string): Promise<
+  | { ok: true; customerName: string; sharing: boolean; role: LocationRole }
+  | { ok: false; error: string }
+> {
+  const found = await findOrderByEitherLocationToken(token);
+  if (!found) return { ok: false, error: "Ce lien n'est pas valide." };
+  const { order, role } = found;
   if (order.status !== "confirmee") {
     return { ok: false, error: "Cette commande n'est plus en attente de livraison." };
   }
-  return { ok: true, customerName: order.customerName, sharing: order.locationSharing };
+  const fields = locationFields(role);
+  return { ok: true, customerName: order.customerName, sharing: order[fields.sharing], role };
 }
 
 export async function updateLiveLocationAction(
@@ -411,29 +458,32 @@ export async function updateLiveLocationAction(
   lat: number,
   lng: number
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const order = await findOrderByToken(token, "locationToken");
-  if (!order) return { ok: false, error: "Lien invalide." };
+  const found = await findOrderByEitherLocationToken(token);
+  if (!found) return { ok: false, error: "Lien invalide." };
+  const { order, role } = found;
   if (order.status !== "confirmee") return { ok: false, error: "Livraison déjà terminée." };
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return { ok: false, error: "Position invalide." };
   }
 
+  const fields = locationFields(role);
   const at = new Date().toISOString();
   const orderRef = adminDb.collection("orders").doc(order.id);
   await Promise.all([
-    orderRef.update({ locationSharing: true, liveLocation: { lat, lng, updatedAt: at } }),
-    orderRef.collection("locationPoints").add({ lat, lng, at }),
+    orderRef.update({ [fields.sharing]: true, [fields.live]: { lat, lng, updatedAt: at } }),
+    orderRef.collection(fields.points).add({ lat, lng, at }),
   ]);
 
   return { ok: true };
 }
 
 export async function stopLocationSharingAction(token: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const order = await findOrderByToken(token, "locationToken");
-  if (!order) return { ok: false, error: "Lien invalide." };
+  const found = await findOrderByEitherLocationToken(token);
+  if (!found) return { ok: false, error: "Lien invalide." };
+  const fields = locationFields(found.role);
 
-  await adminDb.collection("orders").doc(order.id).update({ locationSharing: false });
+  await adminDb.collection("orders").doc(found.order.id).update({ [fields.sharing]: false });
   return { ok: true };
 }
 
@@ -444,21 +494,23 @@ export interface LocationPoint {
 }
 
 export async function getOrderLocationHistoryAction(
-  id: string
+  id: string,
+  role: LocationRole = "customer"
 ): Promise<
-  | { ok: true; locationSharing: boolean; liveLocation: Order["liveLocation"]; points: LocationPoint[] }
+  | { ok: true; locationSharing: boolean; liveLocation: LiveLocation; points: LocationPoint[] }
   | { ok: false; error: string }
 > {
   await verifyAdminSession();
 
+  const fields = locationFields(role);
   const orderRef = adminDb.collection("orders").doc(id);
   const [snap, pointsSnap] = await Promise.all([
     orderRef.get(),
-    orderRef.collection("locationPoints").orderBy("at", "asc").get(),
+    orderRef.collection(fields.points).orderBy("at", "asc").get(),
   ]);
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
   const order = snap.data() as Order;
   const points = pointsSnap.docs.map((d) => d.data() as LocationPoint);
 
-  return { ok: true, locationSharing: order.locationSharing, liveLocation: order.liveLocation, points };
+  return { ok: true, locationSharing: order[fields.sharing], liveLocation: order[fields.live], points };
 }

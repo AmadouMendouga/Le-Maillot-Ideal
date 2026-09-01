@@ -20,10 +20,13 @@ export function LocationSharingForm({
   token,
   customerName,
   initialSharing,
+  role,
 }: {
   token: string;
   customerName: string;
   initialSharing: boolean;
+  /** "customer" : aide à localiser l'adresse de livraison. "courier" : celui qui livre (Djimi ou une aide ponctuelle) partage sa position en route. */
+  role: "customer" | "courier";
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
@@ -85,7 +88,7 @@ export function LocationSharingForm({
       <div className="contact-card review-thanks">
         <Icon name="check-circle" size="xl" />
         <h3>Partage arrêté</h3>
-        <p>Merci {customerName}, votre position n&apos;est plus transmise.</p>
+        <p>{role === "courier" ? "Merci, votre position n'est plus transmise." : `Merci ${customerName}, votre position n'est plus transmise.`}</p>
       </div>
     );
   }
@@ -144,11 +147,24 @@ export function LocationSharingForm({
 
   return (
     <div className="contact-card">
-      <h3>Bonjour {customerName} 👋</h3>
-      <p>
-        Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par Le
-        Maillot Idéal, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
-      </p>
+      {role === "courier" ? (
+        <>
+          <h3>Bonjour 👋</h3>
+          <p>
+            Merci de livrer la commande de {customerName} ! Partagez votre position pendant le trajet pour que Le
+            Maillot Idéal puisse suivre la livraison en direct. Elle n&apos;est visible que par eux, sert uniquement à
+            cette livraison, et vous pouvez arrêter à tout moment.
+          </p>
+        </>
+      ) : (
+        <>
+          <h3>Bonjour {customerName} 👋</h3>
+          <p>
+            Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par Le
+            Maillot Idéal, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
+          </p>
+        </>
+      )}
       {initialSharing ? (
         <p className="form-note">Un partage était déjà en cours sur un autre onglet — vous pouvez le reprendre ici.</p>
       ) : null}

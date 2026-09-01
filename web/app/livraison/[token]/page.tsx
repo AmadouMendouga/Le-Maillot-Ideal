@@ -30,7 +30,12 @@ export default async function LocationSharingPage({ params }: { params: Promise<
       <div className="section">
         <div className="container" style={{ maxWidth: 560 }}>
           {result.ok ? (
-            <LocationSharingForm token={token} customerName={result.customerName} initialSharing={result.sharing} />
+            <LocationSharingForm
+              token={token}
+              customerName={result.customerName}
+              initialSharing={result.sharing}
+              role={result.role}
+            />
           ) : (
             <div className="contact-card">
               <h3>Lien indisponible</h3>

@@ -51,12 +51,19 @@ function reviewRequestLink(order: Order, siteUrl: string): string {
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
 }
 
-function locationRequestLink(order: Order, siteUrl: string, token: string): string {
+function customerLocationRequestLink(order: Order, siteUrl: string, token: string): string {
   const url = `${siteUrl.replace(/\/$/, "")}/livraison/${token}`;
   const msg =
     `Bonjour ${order.customerName} 👋 pour faciliter votre livraison, pourriez-vous partager votre position ici : ${url}\n\n` +
     "Ça ne prend que quelques secondes, merci !";
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
+}
+
+// Qui livre varie (Djimi ou une aide ponctuelle, CLAUDE.md) — pas de numéro
+// fixe à qui envoyer automatiquement, contrairement au client. On copie donc
+// le lien brut pour que l'admin l'envoie lui-même à qui livre cette fois.
+function courierLocationUrl(siteUrl: string, token: string): string {
+  return `${siteUrl.replace(/\/$/, "")}/livraison/${token}`;
 }
 
 function timeAgo(iso: string): string {
@@ -81,20 +88,29 @@ function LocationMapDrawer({
   open: boolean;
   onClose: () => void;
 }) {
-  const [points, setPoints] = useState<LocationPoint[]>([]);
-  const [location, setLocation] = useState(order.liveLocation);
-  const [sharing, setSharing] = useState(order.locationSharing);
+  const [customerTrack, setCustomerTrack] = useState({
+    points: [] as LocationPoint[],
+    current: order.liveLocation,
+    sharing: order.locationSharing,
+  });
+  const [courierTrack, setCourierTrack] = useState({
+    points: [] as LocationPoint[],
+    current: order.courierLiveLocation,
+    sharing: order.courierLocationSharing,
+  });
 
   useEffect(() => {
     if (!open) return undefined;
 
     let cancelled = false;
     async function poll() {
-      const result = await getOrderLocationHistoryAction(order.id);
-      if (cancelled || !result.ok) return;
-      setPoints(result.points);
-      setLocation(result.liveLocation);
-      setSharing(result.locationSharing);
+      const [c, l] = await Promise.all([
+        getOrderLocationHistoryAction(order.id, "customer"),
+        getOrderLocationHistoryAction(order.id, "courier"),
+      ]);
+      if (cancelled) return;
+      if (c.ok) setCustomerTrack({ points: c.points, current: c.liveLocation, sharing: c.locationSharing });
+      if (l.ok) setCourierTrack({ points: l.points, current: l.liveLocation, sharing: l.locationSharing });
     }
     poll();
     const id = setInterval(poll, MAP_POLL_MS);
@@ -104,40 +120,87 @@ function LocationMapDrawer({
     };
   }, [open, order.id]);
 
+  function statusLine(label: string, track: typeof customerTrack) {
+    if (!track.current) return null;
+    return (
+      <p className="sub">
+        <strong>{label}</strong> — {track.sharing ? "partage actif" : "partage arrêté"} · dernière position{" "}
+        {timeAgo(track.current.updatedAt)}
+        {track.points.length ? ` · ${track.points.length} point${track.points.length > 1 ? "s" : ""}` : ""}
+      </p>
+    );
+  }
+
   return (
     <Drawer open={open} onClose={onClose} title={`Trajet — ${order.customerName}`} titleIcon="location">
-      <DeliveryMap points={points} current={location} />
-      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-        <p className="sub">
-          {sharing ? "Partage actif" : "Partage arrêté"}
-          {location ? ` · dernière position ${timeAgo(location.updatedAt)}` : ""}
-          {points.length ? ` · ${points.length} point${points.length > 1 ? "s" : ""} enregistrés` : ""}
-        </p>
-        {location ? (
-          <a
-            className="btn btn-tonal btn-sm"
-            href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ alignSelf: "flex-start" }}
-          >
-            <Icon name="location" size="sm" />
-            Ouvrir dans Maps pour naviguer
-          </a>
+      <DeliveryMap customer={customerTrack} courier={courierTrack} />
+      <div style={{ marginTop: 12, display: "flex", gap: 14, fontSize: ".78rem", color: "var(--on-surface-variant)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ff6b00", display: "inline-block" }} />
+          Client
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+          Livreur
+        </span>
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        {statusLine("Client", customerTrack)}
+        {statusLine("Livreur", courierTrack)}
+        {!customerTrack.current && !courierTrack.current ? (
+          <p className="sub">Aucune position partagée pour le moment.</p>
         ) : null}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {customerTrack.current ? (
+            <a
+              className="btn btn-tonal btn-sm"
+              href={`https://www.google.com/maps?q=${customerTrack.current.lat},${customerTrack.current.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon name="location" size="sm" />
+              Client dans Maps
+            </a>
+          ) : null}
+          {courierTrack.current ? (
+            <a
+              className="btn btn-tonal btn-sm"
+              href={`https://www.google.com/maps?q=${courierTrack.current.lat},${courierTrack.current.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon name="location" size="sm" />
+              Livreur dans Maps
+            </a>
+          ) : null}
+        </div>
       </div>
     </Drawer>
   );
 }
 
-function LocationCell({ order, settings }: { order: Order; settings: SiteSettings }) {
-  const [token, setToken] = useState(order.locationToken);
-  const [location, setLocation] = useState(order.liveLocation);
-  const [sharing, setSharing] = useState(order.locationSharing);
+function RoleLocationRow({
+  order,
+  settings,
+  role,
+  label,
+  token,
+  setToken,
+  location,
+  sharing,
+}: {
+  order: Order;
+  settings: SiteSettings;
+  role: "customer" | "courier";
+  label: string;
+  token: string | null;
+  setToken: (t: string) => void;
+  location: Order["liveLocation"];
+  sharing: boolean;
+}) {
   const [loading, setLoading] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
 
-  async function requestLocation() {
+  async function requestCustomer() {
     setLoading(true);
     // Ouvert tout de suite, dans le même tick que le clic (geste utilisateur) :
     // si l'ouverture attend la fin de getOrCreateLocationTokenAction ci-dessous,
@@ -151,7 +214,7 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
     try {
       let t = token;
       if (!t) {
-        const result = await getOrCreateLocationTokenAction(order.id);
+        const result = await getOrCreateLocationTokenAction(order.id, "customer");
         if (!result.ok) {
           newTab?.close();
           alert(result.error);
@@ -160,7 +223,7 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
         t = result.token;
         setToken(t);
       }
-      const url = locationRequestLink(order, settings.siteUrl, t);
+      const url = customerLocationRequestLink(order, settings.siteUrl, t);
       if (newTab) newTab.location.href = url;
       else window.open(url, "_blank");
     } finally {
@@ -168,14 +231,23 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
     }
   }
 
-  async function refresh() {
+  async function requestCourier() {
     setLoading(true);
     try {
-      const result = await getOrderLocationAction(order.id);
-      if (result.ok) {
-        setLocation(result.liveLocation);
-        setSharing(result.locationSharing);
+      let t = token;
+      if (!t) {
+        const result = await getOrCreateLocationTokenAction(order.id, "courier");
+        if (!result.ok) {
+          alert(result.error);
+          return;
+        }
+        t = result.token;
+        setToken(t);
       }
+      await navigator.clipboard.writeText(courierLocationUrl(settings.siteUrl, t));
+      showToast("Lien copié — envoyez-le à qui livre cette commande", "check-circle");
+    } catch {
+      alert("Impossible de copier le lien. Réessayez.");
     } finally {
       setLoading(false);
     }
@@ -183,41 +255,120 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
 
   if (!location) {
     return (
-      <button type="button" className="btn btn-tonal btn-sm" disabled={loading} onClick={requestLocation}>
-        <Icon name="location" size="sm" />
-        {token ? "Renvoyer" : "Demander"}
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span className="sub" style={{ minWidth: 44 }}>
+          {label}
+        </span>
+        <button
+          type="button"
+          className="btn btn-tonal btn-sm"
+          disabled={loading}
+          onClick={role === "customer" ? requestCustomer : requestCourier}
+        >
+          <Icon name="location" size="sm" />
+          {token ? "Renvoyer" : "Demander"}
+        </button>
+      </div>
     );
   }
 
   return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span
+        aria-hidden="true"
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          flexShrink: 0,
+          background: sharing ? "var(--secondary)" : "var(--on-surface-variant)",
+        }}
+      />
+      <span className="sub">
+        {label} · {sharing ? "actif" : "arrêté"} · {timeAgo(location.updatedAt)}
+      </span>
+    </div>
+  );
+}
+
+function LocationCell({ order, settings }: { order: Order; settings: SiteSettings }) {
+  const [customerToken, setCustomerToken] = useState(order.locationToken);
+  const [courierToken, setCourierToken] = useState(order.courierLocationToken);
+  const [customerLocation, setCustomerLocation] = useState(order.liveLocation);
+  const [customerSharing, setCustomerSharing] = useState(order.locationSharing);
+  const [courierLocation, setCourierLocation] = useState(order.courierLiveLocation);
+  const [courierSharing, setCourierSharing] = useState(order.courierLocationSharing);
+  const [mapOpen, setMapOpen] = useState(false);
+
+  // Rafraîchit les deux statuts en un coup (pas de bouton dédié par ligne —
+  // un seul point d'entrée, moins de boutons à comprendre dans une cellule
+  // de tableau déjà chargée).
+  useEffect(() => {
+    if (!customerLocation && !courierLocation) return;
+    let cancelled = false;
+    async function refresh() {
+      const [c, l] = await Promise.all([
+        getOrderLocationAction(order.id, "customer"),
+        getOrderLocationAction(order.id, "courier"),
+      ]);
+      if (cancelled) return;
+      if (c.ok) {
+        setCustomerLocation(c.liveLocation);
+        setCustomerSharing(c.locationSharing);
+      }
+      if (l.ok) {
+        setCourierLocation(l.liveLocation);
+        setCourierSharing(l.locationSharing);
+      }
+    }
+    const id = setInterval(refresh, MAP_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ne redémarre pas le minuteur à chaque tick, seulement quand une position apparaît pour la première fois
+  }, [order.id, !customerLocation && !courierLocation]);
+
+  return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            flexShrink: 0,
-            background: sharing ? "var(--secondary)" : "var(--on-surface-variant)",
-          }}
-        />
+      <RoleLocationRow
+        order={order}
+        settings={settings}
+        role="customer"
+        label="Client"
+        token={customerToken}
+        setToken={setCustomerToken}
+        location={customerLocation}
+        sharing={customerSharing}
+      />
+      <RoleLocationRow
+        order={order}
+        settings={settings}
+        role="courier"
+        label="Livreur"
+        token={courierToken}
+        setToken={setCourierToken}
+        location={courierLocation}
+        sharing={courierSharing}
+      />
+      {customerLocation || courierLocation ? (
         <button
           type="button"
           className="sub"
-          style={{ color: "var(--primary)", fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          style={{
+            color: "var(--primary)",
+            fontWeight: 600,
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
           onClick={() => setMapOpen(true)}
         >
           Voir le trajet
         </button>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span className="sub">{sharing ? "Partage actif" : "Arrêté"} · {timeAgo(location.updatedAt)}</span>
-        <button type="button" className="icon-btn" aria-label="Actualiser la position" disabled={loading} onClick={refresh}>
-          <Icon name="refresh" size="sm" />
-        </button>
-      </div>
+      ) : null}
       <LocationMapDrawer order={order} open={mapOpen} onClose={() => setMapOpen(false)} />
     </div>
   );
@@ -250,6 +401,7 @@ function AddressCell({ order }: { order: Order }) {
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <input
           autoFocus
+          aria-label="Adresse ou zone de livraison"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Adresse / zone"
@@ -390,6 +542,7 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
         ) : null}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <select
+            aria-label="Choisir un maillot"
             value={pickSlug}
             onChange={(e) => {
               setPickSlug(e.target.value);
@@ -404,7 +557,13 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
               </option>
             ))}
           </select>
-          <select value={pickSize} onChange={(e) => setPickSize(e.target.value)} disabled={!pickedProduct} style={{ flex: "0 1 90px" }}>
+          <select
+            aria-label="Taille"
+            value={pickSize}
+            onChange={(e) => setPickSize(e.target.value)}
+            disabled={!pickedProduct}
+            style={{ flex: "0 1 90px" }}
+          >
             <option value="">Taille</option>
             {pickedProduct?.sizes.map((s) => (
               <option key={s} value={s}>
@@ -415,6 +574,7 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
           <input
             type="number"
             min="1"
+            aria-label="Quantité"
             value={pickQty}
             onChange={(e) => setPickQty(e.target.value)}
             style={{ flex: "0 1 64px" }}

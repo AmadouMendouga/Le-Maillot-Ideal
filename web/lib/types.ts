@@ -66,15 +66,23 @@ export interface OrderItem {
   qty: number;
 }
 
+export type LiveLocation = { lat: number; lng: number; updatedAt: string } | null;
+
 export interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
   orderSummary: string;
   address: string | null;
+  // Position partagée par le client, pour aider à localiser l'adresse de livraison.
   locationToken: string | null;
   locationSharing: boolean;
-  liveLocation: { lat: number; lng: number; updatedAt: string } | null;
+  liveLocation: LiveLocation;
+  // Position partagée par qui livre effectivement (Djimi ou une aide ponctuelle
+  // — variable, voir CLAUDE.md) — canal séparé du client, même mécanique.
+  courierLocationToken: string | null;
+  courierLocationSharing: boolean;
+  courierLiveLocation: LiveLocation;
   status: OrderStatus;
   createdAt: string;
   deliveredAt: string | null;
