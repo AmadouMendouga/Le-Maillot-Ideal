@@ -4,12 +4,21 @@
 // (Firebase Auth côté client puis cookie de session httpOnly côté serveur),
 // juste posé sur /api/customer-session plutôt que /api/session, et avec un
 // style public (contact-card/form-row) plutôt que le style admin.
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
+
+async function establishServerSession(idToken: string): Promise<boolean> {
+  const res = await fetch("/api/customer-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  return res.ok;
+}
 
 export default function ComptConnexionPage() {
   const router = useRouter();
@@ -17,6 +26,24 @@ export default function ComptConnexionPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Le SDK Firebase (côté client) et notre cookie de session serveur sont
+  // deux mécanismes distincts. Si le cookie a expiré ou a été effacé par le
+  // navigateur (ex. politique de cookies iOS) alors que Firebase se souvient
+  // toujours du client, on resynchronise silencieusement plutôt que de
+  // forcer une reconnexion manuelle — sans ça, la page de connexion demande
+  // un mot de passe à quelqu'un que le navigateur reconnaît déjà.
+  useEffect(() => {
+    return onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const idToken = await user.getIdToken();
+      const ok = await establishServerSession(idToken);
+      if (ok) {
+        router.push("/compte/commandes");
+        router.refresh();
+      }
+    });
+  }, [router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -26,12 +53,8 @@ export default function ComptConnexionPage() {
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await credential.user.getIdToken();
-      const res = await fetch("/api/customer-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-      if (!res.ok) throw new Error();
+      const ok = await establishServerSession(idToken);
+      if (!ok) throw new Error();
       router.push("/compte/commandes");
       router.refresh();
     } catch {
