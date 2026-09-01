@@ -118,7 +118,7 @@ function LeagueRow({ league, onSaved, onDeleted }: { league: League; onSaved: ()
       {dirty ? (
         <button type="button" className="btn btn-tonal btn-sm" style={{ marginTop: 10 }} disabled={saving} onClick={save}>
           <Icon name="save" size="sm" />
-          Enregistrer
+          {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
       ) : null}
     </div>
