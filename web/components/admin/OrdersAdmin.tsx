@@ -5,9 +5,10 @@
 // de onSnapshot ici : orders est fermée en lecture côté client (firestore.rules),
 // donc la liste vient uniquement du Server Component parent et se rafraîchit
 // via router.refresh() après chaque action.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Drawer } from "@/components/admin/Drawer";
+import { DeliveryMap } from "@/components/admin/DeliveryMap";
 import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
 import { showToast } from "@/components/Toast";
@@ -17,6 +18,8 @@ import {
   updateOrderAddressAction,
   getOrCreateLocationTokenAction,
   getOrderLocationAction,
+  getOrderLocationHistoryAction,
+  type LocationPoint,
 } from "@/lib/actions/orders";
 import type { Order, SiteSettings } from "@/lib/types";
 
@@ -65,11 +68,74 @@ function timeAgo(iso: string): string {
   return `il y a ${hours} h`;
 }
 
+// Rafraîchit la carte toutes les 6s, uniquement pendant que le tiroir est
+// ouvert — pas de sondage en arrière-plan pour chaque commande de la liste.
+const MAP_POLL_MS = 6000;
+
+function LocationMapDrawer({
+  order,
+  open,
+  onClose,
+}: {
+  order: Order;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [points, setPoints] = useState<LocationPoint[]>([]);
+  const [location, setLocation] = useState(order.liveLocation);
+  const [sharing, setSharing] = useState(order.locationSharing);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    let cancelled = false;
+    async function poll() {
+      const result = await getOrderLocationHistoryAction(order.id);
+      if (cancelled || !result.ok) return;
+      setPoints(result.points);
+      setLocation(result.liveLocation);
+      setSharing(result.locationSharing);
+    }
+    poll();
+    const id = setInterval(poll, MAP_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [open, order.id]);
+
+  return (
+    <Drawer open={open} onClose={onClose} title={`Trajet — ${order.customerName}`} titleIcon="location">
+      <DeliveryMap points={points} current={location} />
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+        <p className="sub">
+          {sharing ? "Partage actif" : "Partage arrêté"}
+          {location ? ` · dernière position ${timeAgo(location.updatedAt)}` : ""}
+          {points.length ? ` · ${points.length} point${points.length > 1 ? "s" : ""} enregistrés` : ""}
+        </p>
+        {location ? (
+          <a
+            className="btn btn-tonal btn-sm"
+            href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ alignSelf: "flex-start" }}
+          >
+            <Icon name="location" size="sm" />
+            Ouvrir dans Maps pour naviguer
+          </a>
+        ) : null}
+      </div>
+    </Drawer>
+  );
+}
+
 function LocationCell({ order, settings }: { order: Order; settings: SiteSettings }) {
   const [token, setToken] = useState(order.locationToken);
   const [location, setLocation] = useState(order.liveLocation);
   const [sharing, setSharing] = useState(order.locationSharing);
   const [loading, setLoading] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   async function requestLocation() {
     setLoading(true);
@@ -125,15 +191,14 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
             background: sharing ? "var(--secondary)" : "var(--on-surface-variant)",
           }}
         />
-        <a
-          href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           className="sub"
-          style={{ color: "var(--primary)", fontWeight: 600 }}
+          style={{ color: "var(--primary)", fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          onClick={() => setMapOpen(true)}
         >
-          Ouvrir dans Maps
-        </a>
+          Voir le trajet
+        </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span className="sub">{sharing ? "Partage actif" : "Arrêté"} · {timeAgo(location.updatedAt)}</span>
@@ -141,6 +206,7 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
           <Icon name="refresh" size="sm" />
         </button>
       </div>
+      <LocationMapDrawer order={order} open={mapOpen} onClose={() => setMapOpen(false)} />
     </div>
   );
 }

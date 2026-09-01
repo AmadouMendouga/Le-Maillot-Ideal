@@ -329,9 +329,13 @@ export async function submitTestimonialAction(
 // --- Public, gardées par locationToken (aucune session) -----------------
 // Partage de position en direct pendant la livraison. Même principe de
 // sécurité que le dépôt d'avis : un jeton à usage dédié, jamais une session.
-// Une seule position est conservée (écrasée à chaque mise à jour) — pas
-// d'historique de trajet stocké, pour limiter l'exposition de données de
-// localisation à ce qui sert réellement la livraison en cours.
+// `liveLocation` sur la commande garde la dernière position (lecture rapide,
+// pas de requête sur la sous-collection pour l'affichage courant) ; chaque
+// mise à jour est aussi ajoutée à la sous-collection orders/{id}/locationPoints
+// pour reconstituer le trajet — fermée en lecture/écriture côté client comme
+// le reste (aucune règle explicite dans firestore.rules ⇒ retombe sur le
+// catch-all `allow read, write: if false`), donc uniquement via ces Server
+// Actions (Admin SDK).
 
 export async function getOrderForLocationAction(
   token: string
@@ -357,13 +361,12 @@ export async function updateLiveLocationAction(
     return { ok: false, error: "Position invalide." };
   }
 
-  await adminDb
-    .collection("orders")
-    .doc(order.id)
-    .update({
-      locationSharing: true,
-      liveLocation: { lat, lng, updatedAt: new Date().toISOString() },
-    });
+  const at = new Date().toISOString();
+  const orderRef = adminDb.collection("orders").doc(order.id);
+  await Promise.all([
+    orderRef.update({ locationSharing: true, liveLocation: { lat, lng, updatedAt: at } }),
+    orderRef.collection("locationPoints").add({ lat, lng, at }),
+  ]);
 
   return { ok: true };
 }
@@ -374,4 +377,30 @@ export async function stopLocationSharingAction(token: string): Promise<{ ok: tr
 
   await adminDb.collection("orders").doc(order.id).update({ locationSharing: false });
   return { ok: true };
+}
+
+export interface LocationPoint {
+  lat: number;
+  lng: number;
+  at: string;
+}
+
+export async function getOrderLocationHistoryAction(
+  id: string
+): Promise<
+  | { ok: true; locationSharing: boolean; liveLocation: Order["liveLocation"]; points: LocationPoint[] }
+  | { ok: false; error: string }
+> {
+  await verifyAdminSession();
+
+  const orderRef = adminDb.collection("orders").doc(id);
+  const [snap, pointsSnap] = await Promise.all([
+    orderRef.get(),
+    orderRef.collection("locationPoints").orderBy("at", "asc").get(),
+  ]);
+  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
+  const order = snap.data() as Order;
+  const points = pointsSnap.docs.map((d) => d.data() as LocationPoint);
+
+  return { ok: true, locationSharing: order.locationSharing, liveLocation: order.liveLocation, points };
 }
