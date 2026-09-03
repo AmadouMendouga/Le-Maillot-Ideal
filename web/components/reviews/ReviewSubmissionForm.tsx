@@ -95,7 +95,7 @@ export function ReviewSubmissionForm({ token, customerName }: { token: string; c
           <input ref={nameRef} id="rvName" type="text" required minLength={2} defaultValue={customerName} />
         </div>
         <div className="form-row">
-          <label htmlFor="rvCity">Ville · maillot acheté (optionnel)</label>
+          <label htmlFor="rvCity">Ville · maillot acheté</label>
           <input ref={designationRef} id="rvCity" type="text" placeholder="Douala · Maillot PSG domicile" />
         </div>
         <div className="form-row">
@@ -109,7 +109,7 @@ export function ReviewSubmissionForm({ token, customerName }: { token: string; c
           />
         </div>
         <div className="form-row">
-          <label>Une photo (optionnel)</label>
+          <label>Une photo</label>
           <button type="button" className="review-photo-picker" onClick={pickPhoto}>
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

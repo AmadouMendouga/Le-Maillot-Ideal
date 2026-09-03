@@ -9,6 +9,7 @@ import { Icon } from "@/components/icons/Icon";
 import { Lens } from "@/components/Lens";
 import { RatingStars } from "@/components/products/RatingStars";
 import { StatefulButton } from "@/components/StatefulButton";
+import { AddToCartIcon, runAddToCartIcon } from "@/components/cart/AddToCartIcon";
 import { useCart } from "@/components/cart/CartContext";
 import { showToast } from "@/components/Toast";
 import { flyToCart } from "@/lib/flyToCart";
@@ -17,6 +18,7 @@ import { publicProductDescription } from "@/lib/product";
 import type { Product, SiteSettings } from "@/lib/types";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const ADDED_LABEL_DURATION = 1600;
 
 export function ProductDetail({ product, settings }: { product: Product; settings: SiteSettings }) {
   const { addToCart, barRef } = useCart();
@@ -24,6 +26,10 @@ export function ProductDetail({ product, settings }: { product: Product; setting
   const sizes = useMemo(() => [...new Set(product.sizes.map((s) => String(s).trim()).filter(Boolean))], [product.sizes]);
   const [selectedSize, setSelectedSize] = useState(() => (sizes.includes("M") ? "M" : sizes[0] || ""));
   const [qty, setQty] = useState(1);
+  const [added, setAdded] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const addedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iconTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Photo principale + photos supplémentaires du même maillot (facultatives,
   // absentes sur la plupart des produits) : on clique une vignette, Lens zoome
@@ -60,6 +66,24 @@ export function ProductDetail({ product, settings }: { product: Product; setting
       return;
     }
     setQty((q) => q + 1);
+  }
+
+  function handleAddToCart() {
+    if (!canOrder) return;
+    const result = addToCart(product.slug, selectedSize, qty);
+    if (!result.ok) {
+      showToast(result.message || "Erreur", "error", true);
+      return;
+    }
+    const media = mediaRef.current;
+    const flew = media ? flyToCart(media, barRef.current) : false;
+    if (!flew) showToast(`${product.name} ajouté au panier`, "check-circle");
+
+    setAdded(true);
+    if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current);
+    addedTimeoutRef.current = setTimeout(() => setAdded(false), ADDED_LABEL_DURATION);
+
+    runAddToCartIcon(addBtnRef.current, iconTimeoutRef);
   }
 
   return (
@@ -155,25 +179,10 @@ export function ProductDetail({ product, settings }: { product: Product; setting
         </div>
 
         <div className="pd-ctas">
-          <StatefulButton
-            className="btn btn-primary btn-lg"
-            onValidate={() => {
-              if (!canOrder) return false;
-              const result = addToCart(product.slug, selectedSize, qty);
-              if (!result.ok) {
-                showToast(result.message || "Erreur", "error", true);
-                return false;
-              }
-              const media = mediaRef.current;
-              const flew = media ? flyToCart(media, barRef.current) : false;
-              if (!flew) showToast(`${product.name} ajouté au panier`, "check-circle");
-              return true;
-            }}
-            onRun={() => wait(420)}
-          >
-            <Icon name="cart" />
-            {canOrder ? "Ajouter au panier" : "Indisponible"}
-          </StatefulButton>
+          <button ref={addBtnRef} type="button" className="btn btn-primary btn-lg" disabled={!canOrder} onClick={handleAddToCart}>
+            <AddToCartIcon />
+            {added ? "Ajouté" : canOrder ? "Ajouter au panier" : "Indisponible"}
+          </button>
           {canOrder ? (
             <StatefulButton className="btn btn-whatsapp btn-lg" href={whatsappLink} target="_blank" rel="noopener" onRun={() => wait(600)}>
               <Icon name="whatsapp" />

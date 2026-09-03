@@ -634,7 +634,7 @@ html[data-theme="dark"] .contact-card { background: var(--surface-container-low)
   display: flex; align-items: center; justify-content: center;
 }
 .review-photo-picker span { font-size: .85rem; color: var(--on-surface-variant); }
-.review-thanks { text-align: center; padding: 30px 0; }
+.review-thanks { text-align: center; padding-top: 30px; padding-bottom: 30px; }
 .review-thanks .icon-xl { color: var(--secondary); margin-bottom: 10px; }
 .review-thanks h3 { margin: 0 0 8px; }
 
@@ -992,7 +992,14 @@ html[data-theme="dark"] .theme-toggle .i-moon { display: none; }
 }
 @keyframes thumbIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-.cart-bar-text { text-align: left; line-height: 1.15; }
+/* white-space: nowrap indispensable ici : .cart-bar est en display:flex sans
+   largeur fixe (position: fixed, largeur "shrink-to-fit"). Sans nowrap, le
+   texte peut s'enrouler et son MIN-CONTENT (juste le mot le plus long) sert
+   de base au calcul de largeur du bouton entier — la barre se retrouve alors
+   trop étroite et le texte s'affiche sur 2-3 lignes par-dessus les vignettes.
+   Passait inaperçu avec une seule vignette (48px de moins à caser), repéré
+   avec deux articles distincts dans le panier. */
+.cart-bar-text { text-align: left; line-height: 1.15; white-space: nowrap; }
 .cart-bar-text strong { display: block; font-size: .88rem; font-weight: 700; }
 .cart-bar-text span { font-size: .72rem; opacity: .82; }
 .cart-bar-go {
@@ -1615,3 +1622,117 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
   .lens-glass { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .lens-glass { transition: opacity .01ms; } }
+
+/* ===========================================================
+   Carte de livraison (DeliveryMap) — utilisée dans l'admin ET sur
+   les pages publiques /livraison/[token] (client et livreur voient
+   tous deux la carte), donc dans lmi.css plutôt qu'admin.css.
+   Marqueur "en direct" façon Gozem/Yango : bonhomme (icône Tabler
+   i-person) dans un badge plein + anneau qui respire autour, une
+   couleur par rôle (client / livreur), jamais mélangées, cohérente
+   avec la couleur du tracé de la même piste dans DeliveryMap.tsx.
+   =========================================================== */
+/* 32×42 pour correspondre à MARKER_ICON_SIZE/MARKER_ICON_ANCHOR dans
+   DeliveryMap.tsx : l'ancre Leaflet ([16,38], bas-centre) doit tomber sur la
+   pointe du .tail, pas sur le centre du badge, sinon le repère semble décalé
+   par rapport à la position GPS réelle. */
+.dlv-marker { position: relative; width: 32px; height: 42px; }
+.dlv-marker .badge {
+  position: absolute; top: 0; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+}
+.dlv-marker--customer .badge { background: #ff6b00; }
+.dlv-marker--courier .badge { background: #16a34a; }
+/* Pointe du repère (façon épingle) : carré tourné à 45°, sa pointe basse
+   tombe sur l'ancre Leaflet. */
+.dlv-marker .tail {
+  position: absolute; top: 25px; left: 11px; width: 10px; height: 10px;
+  border-radius: 0 0 3px 0; transform: rotate(45deg); box-shadow: 1px 1px 2px rgba(0, 0, 0, .3);
+}
+.dlv-marker--customer .tail { background: #ff6b00; }
+.dlv-marker--courier .tail { background: #16a34a; }
+.dlv-marker .ring {
+  position: absolute; top: 0; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  opacity: .55; animation: dlv-pulse 1.8s ease-out infinite;
+}
+.dlv-marker--customer .ring { background: #ff6b00; }
+.dlv-marker--courier .ring { background: #16a34a; }
+.dlv-marker.idle .ring { display: none; }
+.dlv-marker.idle .tail { opacity: .7; }
+@keyframes dlv-pulse {
+  0% { transform: scale(.45); opacity: .55; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dlv-marker .ring { animation: none; opacity: .25; transform: scale(.75); }
+}
+
+.dlv-live-badge {
+  position: absolute; top: 10px; left: 10px; z-index: 1000;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(20, 20, 20, .78); color: #fff; font-size: .74rem; font-weight: 700;
+  padding: 5px 10px 5px 8px; border-radius: var(--r-pill); pointer-events: none;
+}
+.dlv-live-badge .rec-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #ff6b00; flex-shrink: 0;
+  animation: dlv-blink 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .dlv-live-badge .rec-dot { animation: none; } }
+@keyframes dlv-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ===========================================================
+   Icône animée « Ajouter au panier » (AddToCartIcon) — inspirée d'un
+   effet vu sur Threads (@_code_and_chill_, 03/09/2026) : le sac sort,
+   le chariot roule pour venir l'attraper, puis repart avec. N'anime
+   que l'icône du bouton — le texte garde son propre cycle « Ajouter »
+   → « Ajouté », déjà en place (ProductCard/ProductDetail). Vient en
+   COMPLÉMENT du vol d'image vers la barre panier (flyToCart, §5.5
+   CLAUDE.md), qui reste inchangé — décision explicite du client.
+   Timing inspiré de l'original (courbe cubic-bezier(.6,0,.9,.4) pour
+   l'arrivée du chariot, repères à 1/6 et 5/6 du temps total) mais
+   distances/valeurs propres, en em pour rester lisible aussi bien
+   dans le petit bouton "Ajouter" des cartes que le grand bouton de
+   la fiche produit.
+   =========================================================== */
+.atc-icon {
+  position: relative;
+  display: inline-flex;
+  width: 1.3em;
+  height: 1.3em;
+  flex-shrink: 0;
+}
+.atc-icon svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.atc-icon .atc-cart { opacity: 0; transform: translateX(-2.6em) scale(.9); }
+
+.atc-icon.running .atc-bag { animation: atc-bag-out 1.3s both; }
+.atc-icon.running .atc-cart { animation: atc-cart-run 1.3s both; }
+
+@keyframes atc-bag-out {
+  0% { opacity: 1; transform: scale(1) translateY(0); }
+  8.333% { transform: scale(1.25) translateY(-.06em); }
+  16.667% { opacity: 1; transform: scale(1) translateY(0); }
+  41.667% { opacity: 0; transform: scale(.35) translateY(-.2em); }
+  100% { opacity: 0; transform: scale(.35) translateY(-.2em); }
+}
+
+@keyframes atc-cart-run {
+  0%, 16.667% { opacity: 0; transform: translateX(-2.6em) scale(.9) rotate(0deg); }
+  25% { opacity: 1; }
+  50% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+    animation-timing-function: cubic-bezier(.6, 0, .9, .4);
+  }
+  58.333% { transform: translateX(.03em) scale(1.14) rotate(-8deg); }
+  66.667% { transform: translateX(.06em) scale(1) rotate(5deg); }
+  83.333% { opacity: 1; transform: translateX(1.6em) scale(.95) rotate(2deg); }
+  100% { opacity: 0; transform: translateX(3.2em) scale(.8) rotate(2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atc-icon.running .atc-bag,
+  .atc-icon.running .atc-cart { animation: none; }
+  .atc-icon.running .atc-bag { opacity: 0; }
+  .atc-icon.running .atc-cart { opacity: 1; transform: translateX(0) scale(1); }
+}

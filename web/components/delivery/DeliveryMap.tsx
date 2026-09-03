@@ -5,12 +5,17 @@
 // plutôt que Firebase Storage fait ailleurs dans ce projet). Chargé
 // dynamiquement dans useEffect : Leaflet touche `window`/`document` au
 // chargement, un import statique casserait le rendu serveur du composant.
+// Utilisé à la fois par l'admin (components/admin/OrdersAdmin.tsx) et par
+// les pages publiques de partage de position (components/delivery/
+// LocationSharingForm.tsx) — client ET livreur doivent pouvoir se voir
+// mutuellement, pas seulement l'admin.
 //
 // Deux pistes distinctes (client et livreur, qui varie — Djimi lui-même ou
-// une aide ponctuelle, CLAUDE.md) : chacune son marqueur "bonhomme" (icône
-// Tabler i-person réutilisée telle quelle) et sa couleur, plutôt qu'un point
-// générique — inspiré des écrans de suivi Gozem/Yango. Une piste sans donnée
-// n'affiche simplement rien tant que personne n'a partagé sa position.
+// une aide ponctuelle, CLAUDE.md) : chacune son marqueur en forme d'épingle
+// avec un bonhomme (icône Tabler i-person réutilisée telle quelle) et sa
+// couleur, plutôt qu'un point générique — inspiré des écrans de suivi
+// Gozem/Yango/Bolt. Une piste sans donnée n'affiche simplement rien tant
+// que personne n'a partagé sa position.
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -33,7 +38,7 @@ export interface DeliveryTrack {
 }
 
 const PERSON_SVG =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">' +
+  '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">' +
   '<path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />' +
   '<path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>';
 
@@ -41,14 +46,22 @@ function isDarkTheme(): boolean {
   return document.documentElement.getAttribute("data-theme") === "dark";
 }
 
+// Épingle (badge arrondi + pointe) plutôt qu'un simple cercle : "pourquoi ce
+// ne sont pas des bonhommes" — le repère de position doit se reconnaître au
+// premier coup d'œil, comme sur Bolt/Gozem/Yango, pas juste un point coloré.
 function markerHtml(role: "customer" | "courier", sharing: boolean): string {
   return (
     `<div class="dlv-marker dlv-marker--${role}${sharing ? "" : " idle"}">` +
-    '<span class="ring"></span><span class="badge">' +
+    '<span class="badge">' +
     PERSON_SVG +
-    "</span></div>"
+    "</span>" +
+    '<span class="tail"></span>' +
+    '<span class="ring"></span>' +
+    "</div>"
   );
 }
+const MARKER_ICON_SIZE: [number, number] = [32, 42];
+const MARKER_ICON_ANCHOR: [number, number] = [16, 38];
 
 // OSRM : service d'itinéraire routier gratuit, sans clé API (instance de
 // démonstration publique — pas de garantie de disponibilité, voir le
@@ -96,7 +109,7 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- polyligne Leaflet réelle
   const routeLineRef = useRef<any>(null);
   // Évite de rappeler OSRM à chaque sondage (toutes les 6s) si personne n'a
-  // vraiment bougé — voir routeThrottleMs plus bas.
+  // vraiment bougé — voir le throttle plus bas.
   const routeStateRef = useRef<{ from: { lat: number; lng: number }; to: { lat: number; lng: number }; fetchedAt: number } | null>(
     null
   );
@@ -190,7 +203,7 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
 
       if (!t.marker) {
         t.marker = L.marker([last.lat, last.lng], {
-          icon: L.divIcon({ className: "", html: markerHtml(role, track.sharing), iconSize: [28, 28], iconAnchor: [14, 14] }),
+          icon: L.divIcon({ className: "", html: markerHtml(role, track.sharing), iconSize: MARKER_ICON_SIZE, iconAnchor: MARKER_ICON_ANCHOR }),
         }).addTo(map);
       } else {
         t.marker.setLatLng([last.lat, last.lng]);

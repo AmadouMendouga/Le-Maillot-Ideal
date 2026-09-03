@@ -7,6 +7,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
+import { AddToCartIcon, runAddToCartIcon } from "@/components/cart/AddToCartIcon";
 import { RatingStars } from "@/components/products/RatingStars";
 import { useDirectionAwareHover } from "@/hooks/useDirectionAwareHover";
 import { useCart } from "@/components/cart/CartContext";
@@ -22,7 +23,10 @@ export function ProductCard({ product, settings }: { product: Product; settings:
   const { addToCart, barRef } = useCart();
   const dah = useDirectionAwareHover<HTMLAnchorElement>();
   const cardRef = useRef<HTMLElement>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
   const [added, setAdded] = useState(false);
+  const addedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iconTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const verified = settings.catalogDataVerified;
   const st = stockInfo(product, verified);
@@ -50,7 +54,10 @@ export function ProductCard({ product, settings }: { product: Product; settings:
     if (!flew) showToast(`${product.name} ajouté au panier`, "check-circle");
 
     setAdded(true);
-    setTimeout(() => setAdded(false), ADDED_LABEL_DURATION);
+    if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current);
+    addedTimeoutRef.current = setTimeout(() => setAdded(false), ADDED_LABEL_DURATION);
+
+    runAddToCartIcon(addBtnRef.current, iconTimeoutRef);
   }
 
   return (
@@ -105,13 +112,14 @@ export function ProductCard({ product, settings }: { product: Product; settings:
             {verified && product.discountPct > 0 && <span className="price-old">{FCFA(product.priceOriginal)}</span>}
           </div>
           <button
+            ref={addBtnRef}
             type="button"
             className={"add-btn quick-add" + (added ? " added" : "")}
             disabled={!st.available}
             aria-label={st.available ? `Ajouter ${product.name} au panier` : `${product.name} indisponible`}
             onClick={handleQuickAdd}
           >
-            <Icon name={added ? "check-circle" : "add"} />
+            <AddToCartIcon />
             {added ? "Ajouté" : st.available ? "Ajouter" : "Épuisé"}
           </button>
         </div>

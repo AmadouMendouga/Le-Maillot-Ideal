@@ -211,39 +211,6 @@ html[data-theme="dark"] .adm-drawer-foot { background: var(--surface-container);
 }
 
 /* --- carte de livraison (DeliveryMap) --- */
-/* Marqueur "en direct" façon Gozem/Yango : bonhomme (icône Tabler i-person)
-   dans un badge plein + anneau qui respire autour, plutôt qu'un point
-   générique — une couleur par rôle (client / livreur), jamais mélangées,
-   cohérente avec la couleur du tracé de la même piste dans DeliveryMap.tsx. */
-.dlv-marker { position: relative; width: 28px; height: 28px; }
-.dlv-marker .badge {
-  position: absolute; inset: 3px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
-}
-.dlv-marker--customer .badge { background: #ff6b00; }
-.dlv-marker--courier .badge { background: #16a34a; }
-.dlv-marker .ring { position: absolute; inset: 0; border-radius: 50%; opacity: .55; animation: dlv-pulse 1.8s ease-out infinite; }
-.dlv-marker--customer .ring { background: #ff6b00; }
-.dlv-marker--courier .ring { background: #16a34a; }
-.dlv-marker.idle .ring { display: none; }
-@keyframes dlv-pulse {
-  0% { transform: scale(.45); opacity: .55; }
-  100% { transform: scale(1); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .dlv-marker .ring { animation: none; opacity: .25; transform: scale(.75); }
-}
-
-.dlv-live-badge {
-  position: absolute; top: 10px; left: 10px; z-index: 1000;
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(20, 20, 20, .78); color: #fff; font-size: .74rem; font-weight: 700;
-  padding: 5px 10px 5px 8px; border-radius: var(--r-pill); pointer-events: none;
-}
-.dlv-live-badge .rec-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: #ff6b00; flex-shrink: 0;
-  animation: dlv-blink 1.4s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) { .dlv-live-badge .rec-dot { animation: none; } }
-@keyframes dlv-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+/* Styles déplacés dans app/lmi.css le 03/09/2026 : DeliveryMap s'affiche
+   maintenant aussi sur les pages publiques /livraison/[token], et admin.css
+   n'est chargé que sous /admin — voir app/lmi.css pour .dlv-marker etc. */

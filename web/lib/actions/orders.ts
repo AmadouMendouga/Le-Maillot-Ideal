@@ -28,6 +28,22 @@ const UNPAID_PAYMENT_FIELDS = {
   paymentFailureReason: null,
 };
 
+// Le bouton « Commander sur WhatsApp » (CartPanel) n'est pas désactivé après
+// coup et le panier n'est pas vidé — un client peut vouloir rouvrir WhatsApp
+// s'il a fermé l'onglet par erreur, donc recliquer. Sans garde, chaque clic
+// recrée une commande ET redécompte le stock pour le même panier (repéré en
+// admin : plusieurs lignes identiques pour le même client, quelques secondes
+// d'écart). Une commande identique (mêmes articles) du même client créée
+// dans cette fenêtre est considérée comme le même clic répété.
+const DUPLICATE_ORDER_WINDOW_MS = 90 * 1000;
+
+function itemsSignature(items: OrderItem[]): string {
+  return items
+    .map((item) => `${item.slug}:${item.size}:${item.qty}`)
+    .sort()
+    .join("|");
+}
+
 // Décompte le stock au moment où la vente est enregistrée (pas à la
 // livraison) : « j'achète les 8 derniers, le stock passe direct en rupture »
 // — sinon un deuxième client pourrait commander le même article pendant que
@@ -212,6 +228,18 @@ export async function createCustomerOrderAction(
   const profileSnap = await adminDb.collection("customers").doc(session.uid).get();
   if (!profileSnap.exists) return { ok: false, error: "Profil introuvable." };
   const profile = profileSnap.data() as { name: string; phone: string };
+
+  const signature = itemsSignature(input.items);
+  const existingSnap = await adminDb.collection("orders").where("uid", "==", session.uid).get();
+  const duplicate = existingSnap.docs.find((d) => {
+    const o = d.data() as Order;
+    return (
+      Array.isArray(o.items) &&
+      itemsSignature(o.items) === signature &&
+      Date.now() - new Date(o.createdAt).getTime() < DUPLICATE_ORDER_WINDOW_MS
+    );
+  });
+  if (duplicate) return { ok: true, id: duplicate.id };
 
   const stockResult = await decrementStockForItems(input.items);
   if (!stockResult.ok) return stockResult;
@@ -513,4 +541,42 @@ export async function getOrderLocationHistoryAction(
   const points = pointsSnap.docs.map((d) => d.data() as LocationPoint);
 
   return { ok: true, locationSharing: order[fields.sharing], liveLocation: order[fields.live], points };
+}
+
+export interface SharedTrack {
+  points: LocationPoint[];
+  current: LiveLocation;
+  sharing: boolean;
+}
+
+// Vue publique, gardée par jeton (pas de session admin) : le client ET le
+// livreur doivent tous les deux pouvoir voir où en est l'autre, pas
+// seulement l'admin — n'importe lequel des deux jetons de la même commande
+// donne accès aux DEUX pistes (c'est le but : se retrouver mutuellement),
+// jamais à une autre commande.
+export async function getSharedLocationViewAction(
+  token: string
+): Promise<{ ok: true; customer: SharedTrack; courier: SharedTrack } | { ok: false; error: string }> {
+  const found = await findOrderByEitherLocationToken(token);
+  if (!found) return { ok: false, error: "Lien invalide." };
+  const { order } = found;
+
+  const [customerPoints, courierPoints] = await Promise.all([
+    adminDb.collection("orders").doc(order.id).collection("locationPoints").orderBy("at", "asc").get(),
+    adminDb.collection("orders").doc(order.id).collection("courierLocationPoints").orderBy("at", "asc").get(),
+  ]);
+
+  return {
+    ok: true,
+    customer: {
+      points: customerPoints.docs.map((d) => d.data() as LocationPoint),
+      current: order.liveLocation,
+      sharing: order.locationSharing,
+    },
+    courier: {
+      points: courierPoints.docs.map((d) => d.data() as LocationPoint),
+      current: order.courierLiveLocation,
+      sharing: order.courierLocationSharing,
+    },
+  };
 }

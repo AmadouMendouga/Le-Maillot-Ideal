@@ -7,14 +7,84 @@
 // un bouton « Arrêter » est toujours visible une fois le partage actif.
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
-import { updateLiveLocationAction, stopLocationSharingAction } from "@/lib/actions/orders";
+import {
+  updateLiveLocationAction,
+  stopLocationSharingAction,
+  getSharedLocationViewAction,
+  type SharedTrack,
+} from "@/lib/actions/orders";
+import { DeliveryMap } from "@/components/delivery/DeliveryMap";
 
 // Le navigateur peut rappeler watchPosition très souvent (chaque seconde en
 // haute précision) — on ne remonte au serveur qu'au maximum toutes les 10s,
 // largement suffisant pour suivre un livreur/client en déplacement.
 const MIN_INTERVAL_MS = 10000;
 
+// Même cadence que le tiroir admin (OrdersAdmin.tsx, LocationMapDrawer) —
+// assez réactif pour suivre un trajet, sans bombarder Firestore.
+const MAP_POLL_MS = 6000;
+
 type Status = "idle" | "sharing" | "stopped" | "denied" | "unavailable" | "unsupported";
+
+function timeAgo(iso: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `il y a ${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return `il y a ${hours} h`;
+}
+
+function trackStatusLine(label: string, track: SharedTrack) {
+  if (!track.current) return null;
+  return (
+    <p className="sub">
+      <strong>{label}</strong> — {track.sharing ? "partage actif" : "partage arrêté"} · dernière position{" "}
+      {timeAgo(track.current.updatedAt)}
+    </p>
+  );
+}
+
+// Le client ET le livreur doivent tous les deux pouvoir voir où en est
+// l'autre, pas seulement l'admin (demande explicite du client) — visible
+// quel que soit le statut de CE navigateur (même si sa propre position n'est
+// pas encore partagée ici), dès qu'une position existe côté serveur.
+function SharedMapCard({ view }: { view: { customer: SharedTrack; courier: SharedTrack } | null }) {
+  if (!view || (!view.customer.current && !view.courier.current)) {
+    return (
+      <div className="contact-card">
+        <h3>Carte du trajet</h3>
+        <p className="form-note">La carte s&apos;affichera dès qu&apos;une position sera partagée.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="contact-card">
+      <h3>Carte du trajet</h3>
+      <DeliveryMap customer={view.customer} courier={view.courier} />
+      <div style={{ marginTop: 12, display: "flex", gap: 14, fontSize: ".78rem", color: "var(--on-surface-variant)", flexWrap: "wrap" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ff6b00", display: "inline-block" }} />
+          Client
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+          Livreur
+        </span>
+        {view.customer.current && view.courier.current ? (
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 12, height: 2, background: "#1e3a8a", display: "inline-block" }} />
+            Itinéraire suggéré
+          </span>
+        ) : null}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+        {trackStatusLine("Client", view.customer)}
+        {trackStatusLine("Livreur", view.courier)}
+      </div>
+    </div>
+  );
+}
 
 export function LocationSharingForm({
   token,
@@ -30,6 +100,7 @@ export function LocationSharingForm({
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
+  const [sharedView, setSharedView] = useState<{ customer: SharedTrack; courier: SharedTrack } | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastSentRef = useRef(0);
 
@@ -38,6 +109,23 @@ export function LocationSharingForm({
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
     };
   }, []);
+
+  // Sondage indépendant du statut de CE navigateur : le client voit la
+  // position du livreur même s'il n'a pas encore cliqué "Partager ma
+  // position" ici, et inversement.
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      const result = await getSharedLocationViewAction(token);
+      if (!cancelled && result.ok) setSharedView({ customer: result.customer, courier: result.courier });
+    }
+    poll();
+    const id = setInterval(poll, MAP_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [token]);
 
   function handlePosition(pos: GeolocationPosition) {
     setStatus("sharing");
@@ -85,93 +173,108 @@ export function LocationSharingForm({
 
   if (status === "stopped") {
     return (
-      <div className="contact-card review-thanks">
-        <Icon name="check-circle" size="xl" />
-        <h3>Partage arrêté</h3>
-        <p>{role === "courier" ? "Merci, votre position n'est plus transmise." : `Merci ${customerName}, votre position n'est plus transmise.`}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="contact-card review-thanks">
+          <Icon name="check-circle" size="xl" />
+          <h3>Partage arrêté</h3>
+          <p>{role === "courier" ? "Merci, votre position n'est plus transmise." : `Merci ${customerName}, votre position n'est plus transmise.`}</p>
+        </div>
+        <SharedMapCard view={sharedView} />
       </div>
     );
   }
 
   if (status === "sharing") {
     return (
-      <div className="contact-card">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <span
-            aria-hidden="true"
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              background: "var(--secondary)",
-              boxShadow: "0 0 0 4px color-mix(in srgb, var(--secondary) 25%, transparent)",
-              flexShrink: 0,
-            }}
-          />
-          <h3 style={{ margin: 0 }}>Partage actif</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="contact-card">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "var(--secondary)",
+                boxShadow: "0 0 0 4px color-mix(in srgb, var(--secondary) 25%, transparent)",
+                flexShrink: 0,
+              }}
+            />
+            <h3 style={{ margin: 0 }}>Partage actif</h3>
+          </div>
+          <p className="form-note">
+            {lastUpdateAt
+              ? `Dernière position envoyée à ${lastUpdateAt.toLocaleTimeString("fr-FR")}.`
+              : "Localisation en cours…"}
+          </p>
+          <p>Votre position sert uniquement à faciliter votre livraison. Elle n&apos;est pas conservée après.</p>
+          <button type="button" className="btn btn-tonal btn-lg btn-block" onClick={stopSharing}>
+            <Icon name="close" size="sm" />
+            Arrêter le partage
+          </button>
         </div>
-        <p className="form-note">
-          {lastUpdateAt
-            ? `Dernière position envoyée à ${lastUpdateAt.toLocaleTimeString("fr-FR")}.`
-            : "Localisation en cours…"}
-        </p>
-        <p>Votre position sert uniquement à faciliter votre livraison. Elle n&apos;est pas conservée après.</p>
-        <button type="button" className="btn btn-tonal btn-lg btn-block" onClick={stopSharing}>
-          <Icon name="close" size="sm" />
-          Arrêter le partage
-        </button>
+        <SharedMapCard view={sharedView} />
       </div>
     );
   }
 
   if (status === "denied") {
     return (
-      <div className="contact-card">
-        <h3>Position refusée</h3>
-        <p>
-          Votre navigateur a bloqué l&apos;accès à votre position. Autorisez la localisation pour ce site dans les
-          réglages de votre navigateur, puis rechargez la page.
-        </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="contact-card">
+          <h3>Position refusée</h3>
+          <p>
+            Votre navigateur a bloqué l&apos;accès à votre position. Autorisez la localisation pour ce site dans les
+            réglages de votre navigateur, puis rechargez la page.
+          </p>
+        </div>
+        <SharedMapCard view={sharedView} />
       </div>
     );
   }
 
   if (status === "unavailable" || status === "unsupported") {
     return (
-      <div className="contact-card">
-        <h3>Position indisponible</h3>
-        <p>Impossible d&apos;obtenir votre position pour le moment. Réessayez, ou contactez-nous sur WhatsApp.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="contact-card">
+          <h3>Position indisponible</h3>
+          <p>Impossible d&apos;obtenir votre position pour le moment. Réessayez, ou contactez-nous sur WhatsApp.</p>
+        </div>
+        <SharedMapCard view={sharedView} />
       </div>
     );
   }
 
   return (
-    <div className="contact-card">
-      {role === "courier" ? (
-        <>
-          <h3>Bonjour 👋</h3>
-          <p>
-            Merci de livrer la commande de {customerName} ! Partagez votre position pendant le trajet pour que Le
-            Maillot Idéal puisse suivre la livraison en direct. Elle n&apos;est visible que par eux, sert uniquement à
-            cette livraison, et vous pouvez arrêter à tout moment.
-          </p>
-        </>
-      ) : (
-        <>
-          <h3>Bonjour {customerName} 👋</h3>
-          <p>
-            Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par Le
-            Maillot Idéal, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
-          </p>
-        </>
-      )}
-      {initialSharing ? (
-        <p className="form-note">Un partage était déjà en cours sur un autre onglet — vous pouvez le reprendre ici.</p>
-      ) : null}
-      <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startSharing}>
-        <Icon name="location" size="sm" />
-        Partager ma position
-      </button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="contact-card">
+        {role === "courier" ? (
+          <>
+            <h3>Bonjour 👋</h3>
+            <p>
+              Merci de livrer la commande de {customerName} ! Partagez votre position pendant le trajet pour que Le
+              Maillot Idéal puisse suivre la livraison en direct. Elle n&apos;est visible que par eux, sert uniquement à
+              cette livraison, et vous pouvez arrêter à tout moment.
+            </p>
+          </>
+        ) : (
+          <>
+            <h3>Bonjour {customerName} 👋</h3>
+            <p>
+              Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par Le
+              Maillot Idéal, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
+            </p>
+          </>
+        )}
+        {initialSharing ? (
+          <p className="form-note">Un partage était déjà en cours sur un autre onglet — vous pouvez le reprendre ici.</p>
+        ) : null}
+        <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startSharing}>
+          <Icon name="location" size="sm" />
+          Partager ma position
+        </button>
+      </div>
+      <SharedMapCard view={sharedView} />
     </div>
   );
 }

@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Drawer } from "@/components/admin/Drawer";
-import { DeliveryMap } from "@/components/admin/DeliveryMap";
+import { DeliveryMap } from "@/components/delivery/DeliveryMap";
 import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
 import { showToast } from "@/components/Toast";
@@ -517,7 +517,7 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
       </div>
 
       <div className="adm-field">
-        <label>Articles vendus (facultatif — met à jour le stock)</label>
+        <label>Articles vendus — met à jour le stock</label>
         {items.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
             {items.map((item, i) => {
@@ -596,7 +596,7 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
       </div>
 
       <div className="adm-field">
-        <label>Adresse / zone de livraison (facultatif)</label>
+        <label>Adresse / zone de livraison</label>
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
