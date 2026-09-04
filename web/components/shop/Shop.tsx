@@ -101,7 +101,7 @@ export function Shop({
           <div className="filters-content">
             {leagues.length > 0 ? (
               <>
-                <h3>Championnat</h3>
+                <p className="filters-heading">Championnat</p>
                 <div className="filter-group">
                   {leagues.map((league) => {
                     const count = products.filter((p) => p.league === league.key).length;
@@ -123,7 +123,7 @@ export function Shop({
 
             {verified && (
               <div>
-                <h3>Disponibilité</h3>
+                <p className="filters-heading">Disponibilité</p>
                 <div className="filter-group">
                   <label className="filter-option">
                     <input
@@ -214,6 +214,9 @@ export function Shop({
           </div>
         </div>
 
+        {/* visuellement masqué : comble le niveau h2 manquant entre le h1 de la
+            page et les h3 des cartes produit (plan du document pour lecteurs d'écran) */}
+        <h2 className="sr-only">Résultats</h2>
         <div className="product-grid" id="shopGrid">
           {pageItems.length ? (
             pageItems.map((p) => <ProductCard key={p.slug} product={p} settings={settings} />)

@@ -9,22 +9,35 @@ export function SportGrid({ sports, products }: { sports: Sport[]; products: Pro
   return (
     <div className="league-grid">
       {sports.map((sport) => {
-        const count = products.filter((p) => p.sport === sport.key).length;
+        const sportProducts = products.filter((p) => p.sport === sport.key);
+        const count = sportProducts.length;
+        // Vraie photo produit en vignette plutôt qu'une icône générique, dès
+        // qu'un produit existe — le logo du sport (uploadé par l'admin), lui,
+        // reste toujours prioritaire quand il existe.
+        const thumb = sportProducts[0]?.images.square;
+
         return (
           <Link className="league-card" key={sport.key} href={`/${sport.key}`}>
-            <span className="league-dot" style={{ background: safeColor(sport.color) }}>
-              <Icon name={sport.key === "football" ? "soccer" : "storefront"} size="lg" />
-              {sport.logo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className="league-logo-img"
-                  src={sport.logo}
-                  alt=""
-                  loading="lazy"
-                  onError={(e) => e.currentTarget.remove()}
-                />
-              )}
-            </span>
+            {sport.logo || !thumb ? (
+              <span className="league-dot" style={{ background: safeColor(sport.color) }}>
+                <Icon name={sport.key === "football" ? "soccer" : "storefront"} size="lg" />
+                {sport.logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="league-logo-img"
+                    src={sport.logo}
+                    alt=""
+                    loading="lazy"
+                    onError={(e) => e.currentTarget.remove()}
+                  />
+                )}
+              </span>
+            ) : (
+              <span className="league-thumb">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={thumb} alt="" loading="lazy" />
+              </span>
+            )}
             <div>
               <h3>{sport.label}</h3>
               <span>

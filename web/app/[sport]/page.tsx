@@ -121,7 +121,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
                 <Icon name="whatsapp" size="lg" />
               </span>
               <div>
-                <h4>Commande WhatsApp</h4>
+                <p className="service-title">Commande WhatsApp</p>
                 <p>Rapide, simple, sans compte à créer</p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
                 <Icon name="money" size="lg" />
               </span>
               <div>
-                <h4>Paiement à confirmer</h4>
+                <p className="service-title">Paiement à confirmer</p>
                 <p>Modalités convenues sur WhatsApp avant la commande</p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
                 <Icon name="shipping" size="lg" />
               </span>
               <div>
-                <h4>Livraison à confirmer</h4>
+                <p className="service-title">Livraison à confirmer</p>
                 <p>Zone, délai et frais précisés avant la commande</p>
               </div>
             </div>
@@ -148,7 +148,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
                 <Icon name="check-circle" size="lg" />
               </span>
               <div>
-                <h4>Choix de tailles</h4>
+                <p className="service-title">Choix de tailles</p>
                 <p>Consultez chaque fiche pour les tailles disponibles</p>
               </div>
             </div>
@@ -161,11 +161,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
           <div className="container">
             <div className="section-head">
               <div>
-                <span className="eyebrow">
-                  <Icon name="inventory" size="sm" />
-                  Catalogue
-                </span>
-                <h2>Choisissez votre championnat</h2>
+                <h2>Catalogue : choisissez votre championnat</h2>
                 <p>
                   {products.length} produit{products.length > 1 ? "s" : ""} présenté{products.length > 1 ? "s" : ""}{" "}
                   au catalogue, réparti{products.length > 1 ? "s" : ""} sur {leagues.length} championnat
@@ -194,11 +190,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
           )}
           <div className="section-head">
             <div>
-              <span className="eyebrow">
-                <Icon name="bolt" size="sm" />
-                Sélection du catalogue
-              </span>
-              <h2>Produits au catalogue</h2>
+              <h2>Sélection du catalogue</h2>
               <p>Une sélection à faire confirmer sur WhatsApp avant toute commande.</p>
             </div>
             <Link className="btn btn-tonal" href={`/${sportKey}/boutique`}>
@@ -217,11 +209,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
         <div className="container">
           <div className="section-head">
             <div>
-              <span className="eyebrow">
-                <Icon name="shipping" size="sm" />
-                Livraison &amp; paiement
-              </span>
-              <h2>Où livrons-nous, et comment payer ?</h2>
+              <h2>Livraison &amp; paiement : où livrons-nous, et comment payer ?</h2>
             </div>
           </div>
           <div className="table-scroll">
@@ -281,11 +269,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
               <span>Photo à venir</span>
             </div>
             <div className="about-text">
-              <span className="eyebrow">
-                <Icon name="verified" size="sm" />
-                Qui sommes-nous
-              </span>
-              <h3>Derrière chaque commande, une vraie personne</h3>
+              <h3>Qui sommes-nous : derrière chaque commande, une vraie personne</h3>
               <p>
                 {settings.businessName} est géré par Djimi, basé à Douala. Chaque commande passée sur WhatsApp est
                 suivie personnellement, de la confirmation jusqu&apos;à la livraison.
@@ -311,11 +295,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
             className="section-head"
             style={{ justifyContent: "center", textAlign: "center", flexDirection: "column", alignItems: "center" }}
           >
-            <span className="eyebrow">
-              <Icon name="info" size="sm" />
-              Questions fréquentes
-            </span>
-            <h2>Vous vous posez une question ?</h2>
+            <h2>Questions fréquentes</h2>
           </div>
           <FaqAccordion items={FAQ_ITEMS} />
         </div>
@@ -324,11 +304,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
       <section className="section section-alt" id="contact">
         <div className="container">
           <div className="section-head" style={{ flexDirection: "column", alignItems: "flex-start" }}>
-            <span className="eyebrow">
-              <Icon name="person" size="sm" />
-              Contact
-            </span>
-            <h2>Une question avant de commander ?</h2>
+            <h2>Contact : une question avant de commander ?</h2>
           </div>
           <div className="contact-grid">
             <div className="contact-card">

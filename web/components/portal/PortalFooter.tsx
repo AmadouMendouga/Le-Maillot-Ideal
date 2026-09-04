@@ -1,16 +1,59 @@
 // Pied de page du portail (/) — variante allégée de <Footer> : pas de colonne
 // "Navigation" (Boutique/Photothèque/FAQ n'existent qu'à l'intérieur d'un
-// site-sport), la colonne "Sports" reste le cœur du portail.
+// site-sport), la colonne "Sports" reste le cœur du portail. Bandeau de
+// marques (défilement continu, patron .imc-*) juste avant le pied de page —
+// vraies marques du catalogue, pour l'authenticité, pas des logos inventés.
 import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
 import { whatsappNumber } from "@/lib/cart";
-import type { Sport, SiteSettings } from "@/lib/types";
+import { InfiniteMovingCards } from "@/components/InfiniteMovingCards";
+import type { Sport, SiteSettings, Product } from "@/lib/types";
 
-export function PortalFooter({ sports, settings }: { sports: Sport[]; settings: SiteSettings }) {
+// Certaines fiches portent une variante de collaboration ("Puma x b4b",
+// "Volanti (b4b)") — on affiche la marque elle-même, pas le nom du
+// revendeur qui l'accompagne.
+function cleanBrand(team: string): string {
+  return team.replace(/\s*\(.*?\)\s*/g, "").replace(/\s*x\s+\S+$/i, "").trim();
+}
+
+function brandsFromProducts(products: Product[]): string[] {
+  const seen = new Set<string>();
+  for (const p of products) {
+    // Sur le football, "team" désigne le club (Real Madrid, PSG…), pas une
+    // marque d'équipement — seuls les autres sports y mettent une vraie
+    // marque (Nike, KuSakura…).
+    if (p.sport === "football") continue;
+    const name = cleanBrand(p.team);
+    if (name) seen.add(name);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+export function PortalFooter({
+  sports,
+  settings,
+  products,
+}: {
+  sports: Sport[];
+  settings: SiteSettings;
+  products: Product[];
+}) {
   const waNumber = whatsappNumber(settings);
+  const brands = brandsFromProducts(products);
 
   return (
     <footer className="site-footer">
+      {brands.length > 0 && (
+        <div className="portal-brand-marquee">
+          <InfiniteMovingCards
+            items={brands}
+            itemKey={(brand) => brand}
+            speed="normal"
+            ariaLabel="Marques disponibles au catalogue"
+            renderItem={(brand) => <span className="portal-brand-item">{brand}</span>}
+          />
+        </div>
+      )}
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">

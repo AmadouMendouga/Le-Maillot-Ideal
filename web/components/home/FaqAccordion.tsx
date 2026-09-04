@@ -39,7 +39,8 @@ export function FaqAccordion({ items }: { items: FaqItem[] }) {
               id={answerId}
               role="region"
               aria-labelledby={qId}
-              hidden={!open}
+              aria-hidden={!open}
+              inert={!open}
             >
               <p>{item.answer}</p>
             </div>

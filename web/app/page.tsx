@@ -2,12 +2,19 @@ import type { Metadata } from "next";
 import { getAllSports } from "@/lib/data/sports";
 import { getAllProducts } from "@/lib/data/products";
 import { getSiteSettings } from "@/lib/data/settings";
+import { getTestimonials } from "@/lib/data/testimonials";
 import { Icon } from "@/components/icons/Icon";
+import { PortalPreloader } from "@/components/portal/PortalPreloader";
 import { PortalHeader } from "@/components/portal/PortalHeader";
+import { PortalHero, type PortalHeroSlide } from "@/components/portal/PortalHero";
+import { PortalSpotlight, type PortalSpotlightItem } from "@/components/portal/PortalSpotlight";
 import { PortalFooter } from "@/components/portal/PortalFooter";
 import { WhatsAppFloat } from "@/components/layout/WhatsAppFloat";
 import { SportMarquee } from "@/components/home/SportMarquee";
 import { SportGrid } from "@/components/home/SportGrid";
+import { AnimatedTestimonials } from "@/components/AnimatedTestimonials";
+import { safeColor } from "@/lib/format";
+import type { Product } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "IKIGAI Sport",
@@ -18,48 +25,183 @@ export const metadata: Metadata = {
 // Portail — page vitrine, pas de catalogue à ce niveau (voir le plan "portail
 // multi-sports"). Chaque carte mène vers le site complet d'un sport
 // (/[sport]), avec sa propre boutique et son propre discours marketing.
+// Structure et animations empruntées à Site reussi/restrowebsite (hero à
+// diapositives, cartes vedette, à propos, liste catalogue, témoignages) —
+// avec de vraies photos du catalogue en attendant de vraies photos de mise
+// en scène (voir chaque composant portal/*).
 export default async function PortalPage() {
-  const [sports, products, settings] = await Promise.all([getAllSports(), getAllProducts(), getSiteSettings()]);
+  const [sports, products, settings, testimonials] = await Promise.all([
+    getAllSports(),
+    getAllProducts(),
+    getSiteSettings(),
+    getTestimonials(),
+  ]);
+
+  const image = (p: Product | undefined) => p?.images.wide || p?.images.square || "";
+
+  const football = sports.find((s) => s.key === "football");
+  const footballProducts = products.filter((p) => p.sport === "football");
+  const footballCount = footballProducts.length;
+
+  const combatKeys = ["judo", "kendo", "nippon-kempo"];
+  const combatSports = sports.filter((s) => combatKeys.includes(s.key));
+  const combatProducts = products.filter((p) => combatSports.some((s) => s.key === p.sport));
+  const combatCount = combatProducts.length;
+
+  const recentKeys = ["basketball", "sneakers"];
+  const recentSports = sports.filter((s) => recentKeys.includes(s.key));
+  const recentProducts = products.filter((p) => recentSports.some((s) => s.key === p.sport));
+  const recentCount = recentProducts.length;
+
+  // Diapositives du hero — dérivées du catalogue réel (compteurs, sports
+  // existants), jamais de texte marketing inventé.
+  const slides: PortalHeroSlide[] = [
+    {
+      eyebrow: "La boutique de référence au Cameroun",
+      title: "Un système, plusieurs sports.",
+      lead: `${settings.businessName} regroupe des boutiques dédiées à chaque discipline. Choisis ton sport pour accéder à sa boutique complète.`,
+      ctaLabel: "Choisir un sport",
+      ctaHref: "#sports",
+      color: "var(--hero-bg)",
+      image: image(footballProducts[0]),
+    },
+  ];
+  if (football && footballCount > 0) {
+    slides.push({
+      eyebrow: "Le plus grand catalogue",
+      title: `${footballCount} maillots de football.`,
+      lead: "Ligue 1, Premier League, Liga, Serie A, Bundesliga et équipes nationales — pour chaque championnat et chaque équipe.",
+      ctaLabel: "Voir la boutique Football",
+      ctaHref: "/football",
+      color: safeColor(football.color),
+      image: image(footballProducts[1] || footballProducts[0]),
+    });
+  }
+  if (recentSports.length > 0 && recentCount > 0) {
+    slides.push({
+      eyebrow: "Nouveau",
+      title: recentSports.map((s) => s.label).join(" & ") + ".",
+      lead: `${recentCount} articles au catalogue — les dernières arrivées IKIGAI Sport.`,
+      ctaLabel: "Découvrir",
+      ctaHref: `/${recentSports[0].key}`,
+      color: safeColor(recentSports[0].color),
+      image: image(recentProducts[0]),
+    });
+  }
+
+  // Cartes vedette — mêmes regroupements que le hero, avec d'autres photos
+  // du catalogue pour varier les visuels d'une section à l'autre.
+  const spotlight: PortalSpotlightItem[] = [];
+  if (football && footballCount > 0) {
+    spotlight.push({
+      title: "Football",
+      count: footballCount,
+      href: "/football",
+      image: image(footballProducts[2] || footballProducts[0]),
+    });
+  }
+  if (combatSports.length > 0 && combatCount > 0) {
+    const combatCounts = combatSports.map((s) => ({
+      sport: s,
+      count: products.filter((p) => p.sport === s.key).length,
+    }));
+    const combatLead = combatCounts.reduce((a, b) => (b.count > a.count ? b : a));
+    spotlight.push({
+      title: "Arts martiaux",
+      count: combatCount,
+      href: `/${combatLead.sport.key}`,
+      image: image(combatProducts[0]),
+    });
+  }
+  if (recentSports.length > 0 && recentCount > 0) {
+    spotlight.push({
+      title: recentSports.map((s) => s.label).join(" & "),
+      count: recentCount,
+      href: `/${recentSports[0].key}`,
+      image: image(recentProducts[1] || recentProducts[0]),
+    });
+  }
+  // Reel City Sport (accord client confirmé pour la vidéo, voir la
+  // conversation) — aperçu du magasin, pas rattaché à un sport précis :
+  // renvoie vers Sneakers, le rayon montré dans la vidéo.
+  spotlight.push({
+    title: "Chez City Sport",
+    href: "/sneakers",
+    image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788538920/le-maillot-ideal/portal/spotlight/boutique-poster.jpg",
+    video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788538834/le-maillot-ideal/portal/spotlight/boutique.mp4",
+  });
+
+  const aboutMainImage = image(combatProducts[1] || footballProducts[3]);
+  const aboutAccentImage = image(recentProducts[2] || footballProducts[4]);
 
   return (
     <>
-      <PortalHeader settings={settings} />
+      <PortalPreloader />
+      <PortalHeader settings={settings} sports={sports} />
 
       <main id="main">
-        <section className="hero">
-          <div className="container hero-text-only">
-            <div>
-              <span className="hero-badge">
-                <Icon name="storefront" size="sm" /> La boutique de référence au Cameroun
-              </span>
-              <h1>
-                <span>Un système, plusieurs sports.</span>
-                <br />
-                <span>Choisis le tien.</span>
-              </h1>
-              <p className="lead">
-                {settings.businessName} regroupe des boutiques dédiées à chaque discipline — maillots, judogi, et
-                bien d&apos;autres équipements sportifs. Choisis ton sport pour accéder à sa boutique complète.
-              </p>
-              <div className="hero-stats">
+        <PortalHero slides={slides} />
+
+        <SportMarquee sports={sports} products={products} />
+
+        {spotlight.length > 0 && (
+          <section className="section">
+            <div className="container">
+              <div className="section-head">
                 <div>
-                  <strong>{sports.length}</strong>
-                  <span>Sport{sports.length > 1 ? "s" : ""} couvert{sports.length > 1 ? "s" : ""}</span>
+                  <h2>À la une : trois univers, un seul système</h2>
                 </div>
-                <div>
-                  <strong>{products.length}</strong>
-                  <span>Articles au catalogue</span>
-                </div>
-                <div>
-                  <strong>WhatsApp</strong>
-                  <span>Commande directe</span>
+              </div>
+            </div>
+            <PortalSpotlight items={spotlight} />
+          </section>
+        )}
+
+        <section className="section section-alt">
+          <div className="container">
+            <div className="about-grid">
+              <div className="portal-about-media">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="main" src={aboutMainImage} alt="" loading="lazy" />
+                {aboutAccentImage && (
+                  <div className="accent">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={aboutAccentImage} alt="" loading="lazy" />
+                  </div>
+                )}
+              </div>
+              <div className="about-text">
+                <h3>Qui sommes-nous : derrière chaque commande, une vraie personne</h3>
+                <p>
+                  {settings.businessName} est géré par Djimi, basé à Douala. Chaque commande passée sur WhatsApp est
+                  suivie personnellement, de la confirmation jusqu&apos;à la livraison — quel que soit le sport.
+                </p>
+                <div className="about-badges">
+                  <span>
+                    <Icon name="location" size="sm" />
+                    Basé au Cameroun
+                  </span>
+                  <span>
+                    <Icon name="whatsapp" size="sm" />
+                    Joignable directement sur WhatsApp
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <SportMarquee sports={sports} products={products} />
+        <section className="section" id="sports">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <h2>Nos sports : choisis ton sport</h2>
+                <p>Chaque carte ouvre un site complet : boutique, fiches produit, panier et commande WhatsApp.</p>
+              </div>
+            </div>
+            <SportGrid sports={sports} products={products} />
+          </div>
+        </section>
 
         <section className="services-strip">
           <div className="container">
@@ -69,7 +211,7 @@ export default async function PortalPage() {
                   <Icon name="whatsapp" size="lg" />
                 </span>
                 <div>
-                  <h4>Commande WhatsApp</h4>
+                  <p className="service-title">Commande WhatsApp</p>
                   <p>Rapide, simple, sans compte à créer</p>
                 </div>
               </div>
@@ -78,7 +220,7 @@ export default async function PortalPage() {
                   <Icon name="money" size="lg" />
                 </span>
                 <div>
-                  <h4>Paiement à confirmer</h4>
+                  <p className="service-title">Paiement à confirmer</p>
                   <p>Modalités convenues sur WhatsApp avant la commande</p>
                 </div>
               </div>
@@ -87,7 +229,7 @@ export default async function PortalPage() {
                   <Icon name="shipping" size="lg" />
                 </span>
                 <div>
-                  <h4>Livraison à confirmer</h4>
+                  <p className="service-title">Livraison à confirmer</p>
                   <p>Zone, délai et frais précisés avant la commande</p>
                 </div>
               </div>
@@ -96,7 +238,7 @@ export default async function PortalPage() {
                   <Icon name="check-circle" size="lg" />
                 </span>
                 <div>
-                  <h4>Un site par sport</h4>
+                  <p className="service-title">Un site par sport</p>
                   <p>Une boutique dédiée, propre à chaque discipline</p>
                 </div>
               </div>
@@ -104,24 +246,25 @@ export default async function PortalPage() {
           </div>
         </section>
 
-        <section className="section">
-          <div className="container">
-            <div className="section-head">
-              <div>
-                <span className="eyebrow">
-                  <Icon name="inventory" size="sm" />
-                  Nos sports
-                </span>
-                <h2>Choisis ton sport</h2>
-                <p>Chaque carte ouvre un site complet : boutique, fiches produit, panier et commande WhatsApp.</p>
+        {settings.showTestimonials && testimonials.length > 0 && (
+          <section className="section section-alt">
+            <div className="container">
+              <div className="section-head">
+                <div>
+                  <span className="eyebrow">
+                    <Icon name="star" size="sm" />
+                    Témoignages
+                  </span>
+                  <h2>Retours de clients</h2>
+                </div>
               </div>
+              <AnimatedTestimonials testimonials={testimonials} />
             </div>
-            <SportGrid sports={sports} products={products} />
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
-      <PortalFooter sports={sports} settings={settings} />
+      <PortalFooter sports={sports} settings={settings} products={products} />
       <WhatsAppFloat settings={settings} />
     </>
   );
