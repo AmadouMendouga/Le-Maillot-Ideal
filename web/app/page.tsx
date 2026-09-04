@@ -10,6 +10,7 @@ import { PortalHero, type PortalHeroSlide } from "@/components/portal/PortalHero
 import { PortalSpotlight, type PortalSpotlightItem } from "@/components/portal/PortalSpotlight";
 import { PortalFooter } from "@/components/portal/PortalFooter";
 import { WhatsAppFloat } from "@/components/layout/WhatsAppFloat";
+import { BackToTop } from "@/components/layout/BackToTop";
 import { SportMarquee } from "@/components/home/SportMarquee";
 import { SportGrid } from "@/components/home/SportGrid";
 import { AnimatedTestimonials } from "@/components/AnimatedTestimonials";
@@ -121,18 +122,36 @@ export default async function PortalPage() {
       image: image(recentProducts[1] || recentProducts[0]),
     });
   }
-  // Reel City Sport (accord client confirmé pour la vidéo, voir la
-  // conversation) — aperçu du magasin, pas rattaché à un sport précis :
-  // renvoie vers Sneakers, le rayon montré dans la vidéo.
-  spotlight.push({
-    title: "Chez City Sport",
-    href: "/sneakers",
-    image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788538920/le-maillot-ideal/portal/spotlight/boutique-poster.jpg",
-    video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788538834/le-maillot-ideal/portal/spotlight/boutique.mp4",
-  });
+  // Reels City Sport (accord client confirmé pour la vidéo, voir la
+  // conversation) — aperçus boutique/produits, pas rattachés à un sport
+  // précis : renvoient vers Sneakers, le rayon le plus proche du contenu.
+  spotlight.push(
+    {
+      title: "Chez City Sport",
+      href: "/sneakers",
+      image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788538920/le-maillot-ideal/portal/spotlight/boutique-poster.jpg",
+      video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788538834/le-maillot-ideal/portal/spotlight/boutique.mp4",
+    },
+    {
+      title: "Nouveautés en boutique",
+      href: "/sneakers",
+      image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788548899/le-maillot-ideal/portal/spotlight/boutique-2-poster.jpg",
+      video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788548884/le-maillot-ideal/portal/spotlight/boutique-2.mp4",
+    },
+    {
+      title: "Zoom sur les tissus",
+      href: "/sneakers",
+      image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788548903/le-maillot-ideal/portal/spotlight/boutique-3-poster.jpg",
+      video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788548896/le-maillot-ideal/portal/spotlight/boutique-3.mp4",
+    }
+  );
 
-  const aboutMainImage = image(combatProducts[1] || footballProducts[3]);
-  const aboutAccentImage = image(recentProducts[2] || footballProducts[4]);
+  // Même sport pour les deux photos : les mélanger (judo en photo principale,
+  // sneaker en médaillon) ne se lisait pas comme de la diversité mais comme
+  // une erreur — « pourquoi cette chaussure ? ». Football (le plus grand
+  // catalogue) garantit toujours deux photos distinctes disponibles.
+  const aboutMainImage = image(footballProducts[3] || combatProducts[1]);
+  const aboutAccentImage = image(footballProducts[4] || combatProducts[0]);
 
   return (
     <>
@@ -195,7 +214,7 @@ export default async function PortalPage() {
           <div className="container">
             <div className="section-head">
               <div>
-                <h2>Nos sports : choisis ton sport</h2>
+                <h2>Nos univers : choisis ton ikigai</h2>
                 <p>Chaque carte ouvre un site complet : boutique, fiches produit, panier et commande WhatsApp.</p>
               </div>
             </div>
@@ -266,6 +285,7 @@ export default async function PortalPage() {
 
       <PortalFooter sports={sports} settings={settings} products={products} />
       <WhatsAppFloat settings={settings} />
+      <BackToTop />
     </>
   );
 }

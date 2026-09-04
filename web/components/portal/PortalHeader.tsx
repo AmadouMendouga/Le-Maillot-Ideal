@@ -129,7 +129,7 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
           <Icon name="close" />
         </button>
 
-        <p className="portal-drawer-title">Nos sports</p>
+        <p className="portal-drawer-title">Nos univers</p>
         <ul className="portal-drawer-list">
           {sports.map((sport) => (
             <li key={sport.key}>

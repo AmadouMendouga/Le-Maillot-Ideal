@@ -44,7 +44,10 @@ export function PortalSpotlight({ items }: { items: PortalSpotlightItem[] }) {
       <div className="portal-spotlight-marquee">
         <InfiniteMovingCards
           items={items}
-          itemKey={(item) => item.href}
+          // le titre, pas href : plusieurs cartes (les reels boutique) partagent
+          // la même destination /sneakers sans être le même contenu — des clés
+          // dupliquées faisaient perdre React (children React dupliqués/omis).
+          itemKey={(item) => item.title}
           speed="slow"
           ariaLabel="Sports à la une"
           renderItem={(item) =>

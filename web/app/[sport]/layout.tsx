@@ -6,6 +6,7 @@ import { getSiteSettings } from "@/lib/data/settings";
 import { Navbar } from "@/components/nav/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppFloat } from "@/components/layout/WhatsAppFloat";
+import { BackToTop } from "@/components/layout/BackToTop";
 import { CartProvider } from "@/components/cart/CartContext";
 import { CartBar } from "@/components/cart/CartBar";
 import { CartPanel } from "@/components/cart/CartPanel";
@@ -52,6 +53,7 @@ export default async function SportLayout({ children, params }: LayoutProps<"/[s
       {children}
       <Footer basePath={basePath} sports={sports} settings={settings} />
       <WhatsAppFloat settings={settings} />
+      <BackToTop />
       <CartBar />
       <CartPanel settings={settings} />
     </CartProvider>

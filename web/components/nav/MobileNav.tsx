@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/icons/Icon";
 import type { IconName } from "@/components/icons/names";
 
-function links(basePath: string): { href: string; label: string; icon: IconName }[] {
+function links(basePath: string): { href: string; label: string; icon: IconName; portal?: boolean }[] {
   return [
     { href: basePath, label: "Accueil", icon: "storefront" },
     { href: `${basePath}/boutique`, label: "Boutique", icon: "grid" },
@@ -21,13 +21,19 @@ function links(basePath: string): { href: string; label: string; icon: IconName 
     { href: `${basePath}/#faq`, label: "Aide", icon: "info" },
     { href: `${basePath}/#contact`, label: "Contact", icon: "person" },
     { href: `${basePath}/compte`, label: "Mon compte", icon: "verified" },
-    { href: "/", label: "Autres sports", icon: "inventory" },
+    // en tête de liste + style distinct (voir .nav-portal-link) : "Autres
+    // sports" en dernière position, texte neutre, se perdait dans la liste —
+    // un client a signalé ne plus retrouver le chemin vers le portail.
+    { href: "/", label: "Tous les univers", icon: "inventory", portal: true },
   ];
 }
 
 export function MobileNav({ basePath }: { basePath: string }) {
   const pathname = usePathname();
-  const LINKS = links(basePath);
+  const allLinks = links(basePath);
+  // le lien "portail" passe en tête de liste : c'est la sortie de secours du
+  // site-sport, elle doit se voir avant tout le reste, pas après 6 autres liens.
+  const LINKS = [...allLinks.filter((l) => l.portal), ...allLinks.filter((l) => !l.portal)];
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -108,7 +114,9 @@ export function MobileNav({ basePath }: { basePath: string }) {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className={pathname === link.href ? "active" : undefined}
+                className={[pathname === link.href && "active", link.portal && "nav-portal-link"]
+                  .filter(Boolean)
+                  .join(" ") || undefined}
                 onClick={() => close(false)}
               >
                 <Icon name={link.icon} size="sm" />

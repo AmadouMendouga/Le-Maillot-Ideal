@@ -345,9 +345,12 @@ export function NavbarMenu({ shellRef, basePath, leagues, products, settings }: 
           </Link>
         </div>
         <div className="am-item">
-          <Link className="am-trigger" href="/" onMouseEnter={closeMenu}>
+          {/* style distinct (voir .nav-portal-link) : c'est la sortie vers le
+              portail, elle doit se remarquer, pas se fondre dans les autres
+              liens — un client a signalé ne plus retrouver ce chemin. */}
+          <Link className="am-trigger nav-portal-link" href="/" onMouseEnter={closeMenu}>
             <Icon name="storefront" size="sm" />
-            Autres sports
+            Tous les univers
           </Link>
         </div>
       </div>
