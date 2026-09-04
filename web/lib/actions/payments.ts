@@ -89,7 +89,7 @@ export async function initiateCampayPaymentAction(
     const result = await campayCollect({
       amount: total,
       from: profile.phone,
-      description: "Le Maillot Idéal — commande en ligne",
+      description: "IKIGAI Sport — commande en ligne",
       externalReference: paymentReference,
     });
     await orderRef.update({ campayReference: result.reference, ussdCode: result.ussd_code });

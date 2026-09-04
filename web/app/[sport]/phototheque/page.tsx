@@ -12,13 +12,14 @@ import { whatsappNumber } from "@/lib/cart";
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export const metadata: Metadata = {
-  title: "Photothèque | Le Maillot Idéal",
+  title: "Photothèque | IKIGAI Sport",
   description:
-    "Photothèque du Maillot Idéal. Les photos et témoignages sont publiés après validation et autorisation des personnes concernées.",
+    "Photothèque IKIGAI Sport. Les photos et témoignages sont publiés après validation et autorisation des personnes concernées.",
   robots: { index: false, follow: true },
 };
 
-export default async function PhototequePage() {
+export default async function PhototequePage({ params }: PageProps<"/[sport]/phototheque">) {
+  const { sport: sportKey } = await params;
   const [gallery, testimonials, settings] = await Promise.all([
     getGallery(),
     getTestimonials(),
@@ -43,7 +44,7 @@ export default async function PhototequePage() {
 
       <div className="container">
         <nav className="breadcrumb" aria-label="Fil d'ariane">
-          <Link href="/">Accueil</Link>
+          <Link href={`/${sportKey}`}>Accueil</Link>
           <span className="sep">
             <Icon name="chevron-right" />
           </span>
@@ -61,7 +62,7 @@ export default async function PhototequePage() {
               <h2>Photothèque en préparation</h2>
               <p>Aucune photo ni aucun témoignage client n&apos;est publié pour le moment.</p>
               <div className="state-ctas">
-                <Link className="btn btn-primary" href="/boutique">
+                <Link className="btn btn-primary" href={`/${sportKey}/boutique`}>
                   <Icon name="storefront" size="sm" />
                   Voir la boutique
                 </Link>

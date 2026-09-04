@@ -30,7 +30,7 @@ export function ProductCard({ product, settings }: { product: Product; settings:
 
   const verified = settings.catalogDataVerified;
   const st = stockInfo(product, verified);
-  const href = `/produits/${product.slug}`;
+  const href = `/${product.sport}/produits/${product.slug}`;
 
   function handleQuickAdd() {
     const sizes = product.sizes.map(String);
@@ -91,7 +91,7 @@ export function ProductCard({ product, settings }: { product: Product; settings:
         <div className="dah-caption">
           <p className="t">{product.team}</p>
           <p className="s">
-            {product.kit} · {product.season}
+            {[product.kit, product.season].filter(Boolean).join(" · ")}
             <Icon name="arrow-forward" />
           </p>
         </div>
@@ -99,7 +99,7 @@ export function ProductCard({ product, settings }: { product: Product; settings:
 
       <div className="product-body">
         <span className="product-league">
-          {product.leagueLabel} · {product.kit}
+          {[product.leagueLabel || product.sportLabel, product.kit].filter(Boolean).join(" · ")}
         </span>
         <h3 className="product-title">
           <Link href={href}>{product.name}</Link>

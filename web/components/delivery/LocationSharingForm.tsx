@@ -252,8 +252,8 @@ export function LocationSharingForm({
           <>
             <h3>Bonjour 👋</h3>
             <p>
-              Merci de livrer la commande de {customerName} ! Partagez votre position pendant le trajet pour que Le
-              Maillot Idéal puisse suivre la livraison en direct. Elle n&apos;est visible que par eux, sert uniquement à
+              Merci de livrer la commande de {customerName} ! Partagez votre position pendant le trajet pour qu&apos;IKIGAI
+              Sport puisse suivre la livraison en direct. Elle n&apos;est visible que par eux, sert uniquement à
               cette livraison, et vous pouvez arrêter à tout moment.
             </p>
           </>
@@ -261,8 +261,8 @@ export function LocationSharingForm({
           <>
             <h3>Bonjour {customerName} 👋</h3>
             <p>
-              Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par Le
-              Maillot Idéal, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
+              Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par
+              IKIGAI Sport, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
             </p>
           </>
         )}

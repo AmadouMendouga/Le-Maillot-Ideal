@@ -1,46 +1,53 @@
 "use client";
 
-// Ajout d'un nouveau maillot — même patron que ProductEditDrawer.tsx, mais la
-// photo et le championnat sont obligatoires dès la création (pas de produit
-// public sans photo ni championnat assigné).
+// Ajout d'un nouveau produit — même patron que ProductEditDrawer.tsx, mais la
+// photo et le sport sont obligatoires dès la création (pas de produit public
+// sans photo ni sport assigné). Le championnat reste optionnel (seuls les
+// sports avec de vraies compétitions, football aujourd'hui, en ont besoin).
 import { useState } from "react";
 import { Drawer } from "@/components/admin/Drawer";
 import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import { Icon } from "@/components/icons/Icon";
 import { showToast } from "@/components/Toast";
 import { createProductAction } from "@/lib/actions/products";
-import { uploadAdminImage, SQUARE_TRANSFORMATION } from "@/lib/cloudinaryUpload";
+import { uploadAdminImage, uploadAdminVideo, SQUARE_TRANSFORMATION } from "@/lib/cloudinaryUpload";
 import { productPatchError } from "@/lib/validation";
-import type { Kit, League } from "@/lib/types";
+import type { Kit, League, Sport } from "@/lib/types";
 
 const SIZES = ["S", "M", "L", "XL", "2XL"];
 const KITS: Kit[] = ["Domicile", "Extérieur", "Third"];
+const FOOTBALL_SPORT_KEY = "football";
 
 export function ProductCreateDrawer({
   leagues,
+  sports,
   open,
   onClose,
   onCreated,
 }: {
   leagues: League[];
+  sports: Sport[];
   open: boolean;
   onClose: () => void;
   onCreated: (slug: string) => void;
 }) {
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
-  const [kit, setKit] = useState<Kit>(KITS[0]);
-  const [league, setLeague] = useState(leagues[0]?.key ?? "");
+  const [sport, setSport] = useState(sports[0]?.key ?? "");
+  const [kit, setKit] = useState<string>(sports[0]?.key === FOOTBALL_SPORT_KEY ? KITS[0] : "");
+  const [league, setLeague] = useState("");
   const [season, setSeason] = useState("2026/2027");
   const [price, setPrice] = useState("");
   const [priceOriginal, setPriceOriginal] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [sizes, setSizes] = useState<string[]>(["S", "M", "L", "XL"]);
+  const [newSize, setNewSize] = useState("");
   const [kidsAvailable, setKidsAvailable] = useState(false);
   const [isNew, setIsNew] = useState(true);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+  const [pendingReel, setPendingReel] = useState<{ file: File; previewUrl: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,20 +55,41 @@ export function ProductCreateDrawer({
   const origNum = Number(priceOriginal);
   const discountPct = origNum > priceNum && origNum > 0 ? Math.round((1 - priceNum / origNum) * 100) : 0;
 
+  const availableLeagues = leagues.filter((l) => l.sport === sport);
+
+  function handleSportChange(nextSport: string) {
+    setSport(nextSport);
+    setLeague("");
+    setKit(nextSport === FOOTBALL_SPORT_KEY ? KITS[0] : "");
+  }
+
   function toggleSize(s: string) {
     setSizes((list) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]));
   }
+  function addFreeSize() {
+    const value = newSize.trim();
+    if (!value || sizes.includes(value)) return;
+    setSizes((list) => [...list, value]);
+    setNewSize("");
+  }
+  function removeSize(s: string) {
+    setSizes((list) => list.filter((x) => x !== s));
+  }
+
   function handleFile(file: File) {
     setPendingFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   }
+  function handleReelFile(file: File) {
+    setPendingReel({ file, previewUrl: URL.createObjectURL(file) });
+  }
 
   async function handleSave() {
-    if (saving || !league) return;
+    if (saving || !sport) return;
     const patch = {
       name: name.trim(),
       team: team.trim(),
-      kit,
+      kit: kit.trim() || undefined,
       price: Number(price),
       priceOriginal: Number(priceOriginal),
       stock: Number(stock),
@@ -77,7 +105,7 @@ export function ProductCreateDrawer({
       return;
     }
     if (!pendingFile) {
-      setError("Ajoutez une photo du maillot avant d'enregistrer.");
+      setError("Ajoutez une photo du produit avant d'enregistrer.");
       return;
     }
 
@@ -88,7 +116,11 @@ export function ProductCreateDrawer({
         folder: "le-maillot-ideal/photos",
         transformation: SQUARE_TRANSFORMATION,
       });
-      const result = await createProductAction({ ...patch, league, images: { square } });
+      let reelUrl: string | undefined;
+      if (pendingReel) {
+        reelUrl = await uploadAdminVideo(pendingReel.file, { folder: "le-maillot-ideal/products/reel" });
+      }
+      const result = await createProductAction({ ...patch, sport, league: league || undefined, images: { square }, reelUrl });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -111,14 +143,28 @@ export function ProductCreateDrawer({
   );
 
   return (
-    <Drawer open={open} onClose={onClose} title="Nouveau maillot" titleIcon="add" footer={footer}>
+    <Drawer open={open} onClose={onClose} title="Nouveau produit" titleIcon="add" footer={footer}>
       <ImageDropZone
         previewSrc={previewUrl}
         onFile={handleFile}
         disabled={saving}
-        label="Photo du maillot"
+        label="Photo du produit"
         hint="Cliquez ou déposez une image ici — obligatoire"
       />
+
+      <div className="adm-field" style={{ marginTop: 14 }}>
+        <label>Vidéo de présentation (reel, optionnel)</label>
+        {pendingReel ? (
+          <video src={pendingReel.previewUrl} controls style={{ width: 120, borderRadius: "var(--r-item)", marginBottom: 10 }} />
+        ) : null}
+        <ImageDropZone
+          kind="video"
+          onFile={handleReelFile}
+          disabled={saving}
+          label="Ajouter une vidéo"
+          hint="Cliquez ou déposez une courte vidéo (mp4) — pas de lecture automatique côté client"
+        />
+      </div>
 
       {error ? (
         <div className="adm-warn" style={{ marginTop: 14 }}>
@@ -138,32 +184,51 @@ export function ProductCreateDrawer({
           <input value={team} onChange={(e) => setTeam(e.target.value)} placeholder="Nantes" />
         </div>
         <div className="adm-field">
-          <label>Type de maillot</label>
-          <select value={kit} onChange={(e) => setKit(e.target.value as Kit)}>
-            {KITS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+          <label>Sport</label>
+          {sports.length === 0 ? (
+            <p className="hint" style={{ margin: 0, fontSize: ".8rem", color: "var(--error)" }}>
+              Créez d&apos;abord un sport (bouton « Gérer les sports »).
+            </p>
+          ) : (
+            <select value={sport} onChange={(e) => handleSportChange(e.target.value)}>
+              {sports.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
-      <div className="adm-field">
-        <label>Championnat</label>
-        {leagues.length === 0 ? (
-          <p className="hint" style={{ margin: 0, fontSize: ".8rem", color: "var(--error)" }}>
-            Créez d&apos;abord un championnat (bouton « Gérer les championnats »).
-          </p>
-        ) : (
-          <select value={league} onChange={(e) => setLeague(e.target.value)}>
-            {leagues.map((l) => (
-              <option key={l.key} value={l.key}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        )}
+      <div className="adm-grid2">
+        <div className="adm-field">
+          <label>{sport === FOOTBALL_SPORT_KEY ? "Type de maillot" : "Variante (optionnel)"}</label>
+          {sport === FOOTBALL_SPORT_KEY ? (
+            <select value={kit} onChange={(e) => setKit(e.target.value)}>
+              {KITS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input value={kit} onChange={(e) => setKit(e.target.value)} placeholder="Ex. Bleu, Taille unique…" />
+          )}
+        </div>
+        {availableLeagues.length > 0 ? (
+          <div className="adm-field">
+            <label>Championnat (optionnel)</label>
+            <select value={league} onChange={(e) => setLeague(e.target.value)}>
+              <option value="">Aucun</option>
+              {availableLeagues.map((l) => (
+                <option key={l.key} value={l.key}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
       </div>
 
       <div className="adm-grid3">
@@ -204,12 +269,43 @@ export function ProductCreateDrawer({
 
       <div className="adm-field">
         <label>Tailles disponibles</label>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           {SIZES.map((s) => (
             <label key={s} className="adm-check" style={{ padding: 0 }}>
               <input type="checkbox" checked={sizes.includes(s)} onChange={() => toggleSize(s)} /> {s}
             </label>
           ))}
+        </div>
+        {sizes.filter((s) => !SIZES.includes(s)).length > 0 ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {sizes
+              .filter((s) => !SIZES.includes(s))
+              .map((s) => (
+                <span key={s} className="adm-chip">
+                  {s}
+                  <button type="button" aria-label={`Retirer ${s}`} onClick={() => removeSize(s)}>
+                    <Icon name="close" size="sm" />
+                  </button>
+                </span>
+              ))}
+          </div>
+        ) : null}
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={newSize}
+            onChange={(e) => setNewSize(e.target.value)}
+            placeholder="Autre taille (ex. pointure 42)"
+            style={{ flex: 1 }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addFreeSize();
+              }
+            }}
+          />
+          <button type="button" className="btn btn-tonal btn-sm" onClick={addFreeSize} disabled={!newSize.trim()}>
+            Ajouter
+          </button>
         </div>
       </div>
 

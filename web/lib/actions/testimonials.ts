@@ -5,8 +5,7 @@ import { verifyAdminSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 
 function revalidateTestimonialPages() {
-  revalidatePath("/");
-  revalidatePath("/phototheque");
+  revalidatePath("/", "layout");
 }
 
 export async function addTestimonialAction(): Promise<{ ok: true; id: string }> {

@@ -4,8 +4,9 @@ import { OrderHistory } from "@/components/account/OrderHistory";
 import { AccountHeader } from "@/components/account/AccountHeader";
 import { Icon } from "@/components/icons/Icon";
 
-export default async function CompteCommandesPage() {
-  const customer = await requireCustomerOrRedirect();
+export default async function CompteCommandesPage({ params }: PageProps<"/[sport]/compte/commandes">) {
+  const { sport } = await params;
+  const customer = await requireCustomerOrRedirect(sport);
   const orders = await getOrdersForCustomer(customer.uid);
 
   return (

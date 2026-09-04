@@ -4,8 +4,8 @@ import { IconSprite } from "@/components/icons/IconSprite";
 import { ToastHost } from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Le Maillot Idéal",
-  description: "Boutique de maillots de football au Cameroun.",
+  title: "IKIGAI Sport",
+  description: "Boutique d'articles de sport au Cameroun — maillots, judogi, sneakers et bien d'autres.",
 };
 
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("lmi_theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`;

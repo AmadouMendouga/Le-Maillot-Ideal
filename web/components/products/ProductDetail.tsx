@@ -39,6 +39,7 @@ export function ProductDetail({ product, settings }: { product: Product; setting
     [product.images.square, product.images.gallery]
   );
   const [activePhoto, setActivePhoto] = useState(photos[0]);
+  const [showingReel, setShowingReel] = useState(false);
 
   const verified = settings.catalogDataVerified;
   const st = stockInfo(product, verified);
@@ -89,29 +90,53 @@ export function ProductDetail({ product, settings }: { product: Product; setting
   return (
     <div className="product-detail">
       <div className="pd-media-col">
-        <Lens
-          mediaRef={mediaRef}
-          src={activePhoto}
-          alt={`${product.name}, saison ${product.season}`}
-          width={500}
-          height={500}
-        />
-        {photos.length > 1 && (
-          <div className="pd-thumbs" role="tablist" aria-label="Autres photos de ce maillot">
+        {showingReel && product.reelUrl ? (
+          <div className="pd-media" ref={mediaRef}>
+            <video src={product.reelUrl} controls />
+          </div>
+        ) : (
+          <Lens
+            mediaRef={mediaRef}
+            src={activePhoto}
+            alt={`${product.name}, saison ${product.season}`}
+            width={500}
+            height={500}
+          />
+        )}
+        {(photos.length > 1 || product.reelUrl) && (
+          <div className="pd-thumbs" role="tablist" aria-label="Autres photos et vidéo de présentation">
             {photos.map((src, i) => (
               <button
                 key={src}
                 type="button"
                 role="tab"
-                aria-selected={src === activePhoto}
+                aria-selected={!showingReel && src === activePhoto}
                 aria-label={`Photo ${i + 1} sur ${photos.length}`}
-                className={"pd-thumb" + (src === activePhoto ? " active" : "")}
-                onClick={() => setActivePhoto(src)}
+                className={"pd-thumb" + (!showingReel && src === activePhoto ? " active" : "")}
+                onClick={() => {
+                  setActivePhoto(src);
+                  setShowingReel(false);
+                }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="" loading="lazy" />
               </button>
             ))}
+            {product.reelUrl ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={showingReel}
+                aria-label="Voir la vidéo de présentation"
+                className={"pd-thumb" + (showingReel ? " active" : "")}
+                onClick={() => setShowingReel(true)}
+              >
+                <video src={product.reelUrl} muted playsInline preload="metadata" />
+                <span className="pd-thumb-play" aria-hidden="true">
+                  ▶
+                </span>
+              </button>
+            ) : null}
           </div>
         )}
       </div>
@@ -119,8 +144,8 @@ export function ProductDetail({ product, settings }: { product: Product; setting
       <div className="pd-info">
         <h1 className="pd-title">{product.name}</h1>
         <p className="pd-meta">
-          <Icon name="soccer" size="sm" />
-          {product.leagueLabel} · {product.kit} · Saison {product.season}
+          <Icon name={product.sport === "football" ? "soccer" : "storefront"} size="sm" />
+          {[product.leagueLabel || product.sportLabel, product.kit, `Saison ${product.season}`].filter(Boolean).join(" · ")}
         </p>
         <div className="pd-price">
           <span className="price-now">{FCFA(product.price)}</span>

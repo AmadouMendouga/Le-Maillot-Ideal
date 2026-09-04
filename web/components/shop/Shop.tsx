@@ -20,6 +20,10 @@ const PER_PAGE = 12;
 
 type SortOrder = "default" | "price-asc" | "price-desc";
 
+// `products`/`leagues` sont déjà scopés au sport courant par la page appelante
+// (app/[sport]/boutique/page.tsx) — plus de filtre Sport ici depuis le pivot
+// portail : chaque sport a son propre site, le sport n'est plus un simple
+// filtre à côté des autres (voir le plan "portail multi-sports").
 export function Shop({
   products,
   leagues,
@@ -59,7 +63,7 @@ export function Shop({
 
   const filtered = useMemo(() => {
     let list = products.slice();
-    if (selectedLeagues.length) list = list.filter((p) => selectedLeagues.includes(p.league));
+    if (selectedLeagues.length) list = list.filter((p) => !!p.league && selectedLeagues.includes(p.league));
     if (onlyPromo) list = list.filter((p) => p.discountPct > 0);
     if (inStockOnly) list = list.filter((p) => stockInfo(p, verified).available);
     if (search) {
@@ -92,26 +96,30 @@ export function Shop({
         <details className="filters-panel" open>
           <summary>
             <Icon name="tune" size="sm" />
-            Filtrer les maillots
+            Filtrer les produits
           </summary>
           <div className="filters-content">
-            <h3>Championnat</h3>
-            <div className="filter-group">
-              {leagues.map((league) => {
-                const count = products.filter((p) => p.league === league.key).length;
-                return (
-                  <label className="filter-option" key={league.key}>
-                    <input
-                      type="checkbox"
-                      checked={selectedLeagues.includes(league.key)}
-                      onChange={(e) => toggleLeague(league.key, e.currentTarget.checked)}
-                    />
-                    {league.label}
-                    <span className="count">{count}</span>
-                  </label>
-                );
-              })}
-            </div>
+            {leagues.length > 0 ? (
+              <>
+                <h3>Championnat</h3>
+                <div className="filter-group">
+                  {leagues.map((league) => {
+                    const count = products.filter((p) => p.league === league.key).length;
+                    return (
+                      <label className="filter-option" key={league.key}>
+                        <input
+                          type="checkbox"
+                          checked={selectedLeagues.includes(league.key)}
+                          onChange={(e) => toggleLeague(league.key, e.currentTarget.checked)}
+                        />
+                        {league.label}
+                        <span className="count">{count}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
 
             {verified && (
               <div>
@@ -156,7 +164,7 @@ export function Shop({
           <Icon name="info" />
           <div>
             <strong>Photos de démonstration.</strong> Les visuels produits sont des images de test — remplacez-les
-            par vos vraies photos de maillots.
+            par vos vraies photos de produits.
           </div>
         </div>
 
@@ -172,13 +180,13 @@ export function Shop({
 
         <div className="toolbar">
           <span className="result-count" role="status" aria-live="polite" aria-atomic="true">
-            {filtered.length} maillot{filtered.length !== 1 ? "s" : ""} trouvé{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} produit{filtered.length !== 1 ? "s" : ""} trouvé{filtered.length !== 1 ? "s" : ""}
           </span>
           <div className="toolbar-controls">
             <span className="field-wrap">
               <Icon name="search" />
               <label className="sr-only" htmlFor="shopSearch">
-                Rechercher une équipe ou un maillot
+                Rechercher une équipe ou un produit
               </label>
               <input
                 type="search"
@@ -213,7 +221,7 @@ export function Shop({
             <div className="empty-state">
               <Icon name="search" />
               <div>
-                Aucun maillot ne correspond à votre recherche.
+                Aucun produit ne correspond à votre recherche.
                 <br />
                 Essayez d&apos;autres filtres ou écrivez-nous sur WhatsApp.
               </div>

@@ -24,7 +24,7 @@ export async function addGalleryItemsAction(items: { src: string; thumb: string 
   }
   await batch.commit();
 
-  revalidatePath("/phototheque");
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -44,20 +44,20 @@ export async function moveGalleryItemAction(id: string, direction: -1 | 1): Prom
   batch.update(b.ref, { order: a.data().order });
   await batch.commit();
 
-  revalidatePath("/phototheque");
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function replaceGalleryImageAction(id: string, src: string, thumb: string): Promise<{ ok: true }> {
   await verifyAdminSession();
   await adminDb.collection("gallery").doc(id).update({ src, thumb });
-  revalidatePath("/phototheque");
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function deleteGalleryItemAction(id: string): Promise<{ ok: true }> {
   await verifyAdminSession();
   await adminDb.collection("gallery").doc(id).delete();
-  revalidatePath("/phototheque");
+  revalidatePath("/", "layout");
   return { ok: true };
 }

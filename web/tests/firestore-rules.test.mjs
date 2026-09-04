@@ -37,6 +37,7 @@ before(async () => {
     const db = context.firestore();
     await setDoc(doc(db, "products", "maillot-domicile-test"), { name: "Maillot Test", price: 12000 });
     await setDoc(doc(db, "leagues", "ligue-test"), { label: "Championnat Test" });
+    await setDoc(doc(db, "sports", "sport-test"), { label: "Football Test" });
     await setDoc(doc(db, "gallery", "photo-test"), { src: "https://res.cloudinary.com/test/x.jpg" });
     await setDoc(doc(db, "testimonials", "avis-test"), { name: "Cliente Test" });
     await setDoc(doc(db, "settings", "site"), { whatsapp: "237655634265" });
@@ -47,10 +48,11 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-test("lecture publique OK sur products/leagues/gallery/testimonials/settings, sans authentification", async () => {
+test("lecture publique OK sur products/leagues/sports/gallery/testimonials/settings, sans authentification", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
   await assertSucceeds(getDoc(doc(db, "products", "maillot-domicile-test")));
   await assertSucceeds(getDoc(doc(db, "leagues", "ligue-test")));
+  await assertSucceeds(getDoc(doc(db, "sports", "sport-test")));
   await assertSucceeds(getDoc(doc(db, "gallery", "photo-test")));
   await assertSucceeds(getDoc(doc(db, "testimonials", "avis-test")));
   await assertSucceeds(getDoc(doc(db, "settings", "site")));
@@ -59,6 +61,7 @@ test("lecture publique OK sur products/leagues/gallery/testimonials/settings, sa
 test("écriture directe refusée pour un visiteur non connecté", async () => {
   const db = testEnv.unauthenticatedContext().firestore();
   await assertFails(setDoc(doc(db, "products", "maillot-domicile-test"), { price: 1 }));
+  await assertFails(setDoc(doc(db, "sports", "sport-test"), { label: "Piraté" }));
   await assertFails(setDoc(doc(db, "settings", "site"), { whatsapp: "0" }));
 });
 

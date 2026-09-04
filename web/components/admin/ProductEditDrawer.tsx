@@ -12,21 +12,24 @@ import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import { Icon } from "@/components/icons/Icon";
 import { showToast } from "@/components/Toast";
 import { updateProductAction } from "@/lib/actions/products";
-import { uploadAdminImage, SQUARE_TRANSFORMATION } from "@/lib/cloudinaryUpload";
+import { uploadAdminImage, uploadAdminVideo, SQUARE_TRANSFORMATION } from "@/lib/cloudinaryUpload";
 import { productPatchError } from "@/lib/validation";
-import type { Kit, League, Product } from "@/lib/types";
+import type { Kit, League, Product, Sport } from "@/lib/types";
 
 const SIZES = ["S", "M", "L", "XL", "2XL"];
 const KITS: Kit[] = ["Domicile", "Extérieur", "Third"];
+const FOOTBALL_SPORT_KEY = "football";
 
 export function ProductEditDrawer({
   product,
   leagues,
+  sports,
   open,
   onClose,
 }: {
   product: Product | null;
   leagues: League[];
+  sports: Sport[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -35,20 +38,24 @@ export function ProductEditDrawer({
   // sont toujours fraîches sans effet de synchronisation supplémentaire.
   const [name, setName] = useState(product?.name ?? "");
   const [team, setTeam] = useState(product?.team ?? "");
-  const [kit, setKit] = useState<Kit>(product?.kit ?? KITS[0]);
-  const [league, setLeague] = useState(product?.league ?? leagues[0]?.key ?? "");
+  const [sport, setSport] = useState(product?.sport ?? sports[0]?.key ?? "");
+  const [kit, setKit] = useState(product?.kit ?? "");
+  const [league, setLeague] = useState(product?.league ?? "");
   const [season, setSeason] = useState(product?.season ?? "");
   const [price, setPrice] = useState(product ? String(product.price) : "");
   const [priceOriginal, setPriceOriginal] = useState(product ? String(product.priceOriginal) : "");
   const [stock, setStock] = useState(product ? String(product.stock) : "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [sizes, setSizes] = useState<string[]>(product?.sizes ?? []);
+  const [newSize, setNewSize] = useState("");
   const [kidsAvailable, setKidsAvailable] = useState(!!product?.kidsAvailable);
   const [isNew, setIsNew] = useState(!!product?.isNew);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
   const [gallery, setGallery] = useState<string[]>(product?.images.gallery ?? []);
   const [pendingGallery, setPendingGallery] = useState<{ file: File; previewUrl: string }[]>([]);
+  const [reelUrl, setReelUrl] = useState(product?.reelUrl ?? "");
+  const [pendingReel, setPendingReel] = useState<{ file: File; previewUrl: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,8 +63,27 @@ export function ProductEditDrawer({
   const origNum = Number(priceOriginal);
   const discountPct = origNum > priceNum && origNum > 0 ? Math.round((1 - priceNum / origNum) * 100) : 0;
 
+  const availableLeagues = leagues.filter((l) => l.sport === sport);
+
+  function handleSportChange(nextSport: string) {
+    setSport(nextSport);
+    // La league choisie peut ne plus appartenir au nouveau sport — on la
+    // réinitialise plutôt que de garder une valeur incohérente en mémoire.
+    if (!leagues.some((l) => l.key === league && l.sport === nextSport)) setLeague("");
+    if (nextSport !== FOOTBALL_SPORT_KEY) setKit((k) => (KITS.includes(k as Kit) ? "" : k));
+  }
+
   function toggleSize(s: string) {
     setSizes((list) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]));
+  }
+  function addFreeSize() {
+    const value = newSize.trim();
+    if (!value || sizes.includes(value)) return;
+    setSizes((list) => [...list, value]);
+    setNewSize("");
+  }
+  function removeSize(s: string) {
+    setSizes((list) => list.filter((x) => x !== s));
   }
 
   function handleFile(file: File) {
@@ -75,12 +101,20 @@ export function ProductEditDrawer({
     setPendingGallery((list) => list.filter((p) => p.previewUrl !== previewUrl));
   }
 
+  function handleReelFile(file: File) {
+    setPendingReel({ file, previewUrl: URL.createObjectURL(file) });
+  }
+  function removeReel() {
+    setReelUrl("");
+    setPendingReel(null);
+  }
+
   async function handleSave() {
     if (!product || saving) return;
     const patch = {
       name: name.trim(),
       team: team.trim(),
-      kit,
+      kit: kit.trim() || undefined,
       price: Number(price),
       priceOriginal: Number(priceOriginal),
       stock: Number(stock),
@@ -119,7 +153,22 @@ export function ProductEditDrawer({
         );
         images = { square, gallery: galleryChanged ? [...gallery, ...uploadedGallery] : undefined };
       }
-      const result = await updateProductAction({ slug: product.slug, ...patch, league, images });
+      let nextReelUrl: string | undefined;
+      if (pendingReel) {
+        nextReelUrl = await uploadAdminVideo(pendingReel.file, {
+          folder: `le-maillot-ideal/products/${product.slug}/reel`,
+        });
+      } else if (reelUrl !== (product.reelUrl ?? "")) {
+        nextReelUrl = reelUrl; // retiré par l'admin (removeReel) → ""
+      }
+      const result = await updateProductAction({
+        slug: product.slug,
+        ...patch,
+        sport,
+        league,
+        images,
+        reelUrl: nextReelUrl,
+      });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -200,6 +249,32 @@ export function ProductEditDrawer({
             />
           </div>
 
+          <div className="adm-field" style={{ marginTop: 14 }}>
+            <label>Vidéo de présentation (reel, optionnel)</label>
+            {pendingReel || reelUrl ? (
+              <div style={{ position: "relative", width: 120, marginBottom: 10 }}>
+                <video src={pendingReel?.previewUrl || reelUrl} controls style={{ width: 120, borderRadius: "var(--r-item)" }} />
+                <button
+                  type="button"
+                  className="icon-btn danger"
+                  aria-label="Retirer la vidéo"
+                  disabled={saving}
+                  onClick={removeReel}
+                  style={{ position: "absolute", top: -8, right: -8, width: 24, height: 24 }}
+                >
+                  <Icon name="close" size="sm" />
+                </button>
+              </div>
+            ) : null}
+            <ImageDropZone
+              kind="video"
+              onFile={handleReelFile}
+              disabled={saving}
+              label="Ajouter une vidéo"
+              hint="Cliquez ou déposez une courte vidéo (mp4) — pas de lecture automatique côté client"
+            />
+          </div>
+
           {error ? (
             <div className="adm-warn" style={{ marginTop: 14 }}>
               <Icon name="error" />
@@ -218,26 +293,45 @@ export function ProductEditDrawer({
               <input value={team} onChange={(e) => setTeam(e.target.value)} />
             </div>
             <div className="adm-field">
-              <label>Type de maillot</label>
-              <select value={kit} onChange={(e) => setKit(e.target.value as Kit)}>
-                {KITS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
+              <label>Sport</label>
+              <select value={sport} onChange={(e) => handleSportChange(e.target.value)}>
+                {sports.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="adm-field">
-            <label>Championnat</label>
-            <select value={league} onChange={(e) => setLeague(e.target.value)}>
-              {leagues.map((l) => (
-                <option key={l.key} value={l.key}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
+          <div className="adm-grid2">
+            <div className="adm-field">
+              <label>{sport === FOOTBALL_SPORT_KEY ? "Type de maillot" : "Variante (optionnel)"}</label>
+              {sport === FOOTBALL_SPORT_KEY ? (
+                <select value={kit} onChange={(e) => setKit(e.target.value)}>
+                  {KITS.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input value={kit} onChange={(e) => setKit(e.target.value)} placeholder="Ex. Bleu, Taille unique…" />
+              )}
+            </div>
+            {availableLeagues.length > 0 ? (
+              <div className="adm-field">
+                <label>Championnat (optionnel)</label>
+                <select value={league} onChange={(e) => setLeague(e.target.value)}>
+                  <option value="">Aucun</option>
+                  {availableLeagues.map((l) => (
+                    <option key={l.key} value={l.key}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
 
           <div className="adm-grid3">
@@ -278,12 +372,43 @@ export function ProductEditDrawer({
 
           <div className="adm-field">
             <label>Tailles disponibles</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
               {SIZES.map((s) => (
                 <label key={s} className="adm-check" style={{ padding: 0 }}>
                   <input type="checkbox" checked={sizes.includes(s)} onChange={() => toggleSize(s)} /> {s}
                 </label>
               ))}
+            </div>
+            {sizes.filter((s) => !SIZES.includes(s)).length > 0 ? (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                {sizes
+                  .filter((s) => !SIZES.includes(s))
+                  .map((s) => (
+                    <span key={s} className="adm-chip">
+                      {s}
+                      <button type="button" aria-label={`Retirer ${s}`} onClick={() => removeSize(s)}>
+                        <Icon name="close" size="sm" />
+                      </button>
+                    </span>
+                  ))}
+              </div>
+            ) : null}
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={newSize}
+                onChange={(e) => setNewSize(e.target.value)}
+                placeholder="Autre taille (ex. pointure 42)"
+                style={{ flex: 1 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addFreeSize();
+                  }
+                }}
+              />
+              <button type="button" className="btn btn-tonal btn-sm" onClick={addFreeSize} disabled={!newSize.trim()}>
+                Ajouter
+              </button>
             </div>
           </div>
 

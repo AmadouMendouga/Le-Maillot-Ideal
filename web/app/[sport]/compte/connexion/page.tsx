@@ -6,7 +6,7 @@
 // style public (contact-card/form-row) plutôt que le style admin.
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
@@ -22,6 +22,7 @@ async function establishServerSession(idToken: string): Promise<boolean> {
 
 export default function ComptConnexionPage() {
   const router = useRouter();
+  const { sport } = useParams<{ sport: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,11 +40,11 @@ export default function ComptConnexionPage() {
       const idToken = await user.getIdToken();
       const ok = await establishServerSession(idToken);
       if (ok) {
-        router.push("/compte/commandes");
+        router.push(`/${sport}/compte/commandes`);
         router.refresh();
       }
     });
-  }, [router]);
+  }, [router, sport]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -55,7 +56,7 @@ export default function ComptConnexionPage() {
       const idToken = await credential.user.getIdToken();
       const ok = await establishServerSession(idToken);
       if (!ok) throw new Error();
-      router.push("/compte/commandes");
+      router.push(`/${sport}/compte/commandes`);
       router.refresh();
     } catch {
       setError("Adresse e-mail ou mot de passe incorrect.");
@@ -111,7 +112,7 @@ export default function ComptConnexionPage() {
                 {loading ? "Connexion…" : "Se connecter"}
               </button>
               <p className="form-note">
-                Pas encore de compte ? <Link href="/compte/inscription">Créer un compte</Link>
+                Pas encore de compte ? <Link href={`/${sport}/compte/inscription`}>Créer un compte</Link>
               </p>
             </form>
           </div>

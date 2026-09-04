@@ -29,10 +29,10 @@ export function AdminHeader({ email }: { email: string | null }) {
       <div className="container">
         <Link href="/" className="logo">
           <span className="logo-mark">
-            <Icon name="soccer" size="lg" />
+            <Icon name="storefront" size="lg" />
           </span>
           <span>
-            Le Maillot Idéal
+            IKIGAI Sport
             <small>ADMINISTRATION</small>
           </span>
         </Link>

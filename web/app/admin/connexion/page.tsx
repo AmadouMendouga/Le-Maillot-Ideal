@@ -44,10 +44,10 @@ export default function AdminLoginPage() {
     <div className="adm-login-wrap">
       <form className="adm-login-card" onSubmit={handleSubmit}>
         <span className="logo-mark">
-          <Icon name="soccer" size="lg" />
+          <Icon name="storefront" size="lg" />
         </span>
         <h1>Administration</h1>
-        <p className="sub">Le Maillot Idéal</p>
+        <p className="sub">IKIGAI Sport</p>
 
         {error ? (
           <div className="adm-login-error">

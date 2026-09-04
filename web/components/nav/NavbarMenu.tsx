@@ -24,6 +24,8 @@ import type { League, Product, SiteSettings } from "@/lib/types";
 
 export interface NavbarMenuProps {
   shellRef: RefObject<HTMLDivElement | null>;
+  /** Racine du site-sport courant (ex. "/football") — préfixe tous les liens internes. */
+  basePath: string;
   leagues: League[];
   products: Product[];
   settings: SiteSettings;
@@ -45,7 +47,7 @@ const MORPH_DURATION = 616; // --am-spring-ms
 const CONTENT_SWAP_DELAY = 130;
 const CLOSE_DELAY = 120;
 
-export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenuProps) {
+export function NavbarMenu({ shellRef, basePath, leagues, products, settings }: NavbarMenuProps) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
 
@@ -63,23 +65,23 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
 
   const boutiquePanel = (): ReactNode => (
     <div className="am-links">
-      <Link href="/boutique">
+      <Link href={`${basePath}/boutique`}>
         <Icon name="grid" size="sm" />
         Tout le catalogue
       </Link>
       {settings.catalogDataVerified ? (
         <>
-          <Link href="/boutique?promo=1">
+          <Link href={`${basePath}/boutique?promo=1`}>
             <Icon name="percent" size="sm" />
-            Maillots en promotion
+            Produits en promotion
           </Link>
-          <Link href="/boutique?stock=1">
+          <Link href={`${basePath}/boutique?stock=1`}>
             <Icon name="check-circle" size="sm" />
             Disponibles immédiatement
           </Link>
         </>
       ) : (
-        <Link href="/boutique">
+        <Link href={`${basePath}/boutique`}>
           <Icon name="info" size="sm" />
           Prix et disponibilités à confirmer
         </Link>
@@ -95,14 +97,14 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
   const leaguePanel = (): ReactNode =>
     leagues.length === 0 ? (
       <div className="am-links">
-        <Link href="/boutique">Toute la boutique</Link>
+        <Link href={`${basePath}/boutique`}>Toute la boutique</Link>
       </div>
     ) : (
       <div className="am-products">
         {leagues.map((league) => {
           const count = products.filter((p) => p.league === league.key).length;
           return (
-            <Link className="am-product" key={league.key} href={`/boutique?league=${league.key}`}>
+            <Link className="am-product" key={league.key} href={`${basePath}/boutique?league=${league.key}`}>
               <span className="thumb" style={{ background: safeColor(league.color) }}>
                 <Icon name="soccer" size="lg" />
                 {league.logo && (
@@ -130,24 +132,24 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
 
   const aidePanel = (): ReactNode => (
     <div className="am-links">
-      <Link href="/#faq">
+      <Link href={`${basePath}/#faq`}>
         <Icon name="info" size="sm" />
         Questions fréquentes
       </Link>
-      <Link href="/#faq">
+      <Link href={`${basePath}/#faq`}>
         <Icon name="shipping" size="sm" />
         Livraison &amp; paiement
       </Link>
-      <Link href="/#faq">
+      <Link href={`${basePath}/#faq`}>
         <Icon name="ruler" size="sm" />
         Guide des tailles
       </Link>
-      <Link href="/#faq">
+      <Link href={`${basePath}/#faq`}>
         <Icon name="swap" size="sm" />
         Retours &amp; échanges
       </Link>
       <div className="am-sep" />
-      <Link href="/#contact">
+      <Link href={`${basePath}/#contact`}>
         <Icon name="person" size="sm" />
         Nous contacter
       </Link>
@@ -295,7 +297,7 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
     <>
       <div className="am-items">
         <div className="am-item">
-          <Link className={"am-trigger" + (pathname === "/" ? " current" : "")} href="/">
+          <Link className={"am-trigger" + (pathname === basePath ? " current" : "")} href={basePath}>
             Accueil
           </Link>
         </div>
@@ -335,11 +337,17 @@ export function NavbarMenu({ shellRef, leagues, products, settings }: NavbarMenu
         ))}
         <div className="am-item">
           <Link
-            className={"am-trigger" + (pathname === "/phototheque" ? " current" : "")}
-            href="/phototheque"
+            className={"am-trigger" + (pathname === `${basePath}/phototheque` ? " current" : "")}
+            href={`${basePath}/phototheque`}
             onMouseEnter={closeMenu}
           >
             Photothèque
+          </Link>
+        </div>
+        <div className="am-item">
+          <Link className="am-trigger" href="/" onMouseEnter={closeMenu}>
+            <Icon name="storefront" size="sm" />
+            Autres sports
           </Link>
         </div>
       </div>

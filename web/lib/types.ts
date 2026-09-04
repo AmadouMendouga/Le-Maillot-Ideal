@@ -1,3 +1,7 @@
+// "Domicile"/"Extérieur"/"Third" reste la liste figée proposée en admin quand
+// sport === "football" (voir ProductEditDrawer/ProductCreateDrawer), mais le
+// champ produit lui-même est un string libre depuis la migration IKIGAI Sport
+// (multi-sports) — un judogi ou une sneaker n'a pas de "Domicile/Extérieur".
 export type Kit = "Domicile" | "Extérieur" | "Third";
 
 export interface ProductImages {
@@ -12,9 +16,13 @@ export interface Product {
   slug: string;
   name: string;
   team: string;
-  kit: Kit;
-  league: string;
-  leagueLabel: string;
+  /** Libre depuis IKIGAI Sport (ex-union stricte "Domicile"|"Extérieur"|"Third") — non validé au runtime, voir productPatchError. */
+  kit?: string;
+  sport: string;
+  sportLabel: string;
+  /** Optionnel : seuls les produits rattachés à un championnat (football aujourd'hui) en ont un. */
+  league?: string;
+  leagueLabel?: string;
   color: string;
   season: string;
   priceOriginal: number;
@@ -28,8 +36,28 @@ export interface Product {
   kidsAvailable: boolean;
   description: string;
   images: ProductImages;
+  /** Vidéo de présentation courte (reel), optionnelle — voir ProductDetail. */
+  reelUrl?: string;
   updatedAt: string;
   updatedBy: string;
+}
+
+export interface Sport {
+  key: string;
+  label: string;
+  color: string;
+  logo: string;
+  /** Bandeau d'accueil et chiffres clés du site de ce sport — propres à chaque sport
+   * depuis la migration portail (avant : globaux dans SiteSettings, ce qui mélangeait
+   * le discours "maillot" avec les autres sports). */
+  heroBadge: string;
+  heroTitle1: string;
+  heroTitle2: string;
+  heroLead: string;
+  statDelay: string;
+  statDelayLabel: string;
+  statRating: string;
+  statRatingLabel: string;
 }
 
 export interface League {
@@ -37,6 +65,8 @@ export interface League {
   label: string;
   color: string;
   logo: string;
+  /** FK vers sports/{key} — sans ça, les championnats de plusieurs sports se mélangeraient dans un seul pool. */
+  sport: string;
   teams: string[];
 }
 
@@ -129,14 +159,6 @@ export interface SiteSettings {
   shareImage: string;
   topbarInfo: string;
   topbarHelp: string;
-  heroBadge: string;
-  heroTitle1: string;
-  heroTitle2: string;
-  heroLead: string;
-  statDelay: string;
-  statDelayLabel: string;
-  statRating: string;
-  statRatingLabel: string;
   whatsapp: string;
   whatsappDisplay: string;
   email: string;

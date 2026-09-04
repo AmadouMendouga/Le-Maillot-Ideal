@@ -6,7 +6,11 @@ import { getReviewUploadSignatureAction } from "@/lib/actions/orders";
 
 export { SQUARE_TRANSFORMATION, WIDE_TRANSFORMATION, LOGO_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 
-async function uploadSignedFile(file: File, signed: UploadSignature): Promise<string> {
+async function uploadSignedFile(
+  file: File,
+  signed: UploadSignature,
+  resourceType: "image" | "video" = "image"
+): Promise<string> {
   const form = new FormData();
   form.append("file", file);
   form.append("api_key", signed.apiKey);
@@ -16,13 +20,16 @@ async function uploadSignedFile(file: File, signed: UploadSignature): Promise<st
   if (signed.publicId) form.append("public_id", signed.publicId);
   if (signed.transformation) form.append("transformation", signed.transformation);
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`, {
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${signed.cloudName}/${resourceType}/upload`, {
     method: "POST",
     body: form,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => null);
-    throw new Error(err?.error?.message || "Échec de l'envoi de l'image vers Cloudinary.");
+    throw new Error(
+      err?.error?.message ||
+        (resourceType === "video" ? "Échec de l'envoi de la vidéo vers Cloudinary." : "Échec de l'envoi de l'image vers Cloudinary.")
+    );
   }
   const data = await res.json();
   return data.secure_url as string;
@@ -31,6 +38,12 @@ async function uploadSignedFile(file: File, signed: UploadSignature): Promise<st
 export async function uploadAdminImage(file: File, params: UploadSignatureParams): Promise<string> {
   const signed = await getUploadSignatureAction(params);
   return uploadSignedFile(file, signed);
+}
+
+/** Reel produit (vidéo courte) — même signature, endpoint Cloudinary différent (resource_type video). */
+export async function uploadAdminVideo(file: File, params: UploadSignatureParams): Promise<string> {
+  const signed = await getUploadSignatureAction(params);
+  return uploadSignedFile(file, signed, "video");
 }
 
 /** Variante publique pour /avis/[token] — signature gardée par reviewToken, pas par session admin. */

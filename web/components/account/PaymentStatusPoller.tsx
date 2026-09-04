@@ -6,6 +6,7 @@
 // direct auprès de CamPay (filet de secours si le webhook tarde).
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Icon } from "@/components/icons/Icon";
 import { checkPaymentStatusAction } from "@/lib/actions/payments";
 import type { PaymentStatus } from "@/lib/types";
@@ -22,6 +23,7 @@ export function PaymentStatusPoller({
   initialStatus: PaymentStatus;
   ussdCode: string | null;
 }) {
+  const { sport } = useParams<{ sport: string }>();
   const [status, setStatus] = useState<PaymentStatus>(initialStatus);
   const [reason, setReason] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -73,7 +75,7 @@ export function PaymentStatusPoller({
         <Icon name="check-circle" size="xl" />
         <h3>Paiement confirmé !</h3>
         <p>Votre commande est enregistrée. Merci pour votre achat.</p>
-        <Link href="/compte/commandes" className="btn btn-primary btn-block" style={{ marginTop: 14 }}>
+        <Link href={`/${sport}/compte/commandes`} className="btn btn-primary btn-block" style={{ marginTop: 14 }}>
           Voir mes commandes
         </Link>
       </div>
@@ -85,7 +87,7 @@ export function PaymentStatusPoller({
       <div className="contact-card">
         <h3>Paiement refusé</h3>
         <p>{reason || "La transaction n'a pas pu être complétée."}</p>
-        <Link href="/boutique" className="btn btn-primary btn-block" style={{ marginTop: 14 }}>
+        <Link href={`/${sport}/boutique`} className="btn btn-primary btn-block" style={{ marginTop: 14 }}>
           Retourner à la boutique
         </Link>
       </div>

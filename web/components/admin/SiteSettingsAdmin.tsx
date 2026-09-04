@@ -95,46 +95,15 @@ export function SiteSettingsAdmin({ initialSettings }: { initialSettings: SiteSe
 
       <div className="adm-grid2" style={{ maxWidth: 900 }}>
         <div>
-          <h3 style={{ fontSize: "1rem", marginBottom: 14 }}>Bandeau d&apos;accueil</h3>
+          <h3 style={{ fontSize: "1rem", marginBottom: 14 }}>Identité</h3>
           <div className="adm-field">
-            <label>Badge</label>
-            <input value={site.heroBadge} onChange={(e) => setField("heroBadge", e.target.value)} />
-          </div>
-          <div className="adm-field">
-            <label>Titre, ligne 1</label>
-            <input value={site.heroTitle1} onChange={(e) => setField("heroTitle1", e.target.value)} />
+            <label>Nom de l&apos;entreprise</label>
+            <input value={site.businessName} onChange={(e) => setField("businessName", e.target.value)} />
           </div>
           <div className="adm-field">
-            <label>Titre, ligne 2</label>
-            <input value={site.heroTitle2} onChange={(e) => setField("heroTitle2", e.target.value)} />
+            <label>Adresse du site</label>
+            <input value={site.siteUrl} onChange={(e) => setField("siteUrl", e.target.value)} />
           </div>
-          <div className="adm-field">
-            <label>Texte d&apos;introduction</label>
-            <textarea value={site.heroLead} onChange={(e) => setField("heroLead", e.target.value)} />
-          </div>
-
-          <h3 style={{ fontSize: "1rem", margin: "26px 0 14px" }}>Chiffres clés</h3>
-          <div className="adm-grid2">
-            <div className="adm-field">
-              <label>Délai</label>
-              <input value={site.statDelay} onChange={(e) => setField("statDelay", e.target.value)} />
-            </div>
-            <div className="adm-field">
-              <label>Légende</label>
-              <input value={site.statDelayLabel} onChange={(e) => setField("statDelayLabel", e.target.value)} />
-            </div>
-            <div className="adm-field">
-              <label>Note</label>
-              <input value={site.statRating} onChange={(e) => setField("statRating", e.target.value)} />
-            </div>
-            <div className="adm-field">
-              <label>Légende</label>
-              <input value={site.statRatingLabel} onChange={(e) => setField("statRatingLabel", e.target.value)} />
-            </div>
-          </div>
-          <p className="hint" style={{ fontSize: ".76rem", color: "var(--on-surface-variant)" }}>
-            N&apos;affichez une note moyenne que si elle correspond à de vrais avis.
-          </p>
         </div>
 
         <div>

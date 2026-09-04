@@ -7,7 +7,7 @@
 // y a un profil à créer.
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
@@ -15,6 +15,7 @@ import { createCustomerProfileAction } from "@/lib/actions/customers";
 
 export default function CompteInscriptionPage() {
   const router = useRouter();
+  const { sport } = useParams<{ sport: string }>();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -45,7 +46,7 @@ export default function CompteInscriptionPage() {
         body: JSON.stringify({ idToken }),
       });
       if (!res.ok) throw new Error();
-      router.push("/compte/commandes");
+      router.push(`/${sport}/compte/commandes`);
       router.refresh();
     } catch (err) {
       const code = (err as { code?: string })?.code;
@@ -119,7 +120,7 @@ export default function CompteInscriptionPage() {
                 {loading ? "Création…" : "Créer mon compte"}
               </button>
               <p className="form-note">
-                Déjà un compte ? <Link href="/compte/connexion">Se connecter</Link>
+                Déjà un compte ? <Link href={`/${sport}/compte/connexion`}>Se connecter</Link>
               </p>
             </form>
           </div>

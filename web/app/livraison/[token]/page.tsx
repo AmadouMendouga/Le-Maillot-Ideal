@@ -8,7 +8,7 @@ import { LocationSharingForm } from "@/components/delivery/LocationSharingForm";
 // Route publique hors du groupe (site) : pas de navbar ni de panier, même
 // principe que /avis/[token] (CLAUDE.md §3).
 export const metadata: Metadata = {
-  title: "Partager ma position | Le Maillot Idéal",
+  title: "Partager ma position | IKIGAI Sport",
   robots: { index: false, follow: false },
 };
 
@@ -24,7 +24,7 @@ export default async function LocationSharingPage({ params }: { params: Promise<
             <Icon name="location" size="xl" />
             Partager ma position
           </h1>
-          <p>Le Maillot Idéal</p>
+          <p>IKIGAI Sport</p>
         </div>
       </div>
       <div className="section">

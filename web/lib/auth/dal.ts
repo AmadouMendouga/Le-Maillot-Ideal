@@ -60,11 +60,13 @@ export const verifyCustomerSession = cache(async () => {
   return { uid: decoded.uid, email: decoded.email ?? null };
 });
 
-/** Variante pour les Server Components de page : redirige plutôt que de jeter. */
-export async function requireCustomerOrRedirect() {
+/** Variante pour les Server Components de page : redirige plutôt que de jeter.
+ * `sport` détermine le site-sport vers lequel rediriger (chaque site-sport a
+ * sa propre page de connexion sous /[sport]/compte/connexion). */
+export async function requireCustomerOrRedirect(sport: string) {
   try {
     return await verifyCustomerSession();
   } catch {
-    redirect("/compte/connexion");
+    redirect(`/${sport}/compte/connexion`);
   }
 }

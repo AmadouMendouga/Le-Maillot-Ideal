@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAllProductSlugs, getAllProducts, getProductBySlug } from "@/lib/data/products";
+import { getAllProducts, getProductBySlug } from "@/lib/data/products";
 import { getSiteSettings } from "@/lib/data/settings";
 import { Icon } from "@/components/icons/Icon";
 import { ProductDetail } from "@/components/products/ProductDetail";
@@ -11,23 +11,19 @@ import { stockInfo } from "@/lib/cart";
 
 export const revalidate = 3600;
 
-export async function generateStaticParams() {
-  const slugs = await getAllProductSlugs();
-  return slugs.map((slug) => ({ slug }));
+export async function generateStaticParams({ params }: { params: { sport: string } }) {
+  const products = await getAllProducts();
+  return products.filter((p) => p.sport === params.sport).map((p) => ({ slug: p.slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata({ params }: PageProps<"/[sport]/produits/[slug]">): Promise<Metadata> {
+  const { sport: sportKey, slug } = await params;
   const [product, settings] = await Promise.all([getProductBySlug(slug), getSiteSettings()]);
-  if (!product) return { title: "Produit introuvable | Le Maillot Idéal" };
+  if (!product || product.sport !== sportKey) return { title: "Produit introuvable | IKIGAI Sport" };
 
   const description = publicProductDescription(product, settings);
-  const url = absUrl(settings.siteUrl, `/produits/${product.slug}`);
-  const title = `${product.name} | Le Maillot Idéal`;
+  const url = absUrl(settings.siteUrl, `/${sportKey}/produits/${product.slug}`);
+  const title = `${product.name} | IKIGAI Sport`;
 
   return {
     title,
@@ -45,29 +41,38 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function ProductPage({ params }: PageProps<"/[sport]/produits/[slug]">) {
+  const { sport: sportKey, slug } = await params;
   const [product, allProducts, settings] = await Promise.all([
     getProductBySlug(slug),
     getAllProducts(),
     getSiteSettings(),
   ]);
-  if (!product) notFound();
+  // Un judogi ne doit pas être accessible sous /football/produits/... —
+  // le sport du produit doit correspondre au site-sport visité.
+  if (!product || product.sport !== sportKey) notFound();
 
-  const url = absUrl(settings.siteUrl, `/produits/${product.slug}`);
+  const url = absUrl(settings.siteUrl, `/${sportKey}/produits/${product.slug}`);
   const st = stockInfo(product, settings.catalogDataVerified);
+  const boutiqueHref = `/${sportKey}/boutique`;
+
+  // 3e maillon du fil d'ariane : le championnat si le produit en a un
+  // (football aujourd'hui), sinon directement le sport.
+  const categoryCrumb = product.league
+    ? { name: product.leagueLabel!, href: `${boutiqueHref}?league=${product.league}` }
+    : { name: product.sportLabel, href: boutiqueHref };
 
   const breadcrumbLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Accueil", item: settings.siteUrl },
-      { "@type": "ListItem", position: 2, name: "Boutique", item: absUrl(settings.siteUrl, "/boutique") },
+      { "@type": "ListItem", position: 2, name: "Boutique", item: absUrl(settings.siteUrl, boutiqueHref) },
       {
         "@type": "ListItem",
         position: 3,
-        name: product.leagueLabel,
-        item: absUrl(settings.siteUrl, `/boutique?league=${product.league}`),
+        name: categoryCrumb.name,
+        item: absUrl(settings.siteUrl, categoryCrumb.href),
       },
       { "@type": "ListItem", position: 4, name: product.name, item: url },
     ],
@@ -90,7 +95,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       }
     : null;
 
-  const related = allProducts.filter((p) => p.league === product.league && p.slug !== product.slug).slice(0, 4);
+  // Priorité au même championnat s'il y en a un (ex. deux maillots de Ligue
+  // 1) ; sinon repli sur le même sport (ex. deux judogi) — jamais de mélange
+  // entre sports différents dans "produits similaires".
+  const relatedByLeague = product.league
+    ? allProducts.filter((p) => p.league === product.league && p.slug !== product.slug)
+    : [];
+  const related = (
+    relatedByLeague.length > 0
+      ? relatedByLeague
+      : allProducts.filter((p) => p.sport === product.sport && p.slug !== product.slug)
+  ).slice(0, 4);
+  const relatedEyebrow = relatedByLeague.length > 0 ? "Dans le même championnat" : "Dans le même sport";
 
   return (
     <main id="main">
@@ -101,15 +117,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <div className="container">
         <nav className="breadcrumb" aria-label="Fil d'ariane">
-          <Link href="/">Accueil</Link>
+          <Link href={`/${sportKey}`}>Accueil</Link>
           <span className="sep">
             <Icon name="chevron-right" />
           </span>
-          <Link href="/boutique">Boutique</Link>
+          <Link href={boutiqueHref}>Boutique</Link>
           <span className="sep">
             <Icon name="chevron-right" />
           </span>
-          <Link href={`/boutique?league=${product.league}`}>{product.leagueLabel}</Link>
+          <Link href={categoryCrumb.href}>{categoryCrumb.name}</Link>
           <span className="sep">
             <Icon name="chevron-right" />
           </span>
@@ -130,7 +146,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <div>
                 <span className="eyebrow">
                   <Icon name="grid" size="sm" />
-                  Dans le même championnat
+                  {relatedEyebrow}
                 </span>
                 <h2>Produits similaires</h2>
               </div>

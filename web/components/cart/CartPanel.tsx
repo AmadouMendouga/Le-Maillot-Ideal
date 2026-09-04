@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { Icon } from "@/components/icons/Icon";
 import { StatefulButton } from "@/components/StatefulButton";
@@ -17,6 +17,7 @@ const DELIVERY_CHECK_DELAY = 1400;
 
 export function CartPanel({ settings }: { settings: SiteSettings }) {
   const router = useRouter();
+  const { sport } = useParams<{ sport: string }>();
   const { details, count, total, isPanelOpen, whatsappLink, removeFromCart, changeQty, closePanel } = useCart();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -55,7 +56,7 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
       showToast(result.error, "error", true);
       throw new Error(result.error);
     }
-    router.push(`/compte/paiement/${result.orderId}`);
+    router.push(`/${sport}/compte/paiement/${result.orderId}`);
   }
 
   const panelRef = useRef<HTMLDivElement>(null);

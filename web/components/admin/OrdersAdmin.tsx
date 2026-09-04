@@ -42,10 +42,10 @@ function statusBadge(order: Order) {
   );
 }
 
-function reviewRequestLink(order: Order, siteUrl: string): string {
+function reviewRequestLink(order: Order, siteUrl: string, businessName: string): string {
   const url = `${siteUrl.replace(/\/$/, "")}/avis/${order.reviewToken}`;
   const msg =
-    `Bonjour ${order.customerName} 👋 merci pour votre commande chez Le Maillot Idéal !\n\n` +
+    `Bonjour ${order.customerName} 👋 merci pour votre commande chez ${businessName} !\n\n` +
     `Pourriez-vous nous laisser un avis en quelques secondes ? ${url}\n\n` +
     "Merci beaucoup !";
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
@@ -727,7 +727,7 @@ export function OrdersAdmin({
                       ) : order.reviewToken ? (
                         <StatefulButton
                           className="btn btn-whatsapp btn-sm"
-                          href={reviewRequestLink(order, settings.siteUrl)}
+                          href={reviewRequestLink(order, settings.siteUrl, settings.businessName)}
                           target="_blank"
                           rel="noopener"
                           onRun={() => wait(600)}

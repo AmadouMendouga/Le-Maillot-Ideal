@@ -12,7 +12,8 @@ import { FCFA } from "@/lib/cart";
 import { ProductEditDrawer } from "@/components/admin/ProductEditDrawer";
 import { ProductCreateDrawer } from "@/components/admin/ProductCreateDrawer";
 import { LeaguesManager } from "@/components/admin/LeaguesManager";
-import type { League, Product } from "@/lib/types";
+import { SportsManager } from "@/components/admin/SportsManager";
+import type { League, Product, Sport } from "@/lib/types";
 
 function StockBadge({ product }: { product: Product }) {
   if (product.stock === 0) {
@@ -39,14 +40,23 @@ function StockBadge({ product }: { product: Product }) {
   );
 }
 
-export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: Product[]; leagues: League[] }) {
+export function ProductsAdmin({
+  initialProducts,
+  leagues,
+  sports,
+}: {
+  initialProducts: Product[];
+  leagues: League[];
+  sports: Sport[];
+}) {
   const [products, setProducts] = useState(initialProducts);
-  const [filters, setFilters] = useState({ q: "", league: "", status: "" });
+  const [filters, setFilters] = useState({ q: "", league: "", sport: "", status: "" });
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [displaySlug, setDisplaySlug] = useState<string | null>(null);
   const [openNonce, setOpenNonce] = useState(0);
   const [creating, setCreating] = useState(false);
   const [managingLeagues, setManagingLeagues] = useState(false);
+  const [managingSports, setManagingSports] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "products"), (snap) => {
@@ -57,6 +67,7 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
+      if (filters.sport && p.sport !== filters.sport) return false;
       if (filters.league && p.league !== filters.league) return false;
       if (filters.q) {
         const q = filters.q.toLowerCase();
@@ -87,6 +98,10 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
           <Icon name="add" size="sm" />
           Ajouter un maillot
         </button>
+        <button type="button" className="btn btn-tonal btn-sm" onClick={() => setManagingSports(true)}>
+          <Icon name="storefront" size="sm" />
+          Gérer les sports
+        </button>
         <button type="button" className="btn btn-tonal btn-sm" onClick={() => setManagingLeagues(true)}>
           <Icon name="storefront" size="sm" />
           Gérer les championnats
@@ -103,6 +118,19 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
             onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
           />
         </span>
+        <select
+          className="sort-select"
+          aria-label="Filtrer par sport"
+          value={filters.sport}
+          onChange={(e) => setFilters((f) => ({ ...f, sport: e.target.value }))}
+        >
+          <option value="">Tous les sports</option>
+          {sports.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
         <select
           className="sort-select"
           aria-label="Filtrer par championnat"
@@ -170,7 +198,7 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
                   <td>
                     <div className="name">{p.name}</div>
                     <div className="sub">
-                      {p.leagueLabel} · {p.kit} · {p.season}
+                      {[p.leagueLabel || p.sportLabel, p.kit, p.season].filter(Boolean).join(" · ")}
                     </div>
                   </td>
                   <td>
@@ -205,16 +233,19 @@ export function ProductsAdmin({ initialProducts, leagues }: { initialProducts: P
         key={displaySlug + ":" + openNonce}
         product={displayProduct}
         leagues={leagues}
+        sports={sports}
         open={editingSlug !== null}
         onClose={closeEditor}
       />
       <ProductCreateDrawer
         leagues={leagues}
+        sports={sports}
         open={creating}
         onClose={() => setCreating(false)}
         onCreated={openEditor}
       />
       <LeaguesManager leagues={leagues} open={managingLeagues} onClose={() => setManagingLeagues(false)} />
+      <SportsManager sports={sports} open={managingSports} onClose={() => setManagingSports(false)} />
     </section>
   );
 }

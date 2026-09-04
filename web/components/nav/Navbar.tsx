@@ -13,6 +13,8 @@ import { whatsappNumber } from "@/lib/cart";
 import type { League, Product, SiteSettings } from "@/lib/types";
 
 export interface NavbarProps {
+  /** Racine du site-sport courant (ex. "/football"). */
+  basePath: string;
   leagues: League[];
   products: Product[];
   settings: SiteSettings;
@@ -20,7 +22,7 @@ export interface NavbarProps {
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export function Navbar({ leagues, products, settings }: NavbarProps) {
+export function Navbar({ basePath, leagues, products, settings }: NavbarProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const waNumber = whatsappNumber(settings);
   const { count, openPanel } = useCart();
@@ -41,20 +43,17 @@ export function Navbar({ leagues, products, settings }: NavbarProps) {
       <div className="am-wrap">
         <div ref={shellRef} className="am-shell">
           <nav className="am-nav" aria-label="Navigation principale">
-            <Link href="/" className="logo">
+            <Link href={basePath} className="logo">
               <span className="logo-mark">
-                <Icon name="soccer" size="lg" />
+                <Icon name="storefront" size="lg" />
               </span>
-              <span>
-                {settings.businessName}
-                <small>PORTE TA PASSION</small>
-              </span>
+              <span>{settings.businessName}</span>
             </Link>
 
-            <NavbarMenu shellRef={shellRef} leagues={leagues} products={products} settings={settings} />
+            <NavbarMenu shellRef={shellRef} basePath={basePath} leagues={leagues} products={products} settings={settings} />
 
             <div className="header-actions">
-              <Link href="/compte" className="icon-btn plain" aria-label="Mon compte">
+              <Link href={`${basePath}/compte`} className="icon-btn plain" aria-label="Mon compte">
                 <Icon name="person" />
               </Link>
               <ThemeToggle />
@@ -82,7 +81,7 @@ export function Navbar({ leagues, products, settings }: NavbarProps) {
                 <Icon name="whatsapp" size="sm" />
                 Commander
               </StatefulButton>
-              <MobileNav />
+              <MobileNav basePath={basePath} />
             </div>
           </nav>
         </div>

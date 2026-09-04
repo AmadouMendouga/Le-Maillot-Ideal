@@ -3,7 +3,8 @@ import { verifyCustomerSession } from "@/lib/auth/dal";
 
 // Point d'entrée du lien « Mon compte » de la navigation — redirige selon
 // l'état de connexion plutôt que d'afficher quoi que ce soit lui-même.
-export default async function ComptePage() {
+export default async function ComptePage({ params }: PageProps<"/[sport]/compte">) {
+  const { sport } = await params;
   // redirect() lève une exception interne à Next.js — elle ne doit jamais
   // finir avalée par un catch, donc on isole la vérification (qui, elle,
   // lève une AuthError normale) avant de rediriger.
@@ -14,5 +15,5 @@ export default async function ComptePage() {
     connected = false;
   }
 
-  redirect(connected ? "/compte/commandes" : "/compte/connexion");
+  redirect(connected ? `/${sport}/compte/commandes` : `/${sport}/compte/connexion`);
 }

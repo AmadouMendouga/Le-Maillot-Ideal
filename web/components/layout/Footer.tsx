@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
 import { whatsappNumber } from "@/lib/cart";
-import type { League, SiteSettings } from "@/lib/types";
+import type { Sport, SiteSettings } from "@/lib/types";
 
-export function Footer({ leagues, settings }: { leagues: League[]; settings: SiteSettings }) {
+export function Footer({
+  basePath,
+  sports,
+  settings,
+}: {
+  basePath: string;
+  sports: Sport[];
+  settings: SiteSettings;
+}) {
   const waNumber = whatsappNumber(settings);
 
   return (
@@ -11,13 +19,13 @@ export function Footer({ leagues, settings }: { leagues: League[]; settings: Sit
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">
-            <Link href="/" className="logo">
+            <Link href={basePath} className="logo">
               <span className="logo-mark">
-                <Icon name="soccer" size="lg" />
+                <Icon name="storefront" size="lg" />
               </span>
               <span>{settings.businessName}</span>
             </Link>
-            <p style={{ marginTop: 12 }}>Une sélection de maillots répliques avec demande de commande sur WhatsApp.</p>
+            <p style={{ marginTop: 12 }}>Une sélection d&apos;articles de sport avec demande de commande sur WhatsApp.</p>
             <div className="footer-badges">
               <span>
                 <Icon name="shield" size="sm" />
@@ -33,31 +41,31 @@ export function Footer({ leagues, settings }: { leagues: League[]; settings: Sit
             <h4>Navigation</h4>
             <ul>
               <li>
-                <Link href="/">
+                <Link href={basePath}>
                   <Icon name="storefront" size="sm" />
                   Accueil
                 </Link>
               </li>
               <li>
-                <Link href="/boutique">
+                <Link href={`${basePath}/boutique`}>
                   <Icon name="grid" size="sm" />
                   Boutique
                 </Link>
               </li>
               <li>
-                <Link href="/phototheque">
+                <Link href={`${basePath}/phototheque`}>
                   <Icon name="photo-library" size="sm" />
                   Photothèque
                 </Link>
               </li>
               <li>
-                <Link href="/#faq">
+                <Link href={`${basePath}/#faq`}>
                   <Icon name="info" size="sm" />
                   FAQ
                 </Link>
               </li>
               <li>
-                <Link href="/#about">
+                <Link href={`${basePath}/#about`}>
                   <Icon name="verified" size="sm" />
                   Qui sommes-nous
                 </Link>
@@ -71,11 +79,11 @@ export function Footer({ leagues, settings }: { leagues: League[]; settings: Sit
             </ul>
           </div>
           <div>
-            <h4>Championnats</h4>
+            <h4>Sports</h4>
             <ul>
-              {leagues.map((league) => (
-                <li key={league.key}>
-                  <Link href={`/boutique?league=${league.key}`}>{league.label}</Link>
+              {sports.map((sport) => (
+                <li key={sport.key}>
+                  <Link href={`/${sport.key}`}>{sport.label}</Link>
                 </li>
               ))}
             </ul>
@@ -108,7 +116,7 @@ export function Footer({ leagues, settings }: { leagues: League[]; settings: Sit
           <span>
             © {new Date().getFullYear()} By NARA Team - {settings.businessName}. Tous droits réservés.
           </span>
-          <span>Site non affilié aux clubs ou ligues mentionnés. Maillots répliques.</span>
+          <span>Site non affilié aux marques, clubs ou ligues mentionnés.</span>
         </div>
       </div>
     </footer>

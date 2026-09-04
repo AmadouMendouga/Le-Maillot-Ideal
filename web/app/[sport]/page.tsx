@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getAllProducts } from "@/lib/data/products";
 import { getAllLeagues } from "@/lib/data/leagues";
+import { getSportByKey } from "@/lib/data/sports";
 import { getSiteSettings } from "@/lib/data/settings";
 import { getTestimonials } from "@/lib/data/testimonials";
 import { Icon } from "@/components/icons/Icon";
@@ -17,7 +19,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Comment passer une commande ?",
     answer:
-      "Choisissez votre maillot dans la boutique, ajoutez-le au panier (ou plusieurs), puis cliquez sur « Commander sur WhatsApp ». Le message est déjà rédigé avec votre sélection, il ne reste qu'à l'envoyer.",
+      "Choisissez votre article dans la boutique, ajoutez-le au panier (ou plusieurs), puis cliquez sur « Commander sur WhatsApp ». Le message est déjà rédigé avec votre sélection, il ne reste qu'à l'envoyer.",
   },
   {
     question: "Quels moyens de paiement acceptez-vous ?",
@@ -34,18 +36,24 @@ const FAQ_ITEMS: FaqItem[] = [
       "Les coupes peuvent varier. Indiquez votre taille habituelle ou vos mesures sur WhatsApp afin de confirmer la taille avant la commande.",
   },
   {
-    question: "Puis-je échanger un maillot après réception ?",
+    question: "Puis-je échanger un article après réception ?",
     answer: "Les conditions de retour ou d'échange sont communiquées et confirmées sur WhatsApp avant la commande.",
   },
 ];
 
-export default async function HomePage() {
-  const [products, leagues, settings, testimonials] = await Promise.all([
+export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
+  const { sport: sportKey } = await params;
+  const [sport, allProducts, allLeagues, settings, testimonials] = await Promise.all([
+    getSportByKey(sportKey),
     getAllProducts(),
     getAllLeagues(),
     getSiteSettings(),
     getTestimonials(),
   ]);
+  if (!sport) notFound();
+
+  const products = allProducts.filter((p) => p.sport === sportKey);
+  const leagues = allLeagues.filter((l) => l.sport === sportKey);
 
   const teamWords = [...new Set(products.map((p) => p.team))].slice(0, 10);
   const highlights = (settings.catalogDataVerified ? products.filter((p) => p.isNew) : products).slice(0, 8);
@@ -57,14 +65,14 @@ export default async function HomePage() {
         <div className="container hero-text-only">
           <div>
             <span className="hero-badge">
-              <Icon name="storefront" size="sm" /> {settings.heroBadge}
+              <Icon name="storefront" size="sm" /> {sport.heroBadge}
             </span>
             <h1>
-              <span>{settings.heroTitle1}</span>
+              <span>{sport.heroTitle1}</span>
               <br />
-              <span>{settings.heroTitle2}</span>
+              <span>{sport.heroTitle2}</span>
             </h1>
-            <p className="lead">{settings.heroLead}</p>
+            <p className="lead">{sport.heroLead}</p>
             {teamWords.length > 0 && (
               <p className="hero-flip-line">
                 <Icon name="bolt" size="sm" />
@@ -72,7 +80,7 @@ export default async function HomePage() {
               </p>
             )}
             <div className="hero-ctas">
-              <Link className="btn btn-primary btn-lg" href="/boutique">
+              <Link className="btn btn-primary btn-lg" href={`/${sportKey}/boutique`}>
                 <Icon name="storefront" />
                 Voir la boutique
               </Link>
@@ -84,15 +92,15 @@ export default async function HomePage() {
             <div className="hero-stats">
               <div>
                 <strong>{products.length}</strong>
-                <span>Maillots au catalogue</span>
+                <span>Articles au catalogue</span>
               </div>
               <div>
-                <strong>{settings.statDelay}</strong>
-                <span>{settings.statDelayLabel}</span>
+                <strong>{sport.statDelay}</strong>
+                <span>{sport.statDelayLabel}</span>
               </div>
               <div>
-                <strong>{settings.statRating}</strong>
-                <span>{settings.statRatingLabel}</span>
+                <strong>{sport.statRating}</strong>
+                <span>{sport.statRatingLabel}</span>
               </div>
               <div>
                 <strong>WhatsApp</strong>
@@ -103,7 +111,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <LeagueMarquee leagues={leagues} products={products} />
+      {leagues.length > 0 && <LeagueMarquee leagues={leagues} products={products} />}
 
       <section className="services-strip">
         <div className="container">
@@ -148,27 +156,30 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="section" id="championnats">
-        <div className="container">
-          <div className="section-head">
-            <div>
-              <span className="eyebrow">
-                <Icon name="inventory" size="sm" />
-                Catalogue
-              </span>
-              <h2>Choisissez votre championnat</h2>
-              <p>
-                {products.length} maillots présentés au catalogue, répartis sur {leagues.length} grands championnats
-                et sélections nationales.
-              </p>
+      {leagues.length > 0 && (
+        <section className="section" id="championnats">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">
+                  <Icon name="inventory" size="sm" />
+                  Catalogue
+                </span>
+                <h2>Choisissez votre championnat</h2>
+                <p>
+                  {products.length} produit{products.length > 1 ? "s" : ""} présenté{products.length > 1 ? "s" : ""}{" "}
+                  au catalogue, réparti{products.length > 1 ? "s" : ""} sur {leagues.length} championnat
+                  {leagues.length > 1 ? "s" : ""}.
+                </p>
+              </div>
+              <Link className="btn btn-tonal" href={`/${sportKey}/boutique`}>
+                Toute la boutique <Icon name="arrow-forward" size="sm" />
+              </Link>
             </div>
-            <Link className="btn btn-tonal" href="/boutique">
-              Toute la boutique <Icon name="arrow-forward" size="sm" />
-            </Link>
+            <LeagueGrid leagues={leagues} products={products} basePath={`/${sportKey}`} />
           </div>
-          <LeagueGrid leagues={leagues} products={products} />
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="section section-alt">
         <div className="container">
@@ -187,10 +198,10 @@ export default async function HomePage() {
                 <Icon name="bolt" size="sm" />
                 Sélection du catalogue
               </span>
-              <h2>Maillots au catalogue</h2>
+              <h2>Produits au catalogue</h2>
               <p>Une sélection à faire confirmer sur WhatsApp avant toute commande.</p>
             </div>
-            <Link className="btn btn-tonal" href="/boutique">
+            <Link className="btn btn-tonal" href={`/${sportKey}/boutique`}>
               Voir tout <Icon name="arrow-forward" size="sm" />
             </Link>
           </div>
@@ -253,7 +264,7 @@ export default async function HomePage() {
                 </span>
                 <h2>Retours de clients</h2>
               </div>
-              <Link className="btn btn-tonal" href="/phototheque">
+              <Link className="btn btn-tonal" href={`/${sportKey}/phototheque`}>
                 Voir la photothèque <Icon name="arrow-forward" size="sm" />
               </Link>
             </div>

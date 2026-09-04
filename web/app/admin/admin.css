@@ -115,6 +115,19 @@ html[data-theme="dark"] .adm-field select { background: var(--surface-container-
 .adm-check { display: flex; align-items: center; gap: 9px; padding: 9px 0; font-size: .88rem; cursor: pointer; }
 .adm-check input { width: 17px; height: 17px; accent-color: var(--primary); }
 
+/* Taille libre ajoutée à la main (ProductEditDrawer/ProductCreateDrawer) —
+   même esprit que .badge mais avec un bouton de retrait intégré. */
+.adm-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--primary-container); color: var(--on-primary-container);
+  border-radius: var(--r-pill); padding: 5px 6px 5px 12px; font-size: .8rem; font-weight: 600;
+}
+.adm-chip button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%; border: none; cursor: pointer;
+  background: color-mix(in srgb, var(--on-primary-container) 16%, transparent); color: inherit;
+}
+
 /* --- panneau d'édition latéral --- */
 .adm-drawer {
   position: fixed; top: 0; right: 0; height: 100%; width: min(520px, 96vw);

@@ -22,7 +22,7 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
       <AdminHeader email={admin.email} />
       <AdminTabs counts={counts} />
       <main className="container">
-        <h1 className="sr-only">Administration du site Le Maillot Idéal</h1>
+        <h1 className="sr-only">Administration du site IKIGAI Sport</h1>
         {children}
       </main>
     </>

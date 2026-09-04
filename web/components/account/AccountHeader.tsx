@@ -3,13 +3,14 @@
 // Bandeau « connecté en tant que... » + déconnexion, sur les pages /compte —
 // même mécanique que components/admin/AdminHeader.tsx, style public.
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
 
 export function AccountHeader({ email }: { email: string | null }) {
   const router = useRouter();
+  const { sport } = useParams<{ sport: string }>();
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -18,7 +19,7 @@ export function AccountHeader({ email }: { email: string | null }) {
       await fetch("/api/customer-session", { method: "DELETE" });
       await signOut(auth).catch(() => {});
     } finally {
-      router.push("/");
+      router.push(`/${sport}`);
       router.refresh();
     }
   }

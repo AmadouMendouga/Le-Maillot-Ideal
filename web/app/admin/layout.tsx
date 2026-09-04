@@ -5,7 +5,7 @@ import "./admin.css";
 // fichier CSS » du site public (CLAUDE.md §12) : ces styles ne doivent pas
 // être livrés aux visiteurs, donc importés uniquement sous /admin.
 export const metadata: Metadata = {
-  title: "Administration | Le Maillot Idéal",
+  title: "Administration | IKIGAI Sport",
   robots: { index: false, follow: false },
 };
 

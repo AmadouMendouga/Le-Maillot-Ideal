@@ -13,6 +13,8 @@ export interface ImageDropZoneProps {
   label?: string;
   hint?: string;
   disabled?: boolean;
+  /** "video" pour les reels produit (accept + input file uniquement — pas d'aperçu ici, le parent gère son propre <video>). */
+  kind?: "image" | "video";
 }
 
 export function ImageDropZone({
@@ -22,6 +24,7 @@ export function ImageDropZone({
   label = "Changer la photo",
   hint = "Cliquez ou déposez une image ici",
   disabled = false,
+  kind = "image",
 }: ImageDropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOver, setIsOver] = useState(false);
@@ -47,7 +50,7 @@ export function ImageDropZone({
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {previewSrc ? <img className="adm-preview" src={previewSrc} alt={previewAlt} /> : null}
+      {previewSrc && kind === "image" ? <img className="adm-preview" src={previewSrc} alt={previewAlt} /> : null}
       <div
         className={"adm-drop" + (isOver ? " over" : "") + (disabled ? " is-disabled" : "")}
         role="button"
@@ -79,7 +82,13 @@ export function ImageDropZone({
           {hint}
         </p>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleChange} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept={kind === "video" ? "video/*" : "image/*"}
+        style={{ display: "none" }}
+        onChange={handleChange}
+      />
     </>
   );
 }

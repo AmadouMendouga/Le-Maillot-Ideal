@@ -54,7 +54,12 @@ function sampleProduct(overrides = {}) {
   };
 }
 
-const baseSettings = { whatsapp: "237655634265", catalogDataVerified: true, commercialTermsVerified: true };
+const baseSettings = {
+  whatsapp: "237655634265",
+  catalogDataVerified: true,
+  commercialTermsVerified: true,
+  businessName: "IKIGAI Sport",
+};
 
 // --- FCFA ---------------------------------------------------------------
 
@@ -211,7 +216,7 @@ test("buildWhatsappCartLink produit le message exact attendu par WhatsApp (catal
   const products = [sampleProduct({ price: 12000 })];
   const link = buildWhatsappCartLink([{ slug: "maillot-domicile-test", size: "M", qty: 2 }], products, baseSettings);
   const expectedMessage =
-    "*Le Maillot Idéal* — nouvelle commande\n\n" +
+    "*IKIGAI Sport* — nouvelle commande\n\n" +
     "• 2 x Maillot Domicile Test (taille M) — 24 000 FCFA\n" +
     "\n*Total : 24 000 FCFA*\n" +
     "Paiement et livraison selon les modalités applicables à votre zone.\n\n" +
@@ -225,6 +230,7 @@ test("buildWhatsappCartLink ajoute les mentions « indicatif/à confirmer » tan
     whatsapp: "237655634265",
     catalogDataVerified: false,
     commercialTermsVerified: false,
+    businessName: "IKIGAI Sport",
   });
   const decoded = decodeURIComponent(link);
   assert.match(decoded, /Total indicatif/);

@@ -3,9 +3,9 @@ import { getOrderById } from "@/lib/data/orders";
 import { Icon } from "@/components/icons/Icon";
 import { PaymentStatusPoller } from "@/components/account/PaymentStatusPoller";
 
-export default async function PaiementPage({ params }: { params: Promise<{ orderId: string }> }) {
-  const { orderId } = await params;
-  const customer = await requireCustomerOrRedirect();
+export default async function PaiementPage({ params }: PageProps<"/[sport]/compte/paiement/[orderId]">) {
+  const { sport, orderId } = await params;
+  const customer = await requireCustomerOrRedirect(sport);
   const order = await getOrderById(orderId, customer.uid);
 
   return (

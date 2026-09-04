@@ -178,11 +178,7 @@ export async function createOrderAction(
     ...UNPAID_PAYMENT_FIELDS,
   });
 
-  if (items.length) {
-    revalidatePath("/boutique");
-    revalidatePath("/");
-    for (const item of items) revalidatePath(`/produits/${item.slug}`);
-  }
+  if (items.length) revalidatePath("/", "layout");
 
   return { ok: true, id: ref.id };
 }
@@ -266,9 +262,7 @@ export async function createCustomerOrderAction(
     ...UNPAID_PAYMENT_FIELDS,
   });
 
-  revalidatePath("/boutique");
-  revalidatePath("/");
-  for (const item of input.items) revalidatePath(`/produits/${item.slug}`);
+  revalidatePath("/", "layout");
 
   return { ok: true, id: ref.id };
 }
@@ -353,8 +347,7 @@ export async function approveTestimonialSubmissionAction(
   });
   await ref.delete();
 
-  revalidatePath("/");
-  revalidatePath("/phototheque");
+  revalidatePath("/", "layout");
 
   return { ok: true };
 }

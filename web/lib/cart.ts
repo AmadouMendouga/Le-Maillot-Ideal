@@ -125,10 +125,10 @@ export function cartTotal(details: CartDetailItem[]): number {
 export function buildWhatsappCartLink(
   cart: CartItem[],
   products: Product[],
-  settings: Pick<SiteSettings, "whatsapp" | "catalogDataVerified" | "commercialTermsVerified">
+  settings: Pick<SiteSettings, "whatsapp" | "catalogDataVerified" | "commercialTermsVerified" | "businessName">
 ): string {
   const details = cartDetails(cart, products);
-  let msg = "*Le Maillot Idéal* — nouvelle commande\n\n";
+  let msg = `*${settings.businessName}* — nouvelle commande\n\n`;
   for (const item of details) {
     msg += `• ${item.qty} x ${item.product.name} (taille ${item.size}) — ${FCFA(
       Number(item.product.price || 0) * item.qty

@@ -5,13 +5,21 @@ import { Icon } from "@/components/icons/Icon";
 import { safeColor } from "@/lib/format";
 import type { League, Product } from "@/lib/types";
 
-export function LeagueGrid({ leagues, products }: { leagues: League[]; products: Product[] }) {
+export function LeagueGrid({
+  leagues,
+  products,
+  basePath,
+}: {
+  leagues: League[];
+  products: Product[];
+  basePath: string;
+}) {
   return (
     <div className="league-grid">
       {leagues.map((league) => {
         const count = products.filter((p) => p.league === league.key).length;
         return (
-          <Link className="league-card" key={league.key} href={`/boutique?league=${league.key}`}>
+          <Link className="league-card" key={league.key} href={`${basePath}/boutique?league=${league.key}`}>
             <span className="league-dot" style={{ background: safeColor(league.color) }}>
               <Icon name="soccer" size="lg" />
               {league.logo && (

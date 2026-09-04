@@ -8,7 +8,7 @@ import { ReviewSubmissionForm } from "@/components/reviews/ReviewSubmissionForm"
 // Route publique hors du groupe (site) : pas de navbar ni de panier, exactement
 // comme merci.html/product.html sur l'ancien site statique (CLAUDE.md §3).
 export const metadata: Metadata = {
-  title: "Votre avis | Le Maillot Idéal",
+  title: "Votre avis | IKIGAI Sport",
   robots: { index: false, follow: false },
 };
 
@@ -24,7 +24,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ token: 
             <Icon name="star" size="xl" />
             Votre avis compte
           </h1>
-          <p>Le Maillot Idéal</p>
+          <p>IKIGAI Sport</p>
         </div>
       </div>
       <div className="section">

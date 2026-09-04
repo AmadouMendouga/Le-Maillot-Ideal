@@ -13,18 +13,21 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/icons/Icon";
 import type { IconName } from "@/components/icons/names";
 
-const LINKS: { href: string; label: string; icon: IconName }[] = [
-  { href: "/", label: "Accueil", icon: "storefront" },
-  { href: "/boutique", label: "Boutique", icon: "grid" },
-  { href: "/phototheque", label: "Photothèque", icon: "photo-library" },
-  { href: "/#championnats", label: "Championnats", icon: "inventory" },
-  { href: "/#faq", label: "Aide", icon: "info" },
-  { href: "/#contact", label: "Contact", icon: "person" },
-  { href: "/compte", label: "Mon compte", icon: "verified" },
-];
+function links(basePath: string): { href: string; label: string; icon: IconName }[] {
+  return [
+    { href: basePath, label: "Accueil", icon: "storefront" },
+    { href: `${basePath}/boutique`, label: "Boutique", icon: "grid" },
+    { href: `${basePath}/phototheque`, label: "Photothèque", icon: "photo-library" },
+    { href: `${basePath}/#faq`, label: "Aide", icon: "info" },
+    { href: `${basePath}/#contact`, label: "Contact", icon: "person" },
+    { href: `${basePath}/compte`, label: "Mon compte", icon: "verified" },
+    { href: "/", label: "Autres sports", icon: "inventory" },
+  ];
+}
 
-export function MobileNav() {
+export function MobileNav({ basePath }: { basePath: string }) {
   const pathname = usePathname();
+  const LINKS = links(basePath);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const navRef = useRef<HTMLElement>(null);
