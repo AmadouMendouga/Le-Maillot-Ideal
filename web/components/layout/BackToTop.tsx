@@ -2,10 +2,10 @@
 
 // Bouton "retour en haut" — patron restrowebsite (data-back-top-btn) : même
 // seuil de défilement (50px) que les en-têtes qui se solidifient au scroll.
-// Réutilise l'icône "expand" (chevron bas de l'accordéon FAQ) tournée à
-// 180°, plutôt que d'ajouter un symbole dédié au sprite pour un simple
-// chevron. Empilé au-dessus du bouton WhatsApp flottant (même coin, jamais
-// en même temps au même endroit — voir .back-top-btn).
+// Réutilise "chevron-right" tourné à -90° (pas de chevron haut/bas dans le
+// sprite) plutôt que d'ajouter un symbole dédié pour une simple flèche.
+// Empilé au-dessus du bouton WhatsApp flottant (même coin, jamais en même
+// temps au même endroit — voir .back-top-btn).
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
 
@@ -31,7 +31,7 @@ export function BackToTop() {
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
     >
-      <Icon name="expand" size="md" className="back-top-btn-icon" />
+      <Icon name="chevron-right" size="md" className="back-top-btn-icon" />
     </a>
   );
 }

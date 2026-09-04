@@ -768,7 +768,7 @@ html[data-theme="dark"] .portal-brand-marquee .imc-wrap { background: var(--surf
 }
 .back-top-btn.active { opacity: 1; visibility: visible; transform: translateY(0); }
 .back-top-btn:hover, .back-top-btn:focus-visible { background: color-mix(in srgb, var(--primary) 88%, #000); }
-.back-top-btn-icon { transform: rotate(180deg); }
+.back-top-btn-icon { transform: rotate(-90deg); }
 @media (max-width: 520px) { .back-top-btn { bottom: 156px; } }
 @media (prefers-reduced-motion: reduce) { .back-top-btn { transition: opacity .25s ease, visibility .25s; transform: none; } }
 
