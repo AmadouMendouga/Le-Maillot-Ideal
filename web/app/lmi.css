@@ -930,6 +930,12 @@ html[data-theme="dark"] .size-opt { background: var(--surface-container-high); }
 .pd-ctas-total { display: none; flex-direction: row; align-items: baseline; gap: 6px; line-height: 1.2; }
 .pd-ctas-total .label { font-size: .72rem; color: var(--on-surface-variant); font-weight: 600; }
 .pd-ctas-total .amount { font-size: 1.05rem; font-weight: 800; white-space: nowrap; }
+/* États par défaut (desktop) des libellés adaptatifs — DOIVENT précéder la
+   media query ci-dessous dans le fichier : à condition media vraie égale,
+   c'est l'ordre d'apparition qui tranche, pas l'imbrication. Placée après,
+   cette règle aurait toujours gagné et le libellé court ne s'affichait
+   jamais sur mobile (constaté le 06/09/2026). */
+.pd-cta-short { display: none; }
 @media (max-width: 680px) {
   .pd-ctas {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin-top: 0;
@@ -942,6 +948,8 @@ html[data-theme="dark"] .size-opt { background: var(--surface-container-high); }
      étroits (constaté le 06/09/2026, texte des boutons tronqué). */
   .pd-ctas-total { display: flex; flex: 1 1 100%; justify-content: space-between; margin-bottom: 4px; }
   .pd-ctas .btn { flex: 1 1 0; min-width: 0; font-size: .84rem; padding-left: 10px; padding-right: 10px; }
+  .pd-cta-short { display: inline; }
+  .pd-cta-full { display: none; }
   /* La barre fixe doit rester dans un composant vertical (product-detail est
      en grid une seule colonne sous 880px, voir plus haut) — sinon elle se
      positionnerait par rapport à la colonne texte plutôt que le viewport. */

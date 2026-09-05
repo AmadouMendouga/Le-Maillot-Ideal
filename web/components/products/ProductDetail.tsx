@@ -224,7 +224,10 @@ export function ProductDetail({ product, settings }: { product: Product; setting
           {canOrder ? (
             <StatefulButton className="btn btn-whatsapp btn-lg" href={whatsappLink} target="_blank" rel="noopener" onRun={() => wait(600)}>
               <Icon name="whatsapp" />
-              Commander sur WhatsApp
+              {/* Libellé court sur la barre fixe mobile (espace compté à côté du
+                  total et du bouton "Ajouter au panier") — voir .pd-cta-short. */}
+              <span className="pd-cta-full">Commander sur WhatsApp</span>
+              <span className="pd-cta-short">WhatsApp</span>
             </StatefulButton>
           ) : (
             <button
