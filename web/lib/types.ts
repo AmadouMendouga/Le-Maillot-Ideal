@@ -87,6 +87,22 @@ export interface Testimonial {
   order: number;
 }
 
+// Livreur enregistré via /livreur/inscription — solution principale pour qui
+// livre régulièrement (accès permanent à ses livraisons assignées via son
+// propre lien, sans coordination manuelle par commande). L'admin peut aussi
+// continuer à générer un lien ponctuel non rattaché à un profil (aide
+// occasionnelle, ou aucun livreur enregistré disponible) — voir
+// Order.assignedCourierId, qui reste optionnel.
+export interface Courier {
+  id: string;
+  name: string;
+  phone: string;
+  /** Jeton permanent, personnel — donne accès à /livreur/[token] tant qu'il reste actif. */
+  token: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export type OrderStatus = "confirmee" | "livree";
 export type PaymentStatus = "unpaid" | "pending" | "paid" | "failed";
 
@@ -113,6 +129,8 @@ export interface Order {
   courierLocationToken: string | null;
   courierLocationSharing: boolean;
   courierLiveLocation: LiveLocation;
+  /** Livreur enregistré assigné à cette livraison (Courier.id) — absent/null si lien ponctuel (voir Courier). */
+  assignedCourierId?: string | null;
   status: OrderStatus;
   createdAt: string;
   deliveredAt: string | null;

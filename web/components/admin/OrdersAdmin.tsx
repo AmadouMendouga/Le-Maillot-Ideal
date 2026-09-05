@@ -21,7 +21,8 @@ import {
   getOrderLocationHistoryAction,
   type LocationPoint,
 } from "@/lib/actions/orders";
-import type { Order, OrderItem, Product, SiteSettings } from "@/lib/types";
+import { assignCourierToOrderAction, setCourierActiveAction } from "@/lib/actions/couriers";
+import type { Courier, Order, OrderItem, Product, SiteSettings } from "@/lib/types";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -194,6 +195,9 @@ function RoleLocationRow({
   setToken,
   location,
   sharing,
+  couriers,
+  assignedCourierId,
+  onAssignCourier,
 }: {
   order: Order;
   settings: SiteSettings;
@@ -203,8 +207,13 @@ function RoleLocationRow({
   setToken: (t: string) => void;
   location: Order["liveLocation"];
   sharing: boolean;
+  /** Uniquement pour role === "courier" : livreurs enregistrés parmi lesquels choisir. */
+  couriers?: Courier[];
+  assignedCourierId?: string | null;
+  onAssignCourier?: (courierId: string | null) => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   async function requestCustomer() {
     setLoading(true);
@@ -259,51 +268,97 @@ function RoleLocationRow({
     }
   }
 
+  async function handleAssignChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const id = e.target.value || null;
+    setAssigning(true);
+    try {
+      const result = await assignCourierToOrderAction(order.id, id);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      onAssignCourier?.(id);
+      if (id) showToast("Livreur assigné — il verra la livraison sur son lien personnel", "check-circle");
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  // Choix d'un livreur enregistré : liste au-dessus du lien ponctuel, qui
+  // reste la solution de secours (aide occasionnelle, aucun livreur
+  // enregistré disponible — voir Courier dans lib/types.ts).
+  const courierPicker =
+    role === "courier" && couriers ? (
+      <select
+        aria-label="Assigner un livreur enregistré"
+        value={assignedCourierId || ""}
+        onChange={handleAssignChange}
+        disabled={assigning}
+        style={{ fontSize: ".76rem", padding: "3px 6px", maxWidth: 150 }}
+      >
+        <option value="">Lien ponctuel (manuel)</option>
+        {couriers
+          .filter((c) => c.active || c.id === assignedCourierId)
+          .map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+      </select>
+    ) : null;
+
   if (!location) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span className="sub" style={{ minWidth: 44 }}>
-          {label}
-        </span>
-        <button
-          type="button"
-          className="btn btn-tonal btn-sm"
-          disabled={loading}
-          onClick={role === "customer" ? requestCustomer : requestCourier}
-        >
-          <Icon name="location" size="sm" />
-          {token ? "Renvoyer" : "Demander"}
-        </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="sub" style={{ minWidth: 44 }}>
+            {label}
+          </span>
+          <button
+            type="button"
+            className="btn btn-tonal btn-sm"
+            disabled={loading}
+            onClick={role === "customer" ? requestCustomer : requestCourier}
+          >
+            <Icon name="location" size="sm" />
+            {token ? "Renvoyer" : "Demander"}
+          </button>
+        </div>
+        {courierPicker}
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <span
-        aria-hidden="true"
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          flexShrink: 0,
-          background: sharing ? "var(--secondary)" : "var(--on-surface-variant)",
-        }}
-      />
-      <span className="sub">
-        {label} · {sharing ? "actif" : "arrêté"} · {timeAgo(location.updatedAt)}
-      </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: sharing ? "var(--secondary)" : "var(--on-surface-variant)",
+          }}
+        />
+        <span className="sub">
+          {label} · {sharing ? "actif" : "arrêté"} · {timeAgo(location.updatedAt)}
+        </span>
+      </div>
+      {courierPicker}
     </div>
   );
 }
 
-function LocationCell({ order, settings }: { order: Order; settings: SiteSettings }) {
+function LocationCell({ order, settings, couriers }: { order: Order; settings: SiteSettings; couriers: Courier[] }) {
   const [customerToken, setCustomerToken] = useState(order.locationToken);
   const [courierToken, setCourierToken] = useState(order.courierLocationToken);
   const [customerLocation, setCustomerLocation] = useState(order.liveLocation);
   const [customerSharing, setCustomerSharing] = useState(order.locationSharing);
   const [courierLocation, setCourierLocation] = useState(order.courierLiveLocation);
   const [courierSharing, setCourierSharing] = useState(order.courierLocationSharing);
+  const [assignedCourierId, setAssignedCourierId] = useState(order.assignedCourierId || null);
   const [mapOpen, setMapOpen] = useState(false);
 
   // Rafraîchit les deux statuts en un coup (pas de bouton dédié par ligne —
@@ -356,6 +411,9 @@ function LocationCell({ order, settings }: { order: Order; settings: SiteSetting
         setToken={setCourierToken}
         location={courierLocation}
         sharing={courierSharing}
+        couriers={couriers}
+        assignedCourierId={assignedCourierId}
+        onAssignCourier={setAssignedCourierId}
       />
       {customerLocation || courierLocation ? (
         <button
@@ -614,17 +672,111 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
   );
 }
 
+// Liste des livreurs enregistrés (voir /livreur/inscription) — l'admin ne les
+// crée pas ici, il partage juste le lien d'inscription ; il peut seulement
+// désactiver un profil qui ne livre plus (un livreur désactivé disparaît du
+// menu déroulant de RoleLocationRow, mais reste sélectionnable là où il est
+// déjà assigné, pour ne pas casser une livraison en cours).
+function CouriersDrawer({
+  open,
+  onClose,
+  couriers,
+  siteUrl,
+  onToggle,
+}: {
+  open: boolean;
+  onClose: () => void;
+  couriers: Courier[];
+  siteUrl: string;
+  onToggle: (id: string, active: boolean) => void;
+}) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const registerUrl = `${siteUrl.replace(/\/$/, "")}/livreur/inscription`;
+
+  async function toggle(courier: Courier) {
+    setBusyId(courier.id);
+    try {
+      const result = await setCourierActiveAction(courier.id, !courier.active);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      onToggle(courier.id, !courier.active);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function copyRegisterLink() {
+    try {
+      await navigator.clipboard.writeText(registerUrl);
+      showToast("Lien copié — partagez-le avec vos livreurs", "check-circle");
+    } catch {
+      alert("Impossible de copier le lien.");
+    }
+  }
+
+  return (
+    <Drawer open={open} onClose={onClose} title="Livreurs enregistrés" titleIcon="shipping">
+      <p className="sub" style={{ marginBottom: 14 }}>
+        Un livreur s&apos;enregistre lui-même via ce lien, puis apparaît ci-dessous et dans la liste d&apos;assignation
+        de chaque commande.
+      </p>
+      <button type="button" className="btn btn-tonal btn-block" style={{ marginBottom: 20 }} onClick={copyRegisterLink}>
+        <Icon name="publish" size="sm" />
+        Copier le lien d&apos;inscription
+      </button>
+
+      {couriers.length === 0 ? (
+        <div className="adm-empty">
+          <Icon name="shipping" />
+          <div>Aucun livreur enregistré pour le moment.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {couriers.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "10px 12px",
+                background: "var(--surface-container-low)",
+                borderRadius: "var(--r-item)",
+              }}
+            >
+              <div>
+                <div className="name">{c.name}</div>
+                <div className="sub">{c.phone}</div>
+              </div>
+              <button type="button" className="btn btn-tonal btn-sm" disabled={busyId === c.id} onClick={() => toggle(c)}>
+                {c.active ? "Désactiver" : "Réactiver"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Drawer>
+  );
+}
+
 export function OrdersAdmin({
   initialOrders,
   products,
   settings,
+  initialCouriers,
 }: {
   initialOrders: Order[];
   products: Product[];
   settings: SiteSettings;
+  initialCouriers: Courier[];
 }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [couriersOpen, setCouriersOpen] = useState(false);
+  const [couriers, setCouriers] = useState(initialCouriers);
   const [formNonce, setFormNonce] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -662,6 +814,10 @@ export function OrdersAdmin({
         <button type="button" className="btn btn-tonal btn-sm" onClick={openNewOrder}>
           <Icon name="add" size="sm" />
           Nouvelle commande
+        </button>
+        <button type="button" className="btn btn-tonal btn-sm" onClick={() => setCouriersOpen(true)}>
+          <Icon name="shipping" size="sm" />
+          Livreurs ({couriers.filter((c) => c.active).length})
         </button>
         <span className="adm-count">
           {initialOrders.length} commande{initialOrders.length > 1 ? "s" : ""}
@@ -704,7 +860,7 @@ export function OrdersAdmin({
                     <AddressCell order={order} />
                   </td>
                   <td>
-                    <LocationCell order={order} settings={settings} />
+                    <LocationCell order={order} settings={settings} couriers={couriers} />
                   </td>
                   <td>{statusBadge(order)}</td>
                   <td>
@@ -748,6 +904,14 @@ export function OrdersAdmin({
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Nouvelle commande" titleIcon="shipping">
         <NewOrderForm key={formNonce} products={products} onClose={() => setDrawerOpen(false)} />
       </Drawer>
+
+      <CouriersDrawer
+        open={couriersOpen}
+        onClose={() => setCouriersOpen(false)}
+        couriers={couriers}
+        siteUrl={settings.siteUrl}
+        onToggle={(id, active) => setCouriers((list) => list.map((c) => (c.id === id ? { ...c, active } : c)))}
+      />
     </section>
   );
 }
