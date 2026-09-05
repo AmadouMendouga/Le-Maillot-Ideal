@@ -146,7 +146,15 @@ export function LocationSharingForm({
     let cancelled = false;
     async function poll() {
       const result = await getSharedLocationViewAction(token);
-      if (!cancelled && result.ok) setSharedView({ customer: result.customer, courier: result.courier });
+      if (cancelled || !result.ok) return;
+      setSharedView({ customer: result.customer, courier: result.courier });
+      if (result.delivered) {
+        setDelivered(true);
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+      }
     }
     poll();
     const id = setInterval(poll, MAP_POLL_MS);
@@ -235,7 +243,11 @@ export function LocationSharingForm({
       <div className="review-thanks">
         <Icon name="check-circle" size="xl" />
         <h3>Livraison terminée !</h3>
-        <p>Merci d&apos;avoir livré la commande de {customerName}. Le partage de position est arrêté.</p>
+        <p>
+          {role === "courier"
+            ? `Merci d'avoir livré la commande de ${customerName}. Le partage de position est arrêté.`
+            : "Votre commande a bien été livrée. Merci pour votre confiance !"}
+        </p>
       </div>
     );
   } else if (status === "stopped") {

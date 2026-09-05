@@ -649,7 +649,9 @@ export interface SharedTrack {
 // jamais à une autre commande.
 export async function getSharedLocationViewAction(
   token: string
-): Promise<{ ok: true; customer: SharedTrack; courier: SharedTrack } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; customer: SharedTrack; courier: SharedTrack; delivered: boolean } | { ok: false; error: string }
+> {
   const found = await findOrderByEitherLocationToken(token);
   if (!found) return { ok: false, error: "Lien invalide." };
   const { order } = found;
@@ -671,5 +673,11 @@ export async function getSharedLocationViewAction(
       current: order.courierLiveLocation,
       sharing: order.courierLocationSharing,
     },
+    // Vrai statut Firestore, pas un état local : la livraison peut se clôturer
+    // depuis l'appareil du livreur (code) OU depuis l'admin (bouton "Marquer
+    // livrée") — dans les deux cas ce sondage, déjà actif des deux côtés, doit
+    // faire passer l'autre partie en "Livrée" sans action de sa part (retour
+    // client du 06/09/2026 : le client restait bloqué sur "En route").
+    delivered: order.status === "livree",
   };
 }
