@@ -208,9 +208,19 @@ export function DeliveryMap({
     // .dlv-screen) — sa hauteur varie donc avec le contenu de ce panneau.
     // Sans resynchroniser Leaflet/MapLibre à chaque changement, la carte
     // resterait mise en page pour son ancienne taille (tuiles décalées).
+    // Le rappel est différé en rAF et ignore les appels déjà en attente :
+    // invalidateSize()/resize() peuvent eux-mêmes faire varier légèrement la
+    // taille observée (redimensionnement du canvas WebGL), et un rappel
+    // synchrone rebouclerait sur lui-même — repéré le 06/09/2026 (page
+    // plantée dès qu'une position réelle était partagée).
+    let rafId: number | null = null;
     const resizeObserver = new ResizeObserver(() => {
-      mapRef.current?.invalidateSize();
-      glLayerRef.current?.getMaplibreMap()?.resize();
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        mapRef.current?.invalidateSize();
+        glLayerRef.current?.getMaplibreMap()?.resize();
+      });
     });
     if (containerRef.current) resizeObserver.observe(containerRef.current);
 
@@ -218,6 +228,7 @@ export function DeliveryMap({
       cancelled = true;
       observer.disconnect();
       resizeObserver.disconnect();
+      if (rafId !== null) cancelAnimationFrame(rafId);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

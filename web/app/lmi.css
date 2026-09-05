@@ -927,22 +927,25 @@ html[data-theme="dark"] .size-opt { background: var(--surface-container-high); }
    flux normal sur desktop, où la page tient déjà dans l'écran. */
 .pd-ctas { display: flex; align-items: center; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
 .pd-ctas .btn { flex: 1 1 200px; }
-.pd-ctas-total { display: none; flex-direction: column; line-height: 1.2; }
+.pd-ctas-total { display: none; flex-direction: row; align-items: baseline; gap: 6px; line-height: 1.2; }
 .pd-ctas-total .label { font-size: .72rem; color: var(--on-surface-variant); font-weight: 600; }
-.pd-ctas-total .amount { font-size: 1.15rem; font-weight: 800; white-space: nowrap; }
+.pd-ctas-total .amount { font-size: 1.05rem; font-weight: 800; white-space: nowrap; }
 @media (max-width: 680px) {
   .pd-ctas {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin-top: 0;
     background: var(--surface); box-shadow: 0 -8px 24px rgba(0,0,0,.12);
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); flex-wrap: nowrap;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); flex-wrap: wrap;
   }
   html[data-theme="dark"] .pd-ctas { background: var(--surface-container-low); border-top: 1px solid var(--outline-variant); }
-  .pd-ctas-total { display: flex; flex: 0 0 auto; margin-right: 2px; }
-  .pd-ctas .btn { flex: 1 1 auto; min-width: 0; }
+  /* Total sur sa propre ligne, boutons pleine largeur en dessous : deux
+     boutons + le total sur une seule ligne débordaient sur les écrans
+     étroits (constaté le 06/09/2026, texte des boutons tronqué). */
+  .pd-ctas-total { display: flex; flex: 1 1 100%; justify-content: space-between; margin-bottom: 4px; }
+  .pd-ctas .btn { flex: 1 1 0; min-width: 0; font-size: .84rem; padding-left: 10px; padding-right: 10px; }
   /* La barre fixe doit rester dans un composant vertical (product-detail est
      en grid une seule colonne sous 880px, voir plus haut) — sinon elle se
      positionnerait par rapport à la colonne texte plutôt que le viewport. */
-  .pd-info { padding-bottom: 76px; }
+  .pd-info { padding-bottom: 112px; }
 }
 
 .accordion-mini { border-top: 1px solid var(--outline-variant); }
@@ -1249,10 +1252,10 @@ html[data-theme="dark"] .theme-toggle .i-moon { display: none; }
    que de se superposer à elle. :has() plutôt qu'une classe posée en JS sur
    body : la présence de .pd-ctas dans la page suffit à le savoir. */
 @media (max-width: 680px) {
-  body:has(.pd-ctas) .wa-float { bottom: 96px; }
-  body:has(.pd-ctas) .back-top-btn { bottom: 166px; }
-  body:has(.pd-ctas) .cart-bar { bottom: 98px; }
-  body:has(.pd-ctas) .cart-panel { bottom: 98px; }
+  body:has(.pd-ctas) .wa-float { bottom: 130px; }
+  body:has(.pd-ctas) .back-top-btn { bottom: 200px; }
+  body:has(.pd-ctas) .cart-bar { bottom: 132px; }
+  body:has(.pd-ctas) .cart-panel { bottom: 132px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
