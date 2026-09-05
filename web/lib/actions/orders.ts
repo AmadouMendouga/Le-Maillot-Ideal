@@ -564,7 +564,13 @@ export async function markOrderDeliveredByCourierAction(
     courierLocationSharing: false,
   });
 
-  revalidatePath("/", "layout");
+  // Pas de revalidatePath ici (contrairement aux autres actions de ce
+  // fichier) : cette action est appelée depuis la page publique du livreur
+  // elle-même — revalider forçait Next.js à refaire tourner cette même page
+  // aussitôt après, qui relit alors une commande dont le statut vient de
+  // changer et affiche "lien invalide" à la place de l'écran de succès
+  // (constaté le 06/09/2026). markOrderDeliveredAction, son équivalent admin,
+  // n'en a pas non plus.
   return { ok: true };
 }
 
