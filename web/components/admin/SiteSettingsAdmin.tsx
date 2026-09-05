@@ -13,6 +13,19 @@ import { updateSiteSettingsAction } from "@/lib/actions/settings";
 import { siteFieldError, syncDeliveryThreshold } from "@/lib/validation";
 import type { SiteSettings } from "@/lib/types";
 
+// Clés stables de PortalSpotlightItem (voir components/portal/PortalSpotlight.tsx
+// et app/page.tsx) — dupliquées ici plutôt qu'importées : l'admin n'a pas besoin
+// de connaître la logique de sélection des sports/produits, juste la liste des
+// cartes existantes pour proposer une couleur de voile par carte.
+const SPOTLIGHT_CARDS: { key: string; label: string }[] = [
+  { key: "football", label: "Football" },
+  { key: "arts-martiaux", label: "Arts martiaux" },
+  { key: "recent-sports", label: "Basketball & Sneakers" },
+  { key: "reel-boutique-1", label: "Chez City Sport" },
+  { key: "reel-boutique-2", label: "Nouveautés en boutique" },
+  { key: "reel-boutique-3", label: "Zoom sur les tissus" },
+];
+
 function useFieldValidity(inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>, dataKey: string, site: SiteSettings) {
   useEffect(() => {
     const el = inputRef.current;
@@ -36,6 +49,15 @@ export function SiteSettingsAdmin({ initialSettings }: { initialSettings: SiteSe
 
   function setField<K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) {
     setSite((s) => ({ ...s, [key]: value }));
+  }
+
+  function setSpotlightGradient(key: string, hex: string | null) {
+    setSite((s) => {
+      const next = { ...(s.spotlightGradients || {}) };
+      if (hex) next[key] = hex;
+      else delete next[key];
+      return { ...s, spotlightGradients: next };
+    });
   }
 
   function setThreshold(value: number) {
@@ -251,6 +273,42 @@ export function SiteSettingsAdmin({ initialSettings }: { initialSettings: SiteSe
           <p className="hint" style={{ fontSize: ".76rem", color: "var(--on-surface-variant)" }}>
             Cochez uniquement après validation des délais, frais, paiements et conditions de retour.
           </p>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 900, marginTop: 26 }}>
+        <h3 style={{ fontSize: "1rem", marginBottom: 6 }}>Cartes vedette du portail (« à la une »)</h3>
+        <p className="hint" style={{ fontSize: ".76rem", color: "var(--on-surface-variant)", marginBottom: 14 }}>
+          Le voile sombre posé sur chaque carte pour que le texte reste lisible est calculé
+          automatiquement à partir des couleurs de la photo. Cochez « couleur personnalisée » pour
+          choisir vous-même la couleur d&apos;une carte en particulier.
+        </p>
+        <div className="adm-grid2">
+          {SPOTLIGHT_CARDS.map((card) => {
+            const custom = site.spotlightGradients?.[card.key];
+            return (
+              <div className="adm-field" key={card.key}>
+                <label>{card.label}</label>
+                <label className="adm-check" style={{ marginBottom: custom ? 8 : 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!custom}
+                    onChange={(e) => setSpotlightGradient(card.key, e.target.checked ? custom || "#0a0a0a" : null)}
+                  />
+                  Couleur personnalisée
+                </label>
+                {custom ? (
+                  <input
+                    type="color"
+                    value={custom}
+                    onChange={(e) => setSpotlightGradient(card.key, e.target.value)}
+                    style={{ width: 60, height: 32, padding: 0, border: "none", cursor: "pointer" }}
+                    aria-label={`Couleur du voile — ${card.label}`}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </div>
 

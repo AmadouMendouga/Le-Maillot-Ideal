@@ -2076,8 +2076,17 @@ button.portal-spotlight-card { width: 100%; border: none; background: none; padd
   transition: transform 1s ease;
 }
 .portal-spotlight-card::after {
+  /* --spot-rgb ("R G B") vient soit d'une couleur choisie en admin, soit d'une
+     moyenne calculée côté client depuis le tiers bas de la photo (voir
+     PortalSpotlight.tsx) — 0 0 0 par défaut tant que l'un des deux n'a pas
+     encore fourni de valeur, ce qui correspond à l'ancien voile fixe. */
   content: ""; position: absolute; inset: 0; z-index: 2;
-  background: linear-gradient(0deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.15) 55%, transparent 80%);
+  background: linear-gradient(
+    0deg,
+    rgb(var(--spot-rgb, 0 0 0) / .78) 0%,
+    rgb(var(--spot-rgb, 0 0 0) / .15) 55%,
+    transparent 80%
+  );
 }
 .portal-spotlight-content {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 22px;

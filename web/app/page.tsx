@@ -92,13 +92,19 @@ export default async function PortalPage() {
 
   // Cartes vedette — mêmes regroupements que le hero, avec d'autres photos
   // du catalogue pour varier les visuels d'une section à l'autre.
+  // gradientColor : couleur du voile choisie en admin pour cette carte (onglet
+  // Réglages du site) — absente = voile calculé automatiquement depuis la photo,
+  // voir useAutoTint dans PortalSpotlight.tsx.
+  const spotlightGradients = settings.spotlightGradients || {};
   const spotlight: PortalSpotlightItem[] = [];
   if (football && footballCount > 0) {
     spotlight.push({
+      key: "football",
       title: "Football",
       count: footballCount,
       href: "/football",
       image: image(footballProducts[2] || footballProducts[0]),
+      gradientColor: spotlightGradients["football"],
     });
   }
   if (combatSports.length > 0 && combatCount > 0) {
@@ -108,19 +114,23 @@ export default async function PortalPage() {
     }));
     const combatLead = combatCounts.reduce((a, b) => (b.count > a.count ? b : a));
     spotlight.push({
+      key: "arts-martiaux",
       title: "Arts martiaux",
       count: combatCount,
       href: `/${combatLead.sport.key}`,
       // Photo fournie par le client (judoka en kimono), pas une photo produit du catalogue.
       image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788582494/le-maillot-ideal/portal/spotlight/arts-martiaux-judoka.jpg",
+      gradientColor: spotlightGradients["arts-martiaux"],
     });
   }
   if (recentSports.length > 0 && recentCount > 0) {
     spotlight.push({
+      key: "recent-sports",
       title: recentSports.map((s) => s.label).join(" & "),
       count: recentCount,
       href: `/${recentSports[0].key}`,
       image: image(recentProducts[1] || recentProducts[0]),
+      gradientColor: spotlightGradients["recent-sports"],
     });
   }
   // Reels City Sport (accord client confirmé pour la vidéo, voir la
@@ -128,22 +138,28 @@ export default async function PortalPage() {
   // précis : renvoient vers Sneakers, le rayon le plus proche du contenu.
   spotlight.push(
     {
+      key: "reel-boutique-1",
       title: "Chez City Sport",
       href: "/sneakers",
       image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788538920/le-maillot-ideal/portal/spotlight/boutique-poster.jpg",
       video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788538834/le-maillot-ideal/portal/spotlight/boutique.mp4",
+      gradientColor: spotlightGradients["reel-boutique-1"],
     },
     {
+      key: "reel-boutique-2",
       title: "Nouveautés en boutique",
       href: "/sneakers",
       image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788548899/le-maillot-ideal/portal/spotlight/boutique-2-poster.jpg",
       video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788548884/le-maillot-ideal/portal/spotlight/boutique-2.mp4",
+      gradientColor: spotlightGradients["reel-boutique-2"],
     },
     {
+      key: "reel-boutique-3",
       title: "Zoom sur les tissus",
       href: "/sneakers",
       image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788548903/le-maillot-ideal/portal/spotlight/boutique-3-poster.jpg",
       video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788548896/le-maillot-ideal/portal/spotlight/boutique-3.mp4",
+      gradientColor: spotlightGradients["reel-boutique-3"],
     }
   );
 

@@ -182,4 +182,7 @@ export interface SiteSettings {
   showGallery: boolean;
   showTestimonials: boolean;
   showDemoNotice: boolean;
+  /** Couleur du voile des cartes "à la une" du portail, par clé de carte (voir PortalSpotlight) —
+   * absente ou vide = voile calculé automatiquement depuis les couleurs de la photo. */
+  spotlightGradients?: Record<string, string>;
 }
