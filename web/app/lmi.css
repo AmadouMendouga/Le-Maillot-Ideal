@@ -473,7 +473,9 @@ html[data-theme="dark"] .product-card { background: var(--surface-container-low)
   /* pas de majuscules : la combinaison ligue+kit dépasse largement une
      étiquette courte (ex. "Collection Tout le Quartier · Domicile", 38
      caractères) — illisible tout en capitales. */
-  font-size: .8rem; font-weight: 700; color: var(--primary); letter-spacing: .03em;
+  display: inline-flex; align-self: flex-start; font-size: .74rem; font-weight: 700;
+  color: var(--on-primary-container); background: var(--primary-container);
+  letter-spacing: .02em; padding: 3px 10px; border-radius: var(--r-pill);
 }
 .product-title { font-size: .92rem; font-weight: 600; min-height: 2.4em; margin: 0; }
 .product-title a:hover { color: var(--primary); }
@@ -865,7 +867,16 @@ html[data-theme="dark"] .pd-media { background: var(--surface-container-low); }
 .pd-price { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .pd-price .price-now { font-size: 1.85rem; }
 .pd-price .price-old { font-size: 1rem; }
-.pd-desc { color: var(--on-surface-variant); font-weight: 400; font-size: .93rem; }
+.pd-desc {
+  color: var(--on-surface-variant); font-weight: 400; font-size: .93rem;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.pd-desc.expanded { -webkit-line-clamp: unset; }
+.pd-desc-toggle {
+  background: none; border: none; padding: 4px 0 0; margin: 0; cursor: pointer; font-family: inherit;
+  font-size: .82rem; font-weight: 700; color: var(--primary);
+}
+.pd-desc-toggle:hover { text-decoration: underline; }
 .pd-section { margin-top: 22px; }
 .pd-section h3 { font-size: .78rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--on-surface-variant); }
 .size-grid { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -878,19 +889,43 @@ html[data-theme="dark"] .size-opt { background: var(--surface-container-high); }
 .size-opt:hover { border-color: var(--primary); }
 .size-opt.selected { border-color: var(--primary); background: var(--primary); color: var(--on-primary); box-shadow: var(--e8); }
 .qty-stepper {
-  display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--outline-variant);
-  border-radius: var(--r-item); padding: 4px; background: var(--surface);
+  display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r-pill);
+  padding: 6px; background: var(--surface-container-high);
 }
-html[data-theme="dark"] .qty-stepper { background: var(--surface-container-high); }
 .qty-stepper button {
-  width: 36px; height: 36px; border: none; border-radius: var(--r-icon-btn); cursor: pointer;
-  background: var(--primary-container); color: var(--on-primary-container);
+  width: 38px; height: 38px; border: none; border-radius: 50%; cursor: pointer;
+  background: var(--primary); color: var(--on-primary);
   display: inline-flex; align-items: center; justify-content: center;
+  transition: transform .12s ease, filter .12s ease;
 }
-.qty-stepper button:hover { filter: brightness(.94); }
-.qty-stepper span { width: 42px; text-align: center; font-weight: 700; }
-.pd-ctas { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.qty-stepper button:disabled { background: var(--outline-variant); color: var(--on-surface-variant); cursor: not-allowed; }
+.qty-stepper button:not(:disabled):hover { filter: brightness(1.08); transform: scale(1.05); }
+.qty-stepper span { width: 32px; text-align: center; font-weight: 700; }
+
+/* Barre de commande — fixée en bas de l'écran sur mobile (référence client du
+   06/09/2026, patron app de livraison) : le total et les deux actions restent
+   accessibles sans avoir à faire défiler jusqu'en bas de la fiche produit,
+   qui contient plusieurs sections (taille, quantité, accordéons). Reste en
+   flux normal sur desktop, où la page tient déjà dans l'écran. */
+.pd-ctas { display: flex; align-items: center; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
 .pd-ctas .btn { flex: 1 1 200px; }
+.pd-ctas-total { display: none; flex-direction: column; line-height: 1.2; }
+.pd-ctas-total .label { font-size: .72rem; color: var(--on-surface-variant); font-weight: 600; }
+.pd-ctas-total .amount { font-size: 1.15rem; font-weight: 800; white-space: nowrap; }
+@media (max-width: 680px) {
+  .pd-ctas {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin-top: 0;
+    background: var(--surface); box-shadow: 0 -8px 24px rgba(0,0,0,.12);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); flex-wrap: nowrap;
+  }
+  html[data-theme="dark"] .pd-ctas { background: var(--surface-container-low); border-top: 1px solid var(--outline-variant); }
+  .pd-ctas-total { display: flex; flex: 0 0 auto; margin-right: 2px; }
+  .pd-ctas .btn { flex: 1 1 auto; min-width: 0; }
+  /* La barre fixe doit rester dans un composant vertical (product-detail est
+     en grid une seule colonne sous 880px, voir plus haut) — sinon elle se
+     positionnerait par rapport à la colonne texte plutôt que le viewport. */
+  .pd-info { padding-bottom: 76px; }
+}
 
 .accordion-mini { border-top: 1px solid var(--outline-variant); }
 .accordion-mini summary {
@@ -1189,6 +1224,17 @@ html[data-theme="dark"] .theme-toggle .i-moon { display: none; }
   .cart-bar { bottom: 16px; }
   .cart-panel { bottom: 16px; }
   .wa-float { bottom: 88px; }
+}
+
+/* La fiche produit ajoute sa propre barre fixe en bas (.pd-ctas, voir plus
+   haut) — les autres éléments flottants doivent se décaler au-dessus plutôt
+   que de se superposer à elle. :has() plutôt qu'une classe posée en JS sur
+   body : la présence de .pd-ctas dans la page suffit à le savoir. */
+@media (max-width: 680px) {
+  body:has(.pd-ctas) .wa-float { bottom: 96px; }
+  body:has(.pd-ctas) .back-top-btn { bottom: 166px; }
+  body:has(.pd-ctas) .cart-bar { bottom: 98px; }
+  body:has(.pd-ctas) .cart-panel { bottom: 98px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1778,6 +1824,11 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
   box-shadow: 0 -8px 30px rgba(0,0,0,.18);
   padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
   max-height: 62vh; overflow-y: auto;
+  /* Sans ça, le canvas WebGL de MapLibre peut recouvrir ce panneau malgré son
+     z-index sur certains navigateurs/GPU mobiles (constaté le 06/09/2026,
+     réel — pas un artefact de test) : force ce panneau sur son propre calque
+     de composition, au-dessus du canvas. */
+  transform: translateZ(0);
 }
 html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); border: 1px solid var(--outline-variant); border-bottom: none; }
 .dlv-sheet h3 { margin: 0 0 8px; }
@@ -1816,6 +1867,7 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(20, 20, 20, .78); color: #fff; font-size: .74rem; font-weight: 700;
   padding: 5px 10px 5px 8px; border-radius: var(--r-pill); pointer-events: none;
+  transform: translateZ(0);
 }
 .dlv-live-badge .rec-dot {
   width: 7px; height: 7px; border-radius: 50%; background: #ff6b00; flex-shrink: 0;
@@ -1834,6 +1886,7 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
   background: rgba(20, 20, 20, .82); color: #fff;
   border-radius: var(--r-card); padding: 10px 6px; pointer-events: none;
   backdrop-filter: blur(6px);
+  transform: translateZ(0);
 }
 .dlv-route-stats > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .dlv-route-stats strong { font-size: 1.1rem; font-weight: 700; line-height: 1; }

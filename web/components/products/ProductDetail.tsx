@@ -27,6 +27,7 @@ export function ProductDetail({ product, settings }: { product: Product; setting
   const [selectedSize, setSelectedSize] = useState(() => (sizes.includes("M") ? "M" : sizes[0] || ""));
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const addedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iconTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,6 +46,7 @@ export function ProductDetail({ product, settings }: { product: Product; setting
   const st = stockInfo(product, verified);
   const canOrder = st.available && !!selectedSize;
   const max = productStock(product, verified);
+  const descriptionText = publicProductDescription(product, settings);
 
   const whatsappLink = useMemo(
     () => buildWhatsappCartLink([{ slug: product.slug, size: selectedSize, qty }], [product], settings),
@@ -162,9 +164,16 @@ export function ProductDetail({ product, settings }: { product: Product; setting
         </span>
         <RatingStars rating={product.rating ?? 0} reviews={product.reviews} />
         {!verified && <p className="form-note">Prix/stock indicatifs, à confirmer sur WhatsApp.</p>}
-        <p className="pd-desc" style={{ marginTop: 14 }}>
-          {publicProductDescription(product, settings)}
-        </p>
+        <div style={{ marginTop: 14 }}>
+          <p className={"pd-desc" + (descExpanded ? " expanded" : "")}>{descriptionText}</p>
+          {/* Seuil approximatif (3 lignes ≈ 150 caractères à cette taille de police) — évite
+              d'afficher "Voir plus" sur une description déjà entièrement visible. */}
+          {descriptionText.length > 150 && (
+            <button type="button" className="pd-desc-toggle" onClick={() => setDescExpanded((v) => !v)}>
+              {descExpanded ? "Voir moins" : "Voir plus"}
+            </button>
+          )}
+        </div>
 
         <div className="pd-section">
           <h3>Taille</h3>
@@ -204,6 +213,10 @@ export function ProductDetail({ product, settings }: { product: Product; setting
         </div>
 
         <div className="pd-ctas">
+          <div className="pd-ctas-total">
+            <span className="label">Total</span>
+            <span className="amount">{FCFA(product.price * qty)}</span>
+          </div>
           <button ref={addBtnRef} type="button" className="btn btn-primary btn-lg" disabled={!canOrder} onClick={handleAddToCart}>
             <AddToCartIcon />
             {added ? "Ajouté" : canOrder ? "Ajouter au panier" : "Indisponible"}

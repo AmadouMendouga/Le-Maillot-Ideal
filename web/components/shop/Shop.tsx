@@ -160,6 +160,37 @@ export function Shop({
       </aside>
 
       <div>
+        {leagues.length > 0 && (
+          <div className="category-pills" role="group" aria-label="Filtrer par championnat">
+            <button
+              type="button"
+              className={"category-pill" + (selectedLeagues.length === 0 ? " active" : "")}
+              onClick={() => {
+                setSelectedLeagues([]);
+                setPage(1);
+              }}
+            >
+              Tous
+            </button>
+            {leagues.map((league) => {
+              const count = products.filter((p) => p.league === league.key).length;
+              const active = selectedLeagues.includes(league.key);
+              return (
+                <button
+                  key={league.key}
+                  type="button"
+                  className={"category-pill" + (active ? " active" : "")}
+                  aria-pressed={active}
+                  onClick={() => toggleLeague(league.key, !active)}
+                >
+                  {league.label}
+                  <span className="count">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="demo-note">
           <Icon name="info" />
           <div>
