@@ -1764,6 +1764,25 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
   .dlv-marker .ring { animation: none; opacity: .25; transform: scale(.75); }
 }
 
+/* ---------- Suivi de livraison plein écran (/livraison/[token]) ---------- */
+/* La carte doit rester visible en permanence pendant l'usage (retour client
+   du 06/09/2026, patron VTC/livraison type Bolt/Gozem) — plus question
+   qu'elle défile hors champ pendant qu'on lit le statut. Elle occupe tout
+   l'écran ; les infos/actions vivent dans un panneau flottant ancré en bas,
+   qui peut lui-même défiler si son contenu dépasse (légende + statut), sans
+   jamais recouvrir plus de l'écran que nécessaire. */
+.dlv-screen { position: fixed; inset: 0; overflow: hidden; }
+.dlv-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--surface); border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  box-shadow: 0 -8px 30px rgba(0,0,0,.18);
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height: 62vh; overflow-y: auto;
+}
+html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); border: 1px solid var(--outline-variant); border-bottom: none; }
+.dlv-sheet h3 { margin: 0 0 8px; }
+.dlv-sheet-status { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--outline-variant); }
+
 .dlv-live-badge {
   position: absolute; top: 10px; left: 10px; z-index: 1000;
   display: inline-flex; align-items: center; gap: 6px;

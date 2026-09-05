@@ -5,7 +5,7 @@
 // que le dépôt d'avis. Ne démarre jamais tout seul : la demande de
 // permission navigateur part uniquement d'un geste explicite (bouton), et
 // un bouton « Arrêter » est toujours visible une fois le partage actif.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/icons/Icon";
 import {
   updateLiveLocationAction,
@@ -45,24 +45,18 @@ function trackStatusLine(label: string, track: SharedTrack) {
   );
 }
 
-// Le client ET le livreur doivent tous les deux pouvoir voir où en est
-// l'autre, pas seulement l'admin (demande explicite du client) — visible
-// quel que soit le statut de CE navigateur (même si sa propre position n'est
-// pas encore partagée ici), dès qu'une position existe côté serveur.
-function SharedMapCard({ view }: { view: { customer: SharedTrack; courier: SharedTrack } | null }) {
+const EMPTY_TRACK: SharedTrack = { points: [], current: null, sharing: false };
+
+// Légende + lignes de statut par piste, affichées dans le panneau flottant
+// sous les infos principales — même contenu qu'avant, juste replié dans le
+// panneau plutôt que dans sa propre carte (voir dlv-sheet plus bas).
+function TrackLegend({ view }: { view: { customer: SharedTrack; courier: SharedTrack } | null }) {
   if (!view || (!view.customer.current && !view.courier.current)) {
-    return (
-      <div className="contact-card">
-        <h3>Carte du trajet</h3>
-        <p className="form-note">La carte s&apos;affichera dès qu&apos;une position sera partagée.</p>
-      </div>
-    );
+    return <p className="form-note">La carte s&apos;affichera dès qu&apos;une position sera partagée.</p>;
   }
   return (
-    <div className="contact-card">
-      <h3>Carte du trajet</h3>
-      <DeliveryMap customer={view.customer} courier={view.courier} />
-      <div style={{ marginTop: 12, display: "flex", gap: 14, fontSize: ".78rem", color: "var(--on-surface-variant)", flexWrap: "wrap" }}>
+    <div className="dlv-sheet-status">
+      <div style={{ display: "flex", gap: 14, fontSize: ".78rem", color: "var(--on-surface-variant)", flexWrap: "wrap" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ff6b00", display: "inline-block" }} />
           Client
@@ -171,83 +165,64 @@ export function LocationSharingForm({
     }
   }
 
+  const customerTrack = sharedView?.customer ?? EMPTY_TRACK;
+  const courierTrack = sharedView?.courier ?? EMPTY_TRACK;
+
+  let sheet: ReactNode;
   if (status === "stopped") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div className="contact-card review-thanks">
-          <Icon name="check-circle" size="xl" />
-          <h3>Partage arrêté</h3>
-          <p>{role === "courier" ? "Merci, votre position n'est plus transmise." : `Merci ${customerName}, votre position n'est plus transmise.`}</p>
-        </div>
-        <SharedMapCard view={sharedView} />
+    sheet = (
+      <div className="review-thanks">
+        <Icon name="check-circle" size="xl" />
+        <h3>Partage arrêté</h3>
+        <p>{role === "courier" ? "Merci, votre position n'est plus transmise." : `Merci ${customerName}, votre position n'est plus transmise.`}</p>
       </div>
     );
-  }
-
-  if (status === "sharing") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div className="contact-card">
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <span
-              aria-hidden="true"
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                background: "var(--secondary)",
-                boxShadow: "0 0 0 4px color-mix(in srgb, var(--secondary) 25%, transparent)",
-                flexShrink: 0,
-              }}
-            />
-            <h3 style={{ margin: 0 }}>Partage actif</h3>
-          </div>
-          <p className="form-note">
-            {lastUpdateAt
-              ? `Dernière position envoyée à ${lastUpdateAt.toLocaleTimeString("fr-FR")}.`
-              : "Localisation en cours…"}
-          </p>
-          <p>Votre position sert uniquement à faciliter votre livraison. Elle n&apos;est pas conservée après.</p>
-          <button type="button" className="btn btn-tonal btn-lg btn-block" onClick={stopSharing}>
-            <Icon name="close" size="sm" />
-            Arrêter le partage
-          </button>
+  } else if (status === "sharing") {
+    sheet = (
+      <>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: "var(--secondary)",
+              boxShadow: "0 0 0 4px color-mix(in srgb, var(--secondary) 25%, transparent)",
+              flexShrink: 0,
+            }}
+          />
+          <h3 style={{ margin: 0 }}>Partage actif</h3>
         </div>
-        <SharedMapCard view={sharedView} />
-      </div>
+        <p className="form-note">
+          {lastUpdateAt ? `Dernière position envoyée à ${lastUpdateAt.toLocaleTimeString("fr-FR")}.` : "Localisation en cours…"}
+        </p>
+        <button type="button" className="btn btn-tonal btn-lg btn-block" onClick={stopSharing}>
+          <Icon name="close" size="sm" />
+          Arrêter le partage
+        </button>
+      </>
     );
-  }
-
-  if (status === "denied") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div className="contact-card">
-          <h3>Position refusée</h3>
-          <p>
-            Votre navigateur a bloqué l&apos;accès à votre position. Autorisez la localisation pour ce site dans les
-            réglages de votre navigateur, puis rechargez la page.
-          </p>
-        </div>
-        <SharedMapCard view={sharedView} />
-      </div>
+  } else if (status === "denied") {
+    sheet = (
+      <>
+        <h3>Position refusée</h3>
+        <p>
+          Votre navigateur a bloqué l&apos;accès à votre position. Autorisez la localisation pour ce site dans les
+          réglages de votre navigateur, puis rechargez la page.
+        </p>
+      </>
     );
-  }
-
-  if (status === "unavailable" || status === "unsupported") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div className="contact-card">
-          <h3>Position indisponible</h3>
-          <p>Impossible d&apos;obtenir votre position pour le moment. Réessayez, ou contactez-nous sur WhatsApp.</p>
-        </div>
-        <SharedMapCard view={sharedView} />
-      </div>
+  } else if (status === "unavailable" || status === "unsupported") {
+    sheet = (
+      <>
+        <h3>Position indisponible</h3>
+        <p>Impossible d&apos;obtenir votre position pour le moment. Réessayez, ou contactez-nous sur WhatsApp.</p>
+      </>
     );
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div className="contact-card">
+  } else {
+    sheet = (
+      <>
         {role === "courier" ? (
           <>
             <h3>Bonjour 👋</h3>
@@ -273,8 +248,17 @@ export function LocationSharingForm({
           <Icon name="location" size="sm" />
           Partager ma position
         </button>
+      </>
+    );
+  }
+
+  return (
+    <div className="dlv-screen">
+      <DeliveryMap customer={customerTrack} courier={courierTrack} fullScreen />
+      <div className="dlv-sheet">
+        {sheet}
+        <TrackLegend view={sharedView} />
       </div>
-      <SharedMapCard view={sharedView} />
     </div>
   );
 }

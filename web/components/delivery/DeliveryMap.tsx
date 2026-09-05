@@ -95,7 +95,18 @@ function approxMeters(a: { lat: number; lng: number }, b: { lat: number; lng: nu
   return Math.sqrt(dLat * dLat + x * x) * R;
 }
 
-export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; courier: DeliveryTrack }) {
+export function DeliveryMap({
+  customer,
+  courier,
+  fullScreen = false,
+}: {
+  customer: DeliveryTrack;
+  courier: DeliveryTrack;
+  /** Suivi public (page /livraison/[token]) : la carte occupe tout l'écran plutôt
+   * qu'une vignette de 400px — retour client du 06/09/2026, elle doit rester
+   * visible en permanence pendant l'usage plutôt que de défiler hors champ. */
+  fullScreen?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type Leaflet réel, importé dynamiquement (pas de dépendance de type au niveau module)
   const mapRef = useRef<any>(null);
@@ -130,7 +141,10 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
       // at zoom 0") — sans ça, fitBounds() plantait ("Cannot read properties
       // of null (reading '0')"), reproduit et corrigé ici.
       const map = L.map(containerRef.current, {
-        zoomControl: true,
+        // Pas de boutons +/- en plein écran (public) : le pincement suffit sur
+        // mobile et l'écran doit rester dégagé, façon Bolt/Gozem. Gardés pour
+        // la vignette admin (OrdersAdmin), utilisée surtout à la souris.
+        zoomControl: !fullScreen,
         attributionControl: false,
         maxBounds: [
           [180, -Infinity],
@@ -235,17 +249,17 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
     }
 
     if (lasts.length) {
-      // Passe par l'API native de MapLibre (getMaplibreMap().fitBounds), pas
-      // par celle de Leaflet : map.fitBounds() plantait ("Cannot read
-      // properties of null" puis "Invalid LatLng object: (NaN, NaN)" une fois
-      // le premier plantage corrigé) — le pont Leaflet↔MapLibre ne calcule
-      // visiblement pas les limites correctement pour ce calque. Les
-      // marqueurs/tracés restent en Leaflet (L.marker/L.polyline), seule la
-      // caméra passe par MapLibre. Attention à l'ordre : MapLibre attend
-      // [lng, lat], Leaflet [lat, lng].
-      const glMap = glLayerRef.current?.getMaplibreMap();
-      if (!glMap) return;
-
+      // Passe par les méthodes de LEAFLET (fitBounds/setView), pas par
+      // l'API MapLibre (getMaplibreMap().fitBounds/easeTo) : le pont
+      // @maplibre/maplibre-gl-leaflet ne synchronise que dans un sens
+      // (Leaflet → MapLibre, voir _transformGL dans son code source) —
+      // piloter la caméra MapLibre directement déplace le fond de carte
+      // sans que Leaflet le sache, et les marqueurs/tracés (objets Leaflet)
+      // restent positionnés sur l'ancienne vue : décalage visible entre les
+      // tuiles et les marqueurs dès que les deux points sont un peu éloignés
+      // (repéré le 06/09/2026 avec deux positions à ~2km d'écart). Piloter
+      // Leaflet laisse le pont faire la synchronisation lui-même, dans le
+      // sens pour lequel il est prévu.
       const allLatLngs: [number, number][] = [
         ...tracks.customer.line.getLatLngs().map((p: { lat: number; lng: number }) => [p.lat, p.lng] as [number, number]),
         ...tracks.courier.line.getLatLngs().map((p: { lat: number; lng: number }) => [p.lat, p.lng] as [number, number]),
@@ -253,25 +267,9 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
       ];
 
       if (allLatLngs.length > 1) {
-        let west = Infinity;
-        let south = Infinity;
-        let east = -Infinity;
-        let north = -Infinity;
-        for (const [lat, lng] of allLatLngs) {
-          if (lat < south) south = lat;
-          if (lat > north) north = lat;
-          if (lng < west) west = lng;
-          if (lng > east) east = lng;
-        }
-        glMap.fitBounds(
-          [
-            [west, south],
-            [east, north],
-          ],
-          { padding: 40, duration: 300 }
-        );
+        map.fitBounds(allLatLngs, { padding: [40, 40], animate: true, duration: 0.3 });
       } else {
-        glMap.easeTo({ center: [lasts[0][1], lasts[0][0]], zoom: Math.max(glMap.getZoom(), 15), duration: 300 });
+        map.setView(lasts[0], Math.max(map.getZoom(), 15), { animate: true, duration: 0.3 });
       }
     }
   }, [customer, courier]);
@@ -279,12 +277,16 @@ export function DeliveryMap({ customer, courier }: { customer: DeliveryTrack; co
   const activeCount = (customer.sharing ? 1 : 0) + (courier.sharing ? 1 : 0);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={fullScreen ? { position: "absolute", inset: 0 } : { position: "relative" }}>
       <div
         ref={containerRef}
         role="img"
         aria-label="Carte de livraison — position du client, du livreur, et itinéraire suggéré entre les deux ; le détail (statut, dernière position, nombre de points) est repris en texte juste en dessous"
-        style={{ width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }}
+        style={
+          fullScreen
+            ? { width: "100%", height: "100%" }
+            : { width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }
+        }
       />
       {activeCount > 0 ? (
         <div className="dlv-live-badge" aria-hidden="true">

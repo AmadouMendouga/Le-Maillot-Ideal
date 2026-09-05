@@ -16,27 +16,23 @@ export default async function LocationSharingPage({ params }: { params: Promise<
   const { token } = await params;
   const [result, settings] = await Promise.all([getOrderForLocationAction(token), getSiteSettings()]);
 
-  return (
-    <main>
-      <div className="page-hero">
-        <div className="container">
-          <h1>
-            <Icon name="location" size="xl" />
-            Partager ma position
-          </h1>
-          <p>IKIGAI Sport</p>
+  // Lien invalide : rien à suivre, pas de carte à afficher — page classique
+  // avec l'en-tête habituel. Lien valide : la carte occupe tout l'écran (voir
+  // LocationSharingForm), donc ni page-hero ni container ici.
+  if (!result.ok) {
+    return (
+      <main>
+        <div className="page-hero">
+          <div className="container">
+            <h1>
+              <Icon name="location" size="xl" />
+              Partager ma position
+            </h1>
+            <p>IKIGAI Sport</p>
+          </div>
         </div>
-      </div>
-      <div className="section">
-        <div className="container" style={{ maxWidth: 560 }}>
-          {result.ok ? (
-            <LocationSharingForm
-              token={token}
-              customerName={result.customerName}
-              initialSharing={result.sharing}
-              role={result.role}
-            />
-          ) : (
+        <div className="section">
+          <div className="container" style={{ maxWidth: 560 }}>
             <div className="contact-card">
               <h3>Lien indisponible</h3>
               <p>{result.error}</p>
@@ -51,9 +47,15 @@ export default async function LocationSharingPage({ params }: { params: Promise<
                 Nous écrire sur WhatsApp
               </a>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      </main>
+    );
+  }
+
+  return (
+    <main>
+      <LocationSharingForm token={token} customerName={result.customerName} initialSharing={result.sharing} role={result.role} />
     </main>
   );
 }
