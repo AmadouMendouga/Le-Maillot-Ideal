@@ -111,7 +111,8 @@ export default async function PortalPage() {
       title: "Arts martiaux",
       count: combatCount,
       href: `/${combatLead.sport.key}`,
-      image: image(combatProducts[0]),
+      // Photo fournie par le client (judoka en kimono), pas une photo produit du catalogue.
+      image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788582494/le-maillot-ideal/portal/spotlight/arts-martiaux-judoka.jpg",
     });
   }
   if (recentSports.length > 0 && recentCount > 0) {
