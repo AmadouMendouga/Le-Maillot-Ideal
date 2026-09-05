@@ -189,9 +189,17 @@ export function DeliveryMap({
       // la carte : aider à se retrouver, pas juste montrer deux traces
       // séparées. Style neutre et pointillé pour ne pas se confondre avec les
       // deux traces de déplacement passé (pleines, colorées par personne).
-      routeLineRef.current = L.polyline([], { color: "#1e3a8a", weight: 4, opacity: 0.75, dashArray: "2 10", lineCap: "round" }).addTo(
-        map
-      );
+      // Bleu marine sur fond clair, bleu ciel sur fond sombre : le marine
+      // devenait quasi invisible sur la carte sombre du livreur (constaté le
+      // 06/09/2026 — "l'itinéraire ne s'affiche pas" alors qu'il était bien
+      // calculé, juste sans contraste).
+      routeLineRef.current = L.polyline([], {
+        color: darkMap || isDarkTheme() ? "#38bdf8" : "#1e3a8a",
+        weight: 4,
+        opacity: 0.85,
+        dashArray: "2 10",
+        lineCap: "round",
+      }).addTo(map);
     });
 
     // Réagit si l'admin bascule clair/sombre (bouton de thème) pendant que
