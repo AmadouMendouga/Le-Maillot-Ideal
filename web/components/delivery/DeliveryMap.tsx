@@ -203,9 +203,21 @@ export function DeliveryMap({
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
+    // En plein écran, le conteneur n'a plus une taille fixe : il occupe
+    // l'espace restant dans une colonne flex, à côté du panneau du bas (voir
+    // .dlv-screen) — sa hauteur varie donc avec le contenu de ce panneau.
+    // Sans resynchroniser Leaflet/MapLibre à chaque changement, la carte
+    // resterait mise en page pour son ancienne taille (tuiles décalées).
+    const resizeObserver = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+      glLayerRef.current?.getMaplibreMap()?.resize();
+    });
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+
     return () => {
       cancelled = true;
       observer.disconnect();
+      resizeObserver.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -309,7 +321,7 @@ export function DeliveryMap({
   const activeCount = (customer.sharing ? 1 : 0) + (courier.sharing ? 1 : 0);
 
   return (
-    <div style={fullScreen ? { position: "absolute", inset: 0 } : { position: "relative" }}>
+    <div style={fullScreen ? { position: "relative", flex: "1 1 auto", minHeight: 0 } : { position: "relative" }}>
       <div
         ref={containerRef}
         role="img"

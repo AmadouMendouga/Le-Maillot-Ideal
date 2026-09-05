@@ -486,6 +486,24 @@ html[data-theme="dark"] .product-card { background: var(--surface-container-low)
 .discount-pill { font-size: .72rem; font-weight: 700; color: var(--secondary); }
 .product-actions { display: flex; gap: 8px; margin-top: 4px; }
 
+/* Rangée de pastilles "par championnat" — vue rapide en un coup d'œil au-dessus
+   des résultats (référence client du 06/09/2026, patron app de livraison),
+   en plus du panneau de filtres détaillé, pas à sa place : celui-ci garde
+   aussi promo/stock/recherche. */
+.category-pills { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 18px; scrollbar-width: none; }
+.category-pills::-webkit-scrollbar { display: none; }
+.category-pill {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: var(--r-pill); border: 1px solid var(--outline-variant);
+  background: var(--surface); color: var(--on-surface); font-family: inherit;
+  font-size: .84rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+html[data-theme="dark"] .category-pill { background: var(--surface-container-low); }
+.category-pill:hover { border-color: var(--primary); }
+.category-pill.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.category-pill .count { font-size: .74rem; opacity: .75; }
+
 /* ---------- Boutique : filtres ---------- */
 .shop-layout { display: grid; grid-template-columns: 268px 1fr; gap: 28px; align-items: flex-start; }
 @media (max-width: 940px) { .shop-layout { grid-template-columns: 1fr; } }
@@ -1813,22 +1831,22 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
 /* ---------- Suivi de livraison plein écran (/livraison/[token]) ---------- */
 /* La carte doit rester visible en permanence pendant l'usage (retour client
    du 06/09/2026, patron VTC/livraison type Bolt/Gozem) — plus question
-   qu'elle défile hors champ pendant qu'on lit le statut. Elle occupe tout
-   l'écran ; les infos/actions vivent dans un panneau flottant ancré en bas,
-   qui peut lui-même défiler si son contenu dépasse (légende + statut), sans
-   jamais recouvrir plus de l'écran que nécessaire. */
-.dlv-screen { position: fixed; inset: 0; overflow: hidden; }
+   qu'elle défile hors champ pendant qu'on lit le statut. Empilement en
+   colonne flex (carte + panneau l'un SOUS l'autre) plutôt que panneau
+   flottant superposé à la carte : sur certains téléphones/navigateurs, le
+   canvas WebGL de MapLibre passait au-dessus du panneau malgré son z-index
+   (constaté deux fois le 06/09/2026, y compris après avoir forcé un calque
+   de composition dédié — rien ne garantissait plus l'ordre d'empilement).
+   Deux zones distinctes, jamais dans le même espace écran, rendent le bug
+   structurellement impossible plutôt que de recompter sur l'empilement CSS
+   face à un canvas WebGL. */
+.dlv-screen { position: fixed; inset: 0; overflow: hidden; display: flex; flex-direction: column; }
 .dlv-sheet {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  flex: 0 0 auto; position: relative; z-index: 20;
   background: var(--surface); border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   box-shadow: 0 -8px 30px rgba(0,0,0,.18);
   padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
   max-height: 62vh; overflow-y: auto;
-  /* Sans ça, le canvas WebGL de MapLibre peut recouvrir ce panneau malgré son
-     z-index sur certains navigateurs/GPU mobiles (constaté le 06/09/2026,
-     réel — pas un artefact de test) : force ce panneau sur son propre calque
-     de composition, au-dessus du canvas. */
-  transform: translateZ(0);
 }
 html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); border: 1px solid var(--outline-variant); border-bottom: none; }
 .dlv-sheet h3 { margin: 0 0 8px; }
