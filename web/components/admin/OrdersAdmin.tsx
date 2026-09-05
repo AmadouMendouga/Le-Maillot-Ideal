@@ -364,12 +364,23 @@ function CourierPayoutField({ order }: { order: Order }) {
     if (!Number.isFinite(amount) || amount < 0) return;
     setSaving(true);
     try {
-      const result = await setCourierPayoutAction(order.id, amount);
+      // Cette page sonde beaucoup de commandes en parallèle (position en
+      // direct, toutes les 6s) — sous forte charge, Next.js peut annuler une
+      // action serveur concurrente sans jamais résoudre sa promesse
+      // (constaté le 06/09/2026 : le bouton restait bloqué indéfiniment,
+      // écriture jamais faite). Le délai de secours garantit que le bouton
+      // se débloque toujours, même dans ce cas.
+      const result = await Promise.race([
+        setCourierPayoutAction(order.id, amount),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+      ]);
       if (!result.ok) {
         alert(result.error);
         return;
       }
       showToast("Montant enregistré", "check-circle");
+    } catch {
+      alert("Échec de l'enregistrement (trop de requêtes en cours) — réessayez dans un instant.");
     } finally {
       setSaving(false);
     }
