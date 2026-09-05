@@ -131,6 +131,8 @@ export interface Order {
   courierLiveLocation: LiveLocation;
   /** Livreur enregistré assigné à cette livraison (Courier.id) — absent/null si lien ponctuel (voir Courier). */
   assignedCourierId?: string | null;
+  /** Montant payé au livreur pour cette course, décidé au cas par cas par l'admin — saisi une fois livrée, absent tant que non défini. */
+  courierPayout?: number | null;
   /** Code à 4 chiffres montré au client, demandé par le livreur pour clôturer la livraison —
    * optionnel pour les commandes créées avant son introduction (générée à la volée à la lecture, voir orders.ts). */
   deliveryCode?: string;

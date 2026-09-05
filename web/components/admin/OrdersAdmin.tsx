@@ -19,6 +19,7 @@ import {
   getOrCreateLocationTokenAction,
   getOrderLocationAction,
   getOrderLocationHistoryAction,
+  setCourierPayoutAction,
   type LocationPoint,
 } from "@/lib/actions/orders";
 import { assignCourierToOrderAction, setCourierActiveAction } from "@/lib/actions/couriers";
@@ -351,6 +352,51 @@ function RoleLocationRow({
   );
 }
 
+// Montant payé au livreur pour CETTE course — décidé au cas par cas (pas de
+// barème automatique, confirmé le 06/09/2026), saisi une fois la commande
+// livrée. Alimente "Mes gains" sur le tableau de bord du livreur enregistré.
+function CourierPayoutField({ order }: { order: Order }) {
+  const [value, setValue] = useState(order.courierPayout ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) return;
+    setSaving(true);
+    try {
+      const result = await setCourierPayoutAction(order.id, amount);
+      if (!result.ok) {
+        alert(result.error);
+        return;
+      }
+      showToast("Montant enregistré", "check-circle");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+      <span className="sub" style={{ minWidth: 44 }}>
+        Payé
+      </span>
+      <input
+        type="number"
+        min={0}
+        step={100}
+        aria-label="Montant payé au livreur (FCFA)"
+        value={value}
+        onChange={(e) => setValue(e.target.value === "" ? "" : Number(e.target.value))}
+        style={{ width: 90, fontSize: ".78rem", padding: "3px 6px" }}
+        placeholder="FCFA"
+      />
+      <button type="button" className="icon-btn" aria-label="Enregistrer le montant" disabled={saving} onClick={save}>
+        <Icon name="check-circle" size="sm" />
+      </button>
+    </div>
+  );
+}
+
 function LocationCell({ order, settings, couriers }: { order: Order; settings: SiteSettings; couriers: Courier[] }) {
   const [customerToken, setCustomerToken] = useState(order.locationToken);
   const [courierToken, setCourierToken] = useState(order.courierLocationToken);
@@ -415,6 +461,7 @@ function LocationCell({ order, settings, couriers }: { order: Order; settings: S
         assignedCourierId={assignedCourierId}
         onAssignCourier={setAssignedCourierId}
       />
+      {order.status === "livree" && assignedCourierId ? <CourierPayoutField order={order} /> : null}
       {customerLocation || courierLocation ? (
         <button
           type="button"

@@ -75,14 +75,32 @@ export async function assignCourierToOrderAction(
   return { ok: true };
 }
 
+export interface CourierPayoutLine {
+  orderSummary: string;
+  amount: number;
+  deliveredAt: string;
+}
+
 // Tableau de bord public d'un livreur enregistré (/livreur/[token]) : trouve
 // sa livraison actuellement assignée (au plus une à la fois — un livreur
 // enchaîne les commandes une par une, pas de gestion de tournée ici) et
 // renvoie le jeton de suivi correspondant pour rediriger vers la page de
 // partage de position déjà existante (/livraison/[token]) — aucune UI dupliquée.
-export async function getCourierDashboardAction(
-  token: string
-): Promise<{ ok: true; name: string; activeDeliveryToken: string | null } | { ok: false; error: string }> {
+// Sans livraison en cours, renvoie plutôt "Mes gains"/"Mes performances" —
+// pas de "Planning" (pas de créneaux/tournées dans ce modèle) ni de note
+// client (aucune évaluation par livreur n'existe, voir CLAUDE.md : jamais de
+// donnée inventée).
+export async function getCourierDashboardAction(token: string): Promise<
+  | {
+      ok: true;
+      name: string;
+      activeDeliveryToken: string | null;
+      totalDelivered: number;
+      totalEarned: number;
+      recentPayouts: CourierPayoutLine[];
+    }
+  | { ok: false; error: string }
+> {
   const cleanToken = String(token || "").trim();
   if (!cleanToken) return { ok: false, error: "Ce lien n'est pas valide." };
 
@@ -99,7 +117,24 @@ export async function getCourierDashboardAction(
     .limit(1)
     .get();
 
-  if (orderSnap.empty) return { ok: true, name: courier.name, activeDeliveryToken: null };
+  // Faible volume par livreur — calcul des totaux en mémoire plutôt qu'un
+  // index composite Firestore supplémentaire (même choix que
+  // getOrdersForCustomer, lib/data/orders.ts).
+  const deliveredSnap = await adminDb
+    .collection("orders")
+    .where("assignedCourierId", "==", courierDoc.id)
+    .where("status", "==", "livree")
+    .get();
+  const delivered = deliveredSnap.docs.map((d) => d.data() as Order).sort((a, b) => (b.deliveredAt || "").localeCompare(a.deliveredAt || ""));
+  const totalDelivered = delivered.length;
+  const totalEarned = delivered.reduce((sum, o) => sum + (o.courierPayout || 0), 0);
+  const recentPayouts: CourierPayoutLine[] = delivered
+    .slice(0, 10)
+    .map((o) => ({ orderSummary: o.orderSummary, amount: o.courierPayout || 0, deliveredAt: o.deliveredAt || "" }));
+
+  if (orderSnap.empty) {
+    return { ok: true, name: courier.name, activeDeliveryToken: null, totalDelivered, totalEarned, recentPayouts };
+  }
 
   const orderDoc = orderSnap.docs[0];
   const order = orderDoc.data() as Order;
@@ -109,5 +144,5 @@ export async function getCourierDashboardAction(
     await orderDoc.ref.update({ courierLocationToken: deliveryToken });
   }
 
-  return { ok: true, name: courier.name, activeDeliveryToken: deliveryToken };
+  return { ok: true, name: courier.name, activeDeliveryToken: deliveryToken, totalDelivered, totalEarned, recentPayouts };
 }

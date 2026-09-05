@@ -300,6 +300,23 @@ export async function markOrderDeliveredAction(
   return { ok: true, reviewToken };
 }
 
+// Montant payé au livreur pour une course donnée — décidé au cas par cas par
+// l'admin (pas de barème automatique, confirmé le 06/09/2026), saisi une
+// fois la livraison faite. Alimente "Mes gains" sur le tableau de bord du
+// livreur enregistré (lib/actions/couriers.ts).
+export async function setCourierPayoutAction(orderId: string, amount: number): Promise<{ ok: true } | { ok: false; error: string }> {
+  await verifyAdminSession();
+
+  if (!Number.isFinite(amount) || amount < 0) return { ok: false, error: "Montant invalide." };
+
+  const ref = adminDb.collection("orders").doc(orderId);
+  const snap = await ref.get();
+  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
+
+  await ref.update({ courierPayout: amount });
+  return { ok: true };
+}
+
 // Léger, sur le même principe que reviewToken : un identifiant à usage
 // dédié (pas de session client requise) pour la page publique de partage de
 // position, envoyée par WhatsApp comme le lien d'avis.
