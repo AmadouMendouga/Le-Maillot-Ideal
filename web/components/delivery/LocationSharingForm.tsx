@@ -11,9 +11,12 @@ import {
   updateLiveLocationAction,
   stopLocationSharingAction,
   getSharedLocationViewAction,
+  markOrderDeliveredByCourierAction,
   type SharedTrack,
+  type CourierDeliveryDetails,
 } from "@/lib/actions/orders";
 import { DeliveryMap } from "@/components/delivery/DeliveryMap";
+import { showToast } from "@/components/Toast";
 
 // Le navigateur peut rappeler watchPosition très souvent (chaque seconde en
 // haute précision) — on ne remonte au serveur qu'au maximum toutes les 10s,
@@ -85,16 +88,21 @@ export function LocationSharingForm({
   customerName,
   initialSharing,
   role,
+  delivery,
 }: {
   token: string;
   customerName: string;
   initialSharing: boolean;
   /** "customer" : aide à localiser l'adresse de livraison. "courier" : celui qui livre (Djimi ou une aide ponctuelle) partage sa position en route. */
   role: "customer" | "courier";
+  /** Détails de la commande, présents uniquement côté livreur (voir getOrderForLocationAction). */
+  delivery?: CourierDeliveryDetails;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
   const [sharedView, setSharedView] = useState<{ customer: SharedTrack; courier: SharedTrack } | null>(null);
+  const [delivering, setDelivering] = useState(false);
+  const [delivered, setDelivered] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const lastSentRef = useRef(0);
 
@@ -152,6 +160,27 @@ export function LocationSharingForm({
     });
   }
 
+  async function markDelivered() {
+    if (!window.confirm("Confirmer que la commande a bien été livrée ?")) return;
+    setDelivering(true);
+    try {
+      const result = await markOrderDeliveredByCourierAction(token);
+      if (!result.ok) {
+        showToast(result.error, "error", true);
+        return;
+      }
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setDelivered(true);
+    } catch {
+      showToast("Échec de l'enregistrement. Vérifiez votre connexion et réessayez.", "error", true);
+    } finally {
+      setDelivering(false);
+    }
+  }
+
   async function stopSharing() {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -169,7 +198,15 @@ export function LocationSharingForm({
   const courierTrack = sharedView?.courier ?? EMPTY_TRACK;
 
   let sheet: ReactNode;
-  if (status === "stopped") {
+  if (delivered) {
+    sheet = (
+      <div className="review-thanks">
+        <Icon name="check-circle" size="xl" />
+        <h3>Livraison terminée !</h3>
+        <p>Merci d&apos;avoir livré la commande de {customerName}. Le partage de position est arrêté.</p>
+      </div>
+    );
+  } else if (status === "stopped") {
     sheet = (
       <div className="review-thanks">
         <Icon name="check-circle" size="xl" />
@@ -254,9 +291,50 @@ export function LocationSharingForm({
 
   return (
     <div className="dlv-screen">
-      <DeliveryMap customer={customerTrack} courier={courierTrack} fullScreen />
+      <DeliveryMap
+        customer={customerTrack}
+        courier={courierTrack}
+        fullScreen
+        darkMap={role === "courier"}
+        showRouteStats={role === "courier"}
+      />
       <div className="dlv-sheet">
         {sheet}
+
+        {role === "courier" && delivery && !delivered ? (
+          <div style={{ margin: "16px 0", paddingTop: 16, borderTop: "1px solid var(--outline-variant)" }}>
+            <p style={{ fontWeight: 700, marginBottom: 2 }}>{customerName}</p>
+            {delivery.address ? (
+              <p className="sub" style={{ margin: 0 }}>
+                {delivery.address}
+              </p>
+            ) : null}
+            <p className="sub" style={{ margin: "6px 0 14px" }}>
+              {delivery.orderSummary}
+            </p>
+            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+              <a
+                className="btn btn-whatsapp"
+                style={{ flex: 1 }}
+                href={`https://wa.me/${delivery.customerPhone}`}
+                target="_blank"
+                rel="noopener"
+              >
+                <Icon name="whatsapp" size="sm" />
+                WhatsApp
+              </a>
+              <a className="btn btn-tonal" style={{ flex: 1 }} href={`tel:+${delivery.customerPhone}`}>
+                <Icon name="phone" size="sm" />
+                Appeler
+              </a>
+            </div>
+            <button type="button" className="btn btn-primary btn-lg btn-block" onClick={markDelivered} disabled={delivering}>
+              <Icon name="check-circle" size="sm" />
+              {delivering ? "Enregistrement…" : "Livraison terminée"}
+            </button>
+          </div>
+        ) : null}
+
         <TrackLegend view={sharedView} />
       </div>
     </div>

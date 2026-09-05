@@ -460,8 +460,22 @@ export async function submitTestimonialAction(
 // firestore.rules ⇒ retombe sur le catch-all `allow read, write: if false`),
 // donc uniquement via ces Server Actions (Admin SDK).
 
+export interface CourierDeliveryDetails {
+  customerPhone: string;
+  address: string | null;
+  orderSummary: string;
+}
+
 export async function getOrderForLocationAction(token: string): Promise<
-  | { ok: true; customerName: string; sharing: boolean; role: LocationRole }
+  | {
+      ok: true;
+      customerName: string;
+      sharing: boolean;
+      role: LocationRole;
+      // Détails de la commande utiles pour livrer — absents côté client, qui
+      // connaît déjà le contenu de sa propre commande.
+      delivery?: CourierDeliveryDetails;
+    }
   | { ok: false; error: string }
 > {
   const found = await findOrderByEitherLocationToken(token);
@@ -471,7 +485,42 @@ export async function getOrderForLocationAction(token: string): Promise<
     return { ok: false, error: "Cette commande n'est plus en attente de livraison." };
   }
   const fields = locationFields(role);
-  return { ok: true, customerName: order.customerName, sharing: order[fields.sharing], role };
+  return {
+    ok: true,
+    customerName: order.customerName,
+    sharing: order[fields.sharing],
+    role,
+    ...(role === "courier"
+      ? { delivery: { customerPhone: order.customerPhone, address: order.address, orderSummary: order.orderSummary } }
+      : {}),
+  };
+}
+
+// Clôture la livraison depuis le lien du LIVREUR uniquement — le rôle est
+// déduit du jeton (voir findOrderByEitherLocationToken), donc le jeton client
+// ne peut jamais déclencher cette action. Même effets de bord que
+// markOrderDeliveredAction (admin) : à ne pas dupliquer, seule la garde
+// d'accès diffère.
+export async function markOrderDeliveredByCourierAction(
+  token: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const found = await findOrderByEitherLocationToken(token);
+  if (!found) return { ok: false, error: "Lien invalide." };
+  if (found.role !== "courier") return { ok: false, error: "Seul le lien du livreur permet de clôturer la livraison." };
+  const { order } = found;
+  if (order.status !== "confirmee") return { ok: false, error: "Cette livraison est déjà clôturée." };
+
+  const reviewToken = order.reviewToken || randomUUID();
+  await adminDb.collection("orders").doc(order.id).update({
+    status: "livree",
+    deliveredAt: order.deliveredAt || new Date().toISOString(),
+    reviewToken,
+    locationSharing: false,
+    courierLocationSharing: false,
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 export async function updateLiveLocationAction(

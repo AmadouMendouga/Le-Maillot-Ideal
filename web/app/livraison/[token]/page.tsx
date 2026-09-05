@@ -55,7 +55,13 @@ export default async function LocationSharingPage({ params }: { params: Promise<
 
   return (
     <main>
-      <LocationSharingForm token={token} customerName={result.customerName} initialSharing={result.sharing} role={result.role} />
+      <LocationSharingForm
+        token={token}
+        customerName={result.customerName}
+        initialSharing={result.sharing}
+        role={result.role}
+        delivery={result.delivery}
+      />
     </main>
   );
 }

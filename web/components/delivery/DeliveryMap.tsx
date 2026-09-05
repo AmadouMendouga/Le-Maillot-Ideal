@@ -16,7 +16,7 @@
 // couleur, plutôt qu'un point générique — inspiré des écrans de suivi
 // Gozem/Yango/Bolt. Une piste sans donnée n'affiche simplement rien tant
 // que personne n'a partagé sa position.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { LocationPoint } from "@/lib/actions/orders";
@@ -69,15 +69,26 @@ const MARKER_ICON_ANCHOR: [number, number] = [16, 38];
 // justement d'aider le livreur à retrouver le client : les deux positions
 // seules (ou leurs traces de déplacement passé) ne suffisent pas, il faut le
 // chemin réel entre les deux, en suivant les rues.
-async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }): Promise<[number, number][] | null> {
+interface RouteResult {
+  coords: [number, number][];
+  distanceMeters: number;
+  durationSeconds: number;
+}
+
+async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }): Promise<RouteResult | null> {
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
-    const coords = data?.routes?.[0]?.geometry?.coordinates;
+    const route = data?.routes?.[0];
+    const coords = route?.geometry?.coordinates;
     if (!Array.isArray(coords) || coords.length < 2) return null;
-    return coords.map(([lng, lat]: [number, number]) => [lat, lng]);
+    return {
+      coords: coords.map(([lng, lat]: [number, number]) => [lat, lng]),
+      distanceMeters: route.distance,
+      durationSeconds: route.duration,
+    };
   } catch {
     return null; // best effort — une carte sans itinéraire routé reste utilisable (marqueurs + traces)
   }
@@ -99,6 +110,8 @@ export function DeliveryMap({
   customer,
   courier,
   fullScreen = false,
+  darkMap = false,
+  showRouteStats = false,
 }: {
   customer: DeliveryTrack;
   courier: DeliveryTrack;
@@ -106,8 +119,16 @@ export function DeliveryMap({
    * qu'une vignette de 400px — retour client du 06/09/2026, elle doit rester
    * visible en permanence pendant l'usage plutôt que de défiler hors champ. */
   fullScreen?: boolean;
+  /** Écran livreur : fond sombre systématique (lisibilité en conduite), sans
+   * dépendre du thème clair/sombre choisi côté client. */
+  darkMap?: boolean;
+  /** Écran livreur : bandeau distance/temps restant/heure d'arrivée en haut,
+   * calculé depuis l'itinéraire OSRM déjà récupéré — remplace le petit badge
+   * "En direct" plutôt que de l'empiler. */
+  showRouteStats?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [routeStats, setRouteStats] = useState<{ distanceKm: number; minutes: number; arrival: string } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type Leaflet réel, importé dynamiquement (pas de dépendance de type au niveau module)
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,7 +174,7 @@ export function DeliveryMap({
         maxBoundsViscosity: 1,
         minZoom: 1,
       }).setView([start?.lat ?? 4.0511, start?.lng ?? 9.7679], 14);
-      glLayerRef.current = maplibreGL({ style: styleUrlForTheme(isDarkTheme()) }).addTo(map);
+      glLayerRef.current = maplibreGL({ style: styleUrlForTheme(darkMap || isDarkTheme()) }).addTo(map);
 
       // Couleurs Leaflet en dur (l'API attend une vraie chaîne, pas une
       // variable CSS) — mêmes valeurs que --tertiary (client) et --secondary
@@ -177,6 +198,7 @@ export function DeliveryMap({
     // le tiroir est ouvert : MapLibre sait changer de style en place (pas
     // besoin de recréer le calque).
     const observer = new MutationObserver(() => {
+      if (darkMap) return; // toujours sombre, indépendant du thème choisi côté client
       glLayerRef.current?.getMaplibreMap()?.setStyle(styleUrlForTheme(isDarkTheme()));
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -239,13 +261,23 @@ export function DeliveryMap({
       const moved = !prev || approxMeters(prev.from, from) > 25 || approxMeters(prev.to, to) > 25;
       if (stale && moved) {
         routeStateRef.current = { from, to, fetchedAt: Date.now() };
-        fetchRoute(from, to).then((coords) => {
-          if (coords) routeLineRef.current?.setLatLngs(coords);
+        fetchRoute(from, to).then((result) => {
+          if (!result) return;
+          routeLineRef.current?.setLatLngs(result.coords);
+          setRouteStats({
+            distanceKm: result.distanceMeters / 1000,
+            minutes: Math.round(result.durationSeconds / 60),
+            arrival: new Date(Date.now() + result.durationSeconds * 1000).toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          });
         });
       }
     } else {
       routeLineRef.current?.setLatLngs([]);
       routeStateRef.current = null;
+      setRouteStats(null);
     }
 
     if (lasts.length) {
@@ -288,7 +320,24 @@ export function DeliveryMap({
             : { width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }
         }
       />
-      {activeCount > 0 ? (
+      {showRouteStats && routeStats ? (
+        <div className="dlv-route-stats">
+          <div>
+            <strong>{routeStats.minutes} min</strong>
+            <span>Restant</span>
+          </div>
+          <div className="sep" />
+          <div>
+            <strong>{routeStats.distanceKm < 10 ? routeStats.distanceKm.toFixed(1) : Math.round(routeStats.distanceKm)} km</strong>
+            <span>Distance</span>
+          </div>
+          <div className="sep" />
+          <div>
+            <strong>{routeStats.arrival}</strong>
+            <span>Arrivée</span>
+          </div>
+        </div>
+      ) : activeCount > 0 ? (
         <div className="dlv-live-badge" aria-hidden="true">
           <span className="rec-dot" />
           En direct

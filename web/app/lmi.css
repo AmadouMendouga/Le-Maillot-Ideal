@@ -1796,6 +1796,22 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
 @media (prefers-reduced-motion: reduce) { .dlv-live-badge .rec-dot { animation: none; } }
 @keyframes dlv-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
+/* Bandeau distance/temps/arrivée (écran livreur, DeliveryMap showRouteStats)
+   — inspiré des apps de navigation moto/VTC (référence client du
+   06/09/2026) : chiffres au premier plan, posé sur la carte sombre plutôt
+   qu'inséré dans le panneau du bas, pour rester visible en un coup d'œil. */
+.dlv-route-stats {
+  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000;
+  display: flex; align-items: center; justify-content: space-around;
+  background: rgba(20, 20, 20, .82); color: #fff;
+  border-radius: var(--r-card); padding: 10px 6px; pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+.dlv-route-stats > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.dlv-route-stats strong { font-size: 1.1rem; font-weight: 700; line-height: 1; }
+.dlv-route-stats span { font-size: .68rem; font-weight: 600; opacity: .75; text-transform: uppercase; letter-spacing: .02em; }
+.dlv-route-stats .sep { width: 1px; height: 26px; background: rgba(255,255,255,.2); flex: 0 0 auto; }
+
 /* ===========================================================
    Icône animée « Ajouter au panier » (AddToCartIcon) — inspirée d'un
    effet vu sur Threads (@_code_and_chill_, 03/09/2026) : le sac sort,
