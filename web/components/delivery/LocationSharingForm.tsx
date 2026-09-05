@@ -50,6 +50,28 @@ function trackStatusLine(label: string, track: SharedTrack) {
 
 const EMPTY_TRACK: SharedTrack = { points: [], current: null, sharing: false };
 
+const STEPS = ["Confirmée", "En route", "Livrée"] as const;
+
+// Repère visuel de progression (retour client du 06/09/2026, inspiré des
+// apps de suivi de colis) — dérivé d'état déjà disponible, pas d'un champ
+// dédié : "en route" = le livreur partage sa position, "livrée" = cette
+// session vient de la marquer comme telle (voir `delivered` plus bas).
+function DeliveryStepper({ step }: { step: 0 | 1 | 2 }) {
+  return (
+    <div className="dlv-stepper" role="status" aria-label={`Étape ${step + 1} sur 3 : ${STEPS[step]}`}>
+      {STEPS.map((label, i) => (
+        <div key={label} className="dlv-stepper-item">
+          <div className={"dlv-step" + (i <= step ? " done" : "") + (i === step ? " current" : "")}>
+            <span className="dot" aria-hidden="true" />
+            <span className="label">{label}</span>
+          </div>
+          {i < STEPS.length - 1 ? <span className={"dlv-step-line" + (i < step ? " done" : "")} aria-hidden="true" /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Légende + lignes de statut par piste, affichées dans le panneau flottant
 // sous les infos principales — même contenu qu'avant, juste replié dans le
 // panneau plutôt que dans sa propre carte (voir dlv-sheet plus bas).
@@ -196,6 +218,7 @@ export function LocationSharingForm({
 
   const customerTrack = sharedView?.customer ?? EMPTY_TRACK;
   const courierTrack = sharedView?.courier ?? EMPTY_TRACK;
+  const step: 0 | 1 | 2 = delivered ? 2 : courierTrack.sharing ? 1 : 0;
 
   let sheet: ReactNode;
   if (delivered) {
@@ -299,6 +322,7 @@ export function LocationSharingForm({
         showRouteStats={role === "courier"}
       />
       <div className="dlv-sheet">
+        <DeliveryStepper step={step} />
         {sheet}
 
         {role === "courier" && delivery && !delivered ? (

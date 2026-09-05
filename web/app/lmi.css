@@ -1783,6 +1783,24 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
 .dlv-sheet h3 { margin: 0 0 8px; }
 .dlv-sheet-status { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--outline-variant); }
 
+/* Repère de progression (Confirmée · En route · Livrée) en tête du panneau
+   flottant — inspiré des apps de suivi de colis (référence client du
+   06/09/2026), sans code-barres/QR : notre "colis" se remet toujours en
+   main propre. */
+.dlv-stepper { display: flex; align-items: flex-start; margin-bottom: 18px; }
+.dlv-stepper-item { display: flex; align-items: flex-start; flex: 1 1 0; }
+.dlv-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+.dlv-step .dot {
+  width: 13px; height: 13px; border-radius: 50%; background: var(--surface-container-high);
+  border: 2px solid var(--outline-variant); flex-shrink: 0; transition: background .2s ease, border-color .2s ease;
+}
+.dlv-step.done .dot { background: var(--primary); border-color: var(--primary); }
+.dlv-step.current .dot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent); }
+.dlv-step .label { font-size: .68rem; font-weight: 600; color: var(--on-surface-variant); text-align: center; }
+.dlv-step.done .label, .dlv-step.current .label { color: var(--on-surface); }
+.dlv-step-line { flex: 1; height: 2px; background: var(--outline-variant); margin-top: 6px; min-width: 16px; }
+.dlv-step-line.done { background: var(--primary); }
+
 .dlv-live-badge {
   position: absolute; top: 10px; left: 10px; z-index: 1000;
   display: inline-flex; align-items: center; gap: 6px;
