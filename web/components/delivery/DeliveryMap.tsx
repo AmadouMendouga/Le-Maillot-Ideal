@@ -205,30 +205,23 @@ export function DeliveryMap({
 
     // En plein écran, le conteneur n'a plus une taille fixe : il occupe
     // l'espace restant dans une colonne flex, à côté du panneau du bas (voir
-    // .dlv-screen) — sa hauteur varie donc avec le contenu de ce panneau.
-    // Sans resynchroniser Leaflet/MapLibre à chaque changement, la carte
-    // resterait mise en page pour son ancienne taille (tuiles décalées).
-    // Le rappel est différé en rAF et ignore les appels déjà en attente :
-    // invalidateSize()/resize() peuvent eux-mêmes faire varier légèrement la
-    // taille observée (redimensionnement du canvas WebGL), et un rappel
-    // synchrone rebouclerait sur lui-même — repéré le 06/09/2026 (page
-    // plantée dès qu'une position réelle était partagée).
-    let rafId: number | null = null;
-    const resizeObserver = new ResizeObserver(() => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        mapRef.current?.invalidateSize();
-        glLayerRef.current?.getMaplibreMap()?.resize();
-      });
-    });
-    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    // .dlv-screen). Un seul réajustement peu après le montage (la mise en
+    // page flex se stabilise) plutôt qu'un ResizeObserver continu : ce
+    // dernier a provoqué un plantage réel dès qu'une position était
+    // partagée (constaté le 06/09/2026, y compris différé en rAF) —
+    // probablement resize()/invalidateSize() appelés pendant un déplacement
+    // de caméra MapLibre (fitBounds/setView, voir l'effet suivant). Un
+    // léger décalage de mise en page est un compromis largement préférable
+    // à une page qui plante.
+    const resizeTimer = setTimeout(() => {
+      mapRef.current?.invalidateSize();
+      glLayerRef.current?.getMaplibreMap()?.resize();
+    }, 250);
 
     return () => {
       cancelled = true;
       observer.disconnect();
-      resizeObserver.disconnect();
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      clearTimeout(resizeTimer);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -321,10 +314,20 @@ export function DeliveryMap({
         ...lasts,
       ];
 
-      if (allLatLngs.length > 1) {
-        map.fitBounds(allLatLngs, { padding: [40, 40], animate: true, duration: 0.3 });
-      } else {
-        map.setView(lasts[0], Math.max(map.getZoom(), 15), { animate: true, duration: 0.3 });
+      // Sans animation : un déplacement de caméra animé pendant que MapLibre
+      // charge de nouvelles tuiles (vraie position, pas la donnée de test
+      // fixe utilisée en développement) a été corrélé à un plantage réel de
+      // la page (constaté le 06/09/2026) — un saut immédiat est moins
+      // élégant mais fiable. Protégé par try/catch : mieux vaut une carte
+      // qui ne recentre pas cette fois qu'une page qui plante.
+      try {
+        if (allLatLngs.length > 1) {
+          map.fitBounds(allLatLngs, { padding: [40, 40], animate: false });
+        } else {
+          map.setView(lasts[0], Math.max(map.getZoom(), 15), { animate: false });
+        }
+      } catch {
+        // best effort — voir commentaire ci-dessus
       }
     }
   }, [customer, courier]);
