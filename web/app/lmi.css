@@ -1801,6 +1801,16 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
 .dlv-step-line { flex: 1; height: 2px; background: var(--outline-variant); margin-top: 6px; min-width: 16px; }
 .dlv-step-line.done { background: var(--primary); }
 
+/* Code de livraison (client) — grand et net, pensé pour être lu à voix haute
+   au livreur en une fois, pas pour être tapé ou copié. */
+.dlv-code-box {
+  margin-top: 16px; padding: 16px; border-radius: var(--r-item);
+  background: var(--primary-container); color: var(--on-primary-container); text-align: center;
+}
+.dlv-code-box p { margin: 0; font-size: .78rem; font-weight: 600; }
+.dlv-code-box strong { display: block; font-size: 2rem; font-weight: 800; letter-spacing: .3em; margin: 4px 0; }
+.dlv-code-box .sub { color: inherit; opacity: .8; }
+
 .dlv-live-badge {
   position: absolute; top: 10px; left: 10px; z-index: 1000;
   display: inline-flex; align-items: center; gap: 6px;

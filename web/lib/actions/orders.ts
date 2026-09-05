@@ -44,6 +44,13 @@ function itemsSignature(items: OrderItem[]): string {
     .join("|");
 }
 
+// Code à 4 chiffres, montré au client, demandé par le livreur avant de
+// pouvoir clôturer la livraison — confirme qu'il a bien trouvé le bon
+// client, sans caméra ni scan (voir markOrderDeliveredByCourierAction).
+function generateDeliveryCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 // Décompte le stock au moment où la vente est enregistrée (pas à la
 // livraison) : « j'achète les 8 derniers, le stock passe direct en rupture »
 // — sinon un deuxième client pourrait commander le même article pendant que
@@ -169,6 +176,7 @@ export async function createOrderAction(
     courierLocationToken: null,
     courierLocationSharing: false,
     courierLiveLocation: null,
+    deliveryCode: generateDeliveryCode(),
     status: "confirmee",
     createdAt: new Date().toISOString(),
     deliveredAt: null,
@@ -251,6 +259,7 @@ export async function createCustomerOrderAction(
     courierLocationToken: null,
     courierLocationSharing: false,
     courierLiveLocation: null,
+    deliveryCode: generateDeliveryCode(),
     items: input.items,
     total: input.total,
     status: "confirmee",
@@ -475,6 +484,9 @@ export async function getOrderForLocationAction(token: string): Promise<
       // Détails de la commande utiles pour livrer — absents côté client, qui
       // connaît déjà le contenu de sa propre commande.
       delivery?: CourierDeliveryDetails;
+      // Code à donner au livreur à la réception — absent côté livreur : lui
+      // demander de le saisir n'a de sens que si le client seul le connaît.
+      deliveryCode?: string;
     }
   | { ok: false; error: string }
 > {
@@ -485,6 +497,15 @@ export async function getOrderForLocationAction(token: string): Promise<
     return { ok: false, error: "Cette commande n'est plus en attente de livraison." };
   }
   const fields = locationFields(role);
+
+  // Rétrocompatibilité : les commandes créées avant l'introduction de ce
+  // code n'en ont pas — généré à la volée plutôt que par une migration.
+  let deliveryCode = order.deliveryCode;
+  if (!deliveryCode) {
+    deliveryCode = generateDeliveryCode();
+    await adminDb.collection("orders").doc(order.id).update({ deliveryCode });
+  }
+
   return {
     ok: true,
     customerName: order.customerName,
@@ -492,23 +513,30 @@ export async function getOrderForLocationAction(token: string): Promise<
     role,
     ...(role === "courier"
       ? { delivery: { customerPhone: order.customerPhone, address: order.address, orderSummary: order.orderSummary } }
-      : {}),
+      : { deliveryCode }),
   };
 }
 
 // Clôture la livraison depuis le lien du LIVREUR uniquement — le rôle est
 // déduit du jeton (voir findOrderByEitherLocationToken), donc le jeton client
-// ne peut jamais déclencher cette action. Même effets de bord que
-// markOrderDeliveredAction (admin) : à ne pas dupliquer, seule la garde
-// d'accès diffère.
+// ne peut jamais déclencher cette action. Le code à 4 chiffres (affiché côté
+// client, voir getOrderForLocationAction) confirme que le livreur a bien
+// trouvé le bon client avant de pouvoir clôturer — sans lui, n'importe qui
+// avec le lien du livreur pourrait clôturer une livraison qui n'a pas eu
+// lieu. Mêmes effets de bord que markOrderDeliveredAction (admin) : à ne pas
+// dupliquer, seule la garde d'accès diffère.
 export async function markOrderDeliveredByCourierAction(
-  token: string
+  token: string,
+  code: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const found = await findOrderByEitherLocationToken(token);
   if (!found) return { ok: false, error: "Lien invalide." };
   if (found.role !== "courier") return { ok: false, error: "Seul le lien du livreur permet de clôturer la livraison." };
   const { order } = found;
   if (order.status !== "confirmee") return { ok: false, error: "Cette livraison est déjà clôturée." };
+  if (!order.deliveryCode || String(code || "").trim() !== order.deliveryCode) {
+    return { ok: false, error: "Code incorrect — demandez-le au client." };
+  }
 
   const reviewToken = order.reviewToken || randomUUID();
   await adminDb.collection("orders").doc(order.id).update({

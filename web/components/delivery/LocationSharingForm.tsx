@@ -111,6 +111,7 @@ export function LocationSharingForm({
   initialSharing,
   role,
   delivery,
+  deliveryCode,
 }: {
   token: string;
   customerName: string;
@@ -119,12 +120,16 @@ export function LocationSharingForm({
   role: "customer" | "courier";
   /** Détails de la commande, présents uniquement côté livreur (voir getOrderForLocationAction). */
   delivery?: CourierDeliveryDetails;
+  /** Code à 4 chiffres, présent uniquement côté client — à donner au livreur pour qu'il clôture la livraison. */
+  deliveryCode?: string;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
   const [sharedView, setSharedView] = useState<{ customer: SharedTrack; courier: SharedTrack } | null>(null);
   const [delivering, setDelivering] = useState(false);
   const [delivered, setDelivered] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [codeError, setCodeError] = useState("");
   const watchIdRef = useRef<number | null>(null);
   const lastSentRef = useRef(0);
 
@@ -183,12 +188,16 @@ export function LocationSharingForm({
   }
 
   async function markDelivered() {
-    if (!window.confirm("Confirmer que la commande a bien été livrée ?")) return;
+    setCodeError("");
+    if (codeInput.trim().length !== 4) {
+      setCodeError("Saisissez les 4 chiffres donnés par le client.");
+      return;
+    }
     setDelivering(true);
     try {
-      const result = await markOrderDeliveredByCourierAction(token);
+      const result = await markOrderDeliveredByCourierAction(token, codeInput.trim());
       if (!result.ok) {
-        showToast(result.error, "error", true);
+        setCodeError(result.error);
         return;
       }
       if (watchIdRef.current !== null) {
@@ -352,10 +361,40 @@ export function LocationSharingForm({
                 Appeler
               </a>
             </div>
+
+            <div className="form-row" style={{ marginBottom: 8 }}>
+              <label htmlFor="dlvCode">Code du client (4 chiffres)</label>
+              <input
+                id="dlvCode"
+                inputMode="numeric"
+                pattern="[0-9]{4}"
+                maxLength={4}
+                placeholder="0000"
+                value={codeInput}
+                onChange={(e) => {
+                  setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 4));
+                  setCodeError("");
+                }}
+                style={{ fontSize: "1.3rem", letterSpacing: "0.3em", textAlign: "center" }}
+              />
+            </div>
+            {codeError ? (
+              <p className="form-note" style={{ color: "var(--error)" }}>
+                {codeError}
+              </p>
+            ) : null}
             <button type="button" className="btn btn-primary btn-lg btn-block" onClick={markDelivered} disabled={delivering}>
               <Icon name="check-circle" size="sm" />
-              {delivering ? "Enregistrement…" : "Livraison terminée"}
+              {delivering ? "Enregistrement…" : "Confirmer la livraison"}
             </button>
+          </div>
+        ) : null}
+
+        {role === "customer" && deliveryCode && !delivered && status !== "stopped" ? (
+          <div className="dlv-code-box">
+            <p>Votre code de livraison</p>
+            <strong>{deliveryCode}</strong>
+            <p className="sub">Donnez-le au livreur à la réception de votre commande.</p>
           </div>
         ) : null}
 
