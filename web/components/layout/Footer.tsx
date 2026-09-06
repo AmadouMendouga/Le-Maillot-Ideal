@@ -19,7 +19,8 @@ export function Footer({
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">
-            <Link href={basePath} className="logo">
+            {/* même repère universel que Navbar.tsx — voir son commentaire. */}
+            <Link href="/" className="logo">
               <span className="logo-mark">
                 <Icon name="storefront" size="lg" />
               </span>

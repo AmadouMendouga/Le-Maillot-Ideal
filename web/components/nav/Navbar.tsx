@@ -43,7 +43,12 @@ export function Navbar({ basePath, leagues, products, settings }: NavbarProps) {
       <div className="am-wrap">
         <div ref={shellRef} className="am-shell">
           <nav className="am-nav" aria-label="Navigation principale">
-            <Link href={basePath} className="logo">
+            {/* Le logo ramène toujours au portail (/), pas à l'accueil de CE
+                sport — retour client du 06/09/2026 : cliquer un article donnait
+                l'impression de changer de site : le logo doit rester le repère
+                universel "retour à la case départ", identique partout, pendant
+                que "Accueil" (NavbarMenu, juste à côté) garde son sens local. */}
+            <Link href="/" className="logo">
               <span className="logo-mark">
                 <Icon name="storefront" size="lg" />
               </span>

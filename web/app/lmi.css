@@ -340,7 +340,10 @@ p { margin: 0 0 1em; }
 .hero {
   background: var(--hero-bg);
   color: var(--hero-fg);
-  padding: 56px 0 64px; position: relative; overflow: hidden;
+  /* padding-top généreux : .am-wrap (navbar pilule) a un margin-bottom de
+     -70px pour flotter légèrement sur le hero — un padding trop faible ici
+     colle le titre directement sous la pilule (retour client du 06/09/2026). */
+  padding: 100px 0 64px; position: relative; overflow: hidden;
   border-radius: 0 0 var(--r-sheet) var(--r-sheet);
 }
 .hero::before {
@@ -354,7 +357,12 @@ p { margin: 0 0 1em; }
   background: rgba(255,255,255,.18); padding: 7px 14px; border-radius: var(--r-pill);
   font-size: .78rem; font-weight: 600; margin-bottom: 18px;
 }
-.hero h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); margin-bottom: .3em; letter-spacing: -.8px; }
+/* Traitement plus "streetwear" que le corps de texte (retour client du
+   06/09/2026 : "vous vendez des maillots, pas des parfums") — sans charger de
+   nouvelle police (règle §1, zéro requête réseau) : capitales + resserrage
+   plus marqué sur le seul poids 700 déjà auto-hébergé, plutôt qu'un vrai
+   condensed/display qui demanderait un fichier de police supplémentaire. */
+.hero h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); margin-bottom: .3em; letter-spacing: -1.2px; text-transform: uppercase; }
 .hero p.lead { font-size: 1rem; max-width: 46ch; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
 .hero-ctas { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
 /* .btn-primary est déjà vert (--primary) : sur le hero quasi noir du site de
@@ -778,7 +786,10 @@ html[data-theme="dark"] .portal-brand-marquee .imc-wrap { background: var(--surf
    requête plus bas où .wa-float remonte pour laisser la place à la barre
    panier mobile) pour ne jamais se superposer. */
 .back-top-btn {
-  position: fixed; right: 22px; bottom: 90px; z-index: 79;
+  /* bottom: 22px (rayon wa-float) + 58px (hauteur wa-float) + ~20px de
+     respiration — 90px ne laissait que 10px, les deux se touchaient quasiment
+     (retour client du 06/09/2026). */
+  position: fixed; right: 22px; bottom: 100px; z-index: 79;
   width: 46px; height: 46px; border-radius: 50%;
   background: var(--primary); color: var(--on-primary);
   display: flex; align-items: center; justify-content: center;
@@ -789,7 +800,7 @@ html[data-theme="dark"] .portal-brand-marquee .imc-wrap { background: var(--surf
 .back-top-btn.active { opacity: 1; visibility: visible; transform: translateY(0); }
 .back-top-btn:hover, .back-top-btn:focus-visible { background: color-mix(in srgb, var(--primary) 88%, #000); }
 .back-top-btn-icon { transform: rotate(-90deg); }
-@media (max-width: 520px) { .back-top-btn { bottom: 156px; } }
+@media (max-width: 520px) { .back-top-btn { bottom: 168px; } }
 @media (prefers-reduced-motion: reduce) { .back-top-btn { transition: opacity .25s ease, visibility .25s; transform: none; } }
 
 /* ---------- Panier : bottom sheet (checkout_page.dart) ---------- */
@@ -852,7 +863,10 @@ html[data-theme="dark"] .cart-foot { background: var(--surface-container); }
 .toast.error { background: var(--error); color: var(--on-error); }
 
 /* ---------- En-tête de page interne ---------- */
-.page-hero { background: var(--hero-bg); color: var(--hero-fg); padding: 34px 0 38px; border-radius: 0 0 var(--r-sheet) var(--r-sheet); }
+/* même raison que .hero ci-dessus : la pilule de navigation flotte dessus
+   (-70px), 34px de marge ne laissait presque aucun espace visible (retour
+   client du 06/09/2026, capture "Boutique Nippon Kempo"). */
+.page-hero { background: var(--hero-bg); color: var(--hero-fg); padding: 96px 0 38px; border-radius: 0 0 var(--r-sheet) var(--r-sheet); }
 .page-hero h1 { font-size: 1.7rem; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
 .page-hero p { margin: 0; font-size: .92rem; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
 
@@ -1248,6 +1262,25 @@ html[data-theme="dark"] .theme-toggle .i-moon { display: none; }
 .cp-checkout:active { transform: scale(.985); }
 .cp-checkout .right { display: flex; align-items: center; gap: 6px; }
 .cart-panel .cart-empty { color: rgba(255,255,255,.85); }
+
+/* Sur grand écran, la barre centrée flottait au milieu de la grille produits,
+   redondante avec le badge du panier déjà visible dans la navbar (retour
+   client du 06/09/2026 : "ça fait la même chose sur la même page"). Repliée
+   en pastille coin bas-gauche — bas-droite est déjà pris par WhatsApp/retour
+   en haut — plutôt que centrée pleine largeur ; le comportement mobile
+   (centré, animé, conforme à la vidéo de référence du client) ne change pas. */
+@media (min-width: 900px) {
+  .cart-bar { left: 22px; right: auto; transform: translateY(120%) scale(.85); }
+  .cart-bar.show { transform: translateY(0) scale(1); }
+  .cart-bar.bump { animation: barBumpLeft .45s cubic-bezier(.34,1.5,.6,1); }
+  @keyframes barBumpLeft {
+    0%   { transform: translateY(0) scale(1); }
+    40%  { transform: translateY(-4px) scale(1.05); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  .cart-panel { left: 22px; right: auto; transform: translateY(16px) scale(.9); transform-origin: bottom left; }
+  .cart-panel.open { transform: translateY(0) scale(1); }
+}
 
 @media (max-width: 520px) {
   .cart-bar { bottom: 16px; }
@@ -2039,10 +2072,16 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
 .portal-hamburger:hover { background: rgba(255,255,255,.14); }
 .portal-hamburger .line {
   width: 100%; height: 2px; background: #fff; transform-origin: left;
-  animation: portalMenuBtn 400ms ease-in-out alternate infinite;
 }
-.portal-hamburger .line-2 { animation-delay: 150ms; }
-.portal-hamburger .line-3 { animation-delay: 300ms; }
+/* Respiration continue réservée au mobile — retour client du 06/09/2026 :
+   trop d'animation au premier chargement desktop (le slide du hero suffit
+   déjà comme mouvement), distrayait sans apporter grand-chose sur un menu
+   qui, sur desktop, a de toute façon peu de raisons d'être ouvert. */
+@media (max-width: 640px) {
+  .portal-hamburger .line { animation: portalMenuBtn 400ms ease-in-out alternate infinite; }
+  .portal-hamburger .line-2 { animation-delay: 150ms; }
+  .portal-hamburger .line-3 { animation-delay: 300ms; }
+}
 .portal-hamburger.active .line { animation: none; }
 .portal-hamburger.active .line-1 { transform: translateY(8px) rotate(45deg); }
 .portal-hamburger.active .line-2 { opacity: 0; }
@@ -2096,8 +2135,10 @@ body.portal-drawer-open { overflow: hidden; }
 
 /* ---------- Hero à diapositives ---------- */
 .portal-hero {
+  /* 640px dépassait la hauteur utile d'une fenêtre de bureau classique (retour
+     client du 06/09/2026, même famille de retour que les cartes vedette). */
   position: relative; overflow: hidden; color: #fff;
-  min-height: 640px; display: flex; align-items: center;
+  min-height: 520px; display: flex; align-items: center;
 }
 .portal-hero-slides { position: relative; width: 100%; min-height: inherit; }
 .portal-hero-slide {
@@ -2110,7 +2151,11 @@ body.portal-drawer-open { overflow: hidden; }
   position: absolute; inset: 0; z-index: -1; overflow: hidden;
   transform: scale(1.12); pointer-events: none; user-select: none;
 }
-.portal-hero-bg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* object-position décalé à droite : le texte (.portal-hero-content) est
+   toujours aligné à gauche, un cadrage centré par défaut place trop souvent
+   le sujet principal de la photo (visage, etc.) exactement derrière le texte
+   (retour client du 06/09/2026). */
+.portal-hero-bg img { width: 100%; height: 100%; object-fit: cover; object-position: 75% 30%; display: block; }
 .portal-hero-slide.active .portal-hero-bg { animation: portalHeroZoom 7s linear forwards; }
 @keyframes portalHeroZoom {
   0% { transform: scale(1); }
@@ -2118,6 +2163,14 @@ body.portal-drawer-open { overflow: hidden; }
 }
 /* voile coloré (teinte du sport) au-dessus de la photo, pour la lisibilité du texte */
 .portal-hero-scrim { position: absolute; inset: 0; opacity: .84; }
+/* voile SUPPLÉMENTAIRE, statique (pas de couleur dynamique) : assombrit
+   spécifiquement la zone gauche où vit le texte — le voile diagonal ci-dessus
+   y place justement la teinte claire du sport plutôt que le fond sombre.
+   Corrige, de facto, les photos dont le sujet tombe derrière le texte. */
+.portal-hero-scrim::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.12) 55%, transparent 85%);
+}
 .portal-hero-content { max-width: 640px; }
 /* Le voile (.portal-hero-scrim) ne garantit qu'un contraste MOYEN correct :
    une photo a des zones claires locales qui peuvent rester sous 4.5:1 même
@@ -2132,7 +2185,7 @@ body.portal-drawer-open { overflow: hidden; }
 .portal-hero-content .btn-primary:hover, .portal-hero-content .btn-primary:focus-visible {
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
-.portal-hero-content h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -.8px; margin-bottom: .3em; }
+.portal-hero-content h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -1.2px; text-transform: uppercase; margin-bottom: .3em; }
 .portal-hero-content p { font-size: 1rem; opacity: .92; font-weight: 500; max-width: 46ch; margin-bottom: 26px; }
 .portal-hero-reveal { transform: translateY(30px); opacity: 0; }
 .portal-hero-slide.active .portal-hero-reveal { animation: portalHeroReveal 1s ease forwards; }
@@ -2186,11 +2239,15 @@ body.portal-drawer-open { overflow: hidden; }
      absolute pour l'effet de voile), il lui faut donc une largeur explicite
      à 100% pour que aspect-ratio puisse en déduire la hauteur. */
   display: block; background: none; border: none; padding: 0; border-radius: 0; box-shadow: none;
-  width: 300px;
+  width: 220px;
 }
 .portal-spotlight-card {
+  /* Retour client du 06/09/2026 : en 3/4 à 300px de large (400px de haut), la
+     rangée dépassait la hauteur d'une fenêtre de bureau classique (100% ou
+     90% de zoom) — il fallait passer en plein écran pour voir les cartes
+     entières. Réduit et moins allongé (4/5 plutôt que 3/4). */
   position: relative; display: block; border-radius: var(--r-card); overflow: hidden;
-  aspect-ratio: 3/4; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  aspect-ratio: 4/5; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.25);
   outline: 1px solid rgba(255,255,255,.16); outline-offset: -1px;
   transition: box-shadow .3s ease, transform .3s ease;
 }
@@ -2234,14 +2291,14 @@ button.portal-spotlight-card { width: 100%; border: none; background: none; padd
   );
 }
 .portal-spotlight-content {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 22px;
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 16px;
 }
-.portal-spotlight-content h3 { font-size: 1.2rem; margin-bottom: 4px; }
+.portal-spotlight-content h3 { font-size: 1.05rem; margin-bottom: 4px; }
 .portal-spotlight-content span {
-  display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600; opacity: .9;
+  display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; opacity: .9;
 }
 @media (max-width: 600px) {
-  .portal-spotlight-marquee .imc-item { width: 240px; }
+  .portal-spotlight-marquee .imc-item { width: 180px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .portal-spotlight-card::before { display: none; }
