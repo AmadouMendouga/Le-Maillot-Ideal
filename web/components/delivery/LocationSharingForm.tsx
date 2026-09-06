@@ -6,6 +6,7 @@
 // permission navigateur part uniquement d'un geste explicite (bouton), et
 // un bouton « Arrêter » est toujours visible une fois le partage actif.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
 import {
   updateLiveLocationAction,
@@ -128,6 +129,7 @@ export function LocationSharingForm({
   const [sharedView, setSharedView] = useState<{ customer: SharedTrack; courier: SharedTrack } | null>(null);
   const [delivering, setDelivering] = useState(false);
   const [delivered, setDelivered] = useState(false);
+  const [reviewToken, setReviewToken] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const watchIdRef = useRef<number | null>(null);
@@ -155,6 +157,7 @@ export function LocationSharingForm({
           watchIdRef.current = null;
         }
       }
+      if (result.reviewToken) setReviewToken(result.reviewToken);
     }
     poll();
     const id = setInterval(poll, MAP_POLL_MS);
@@ -248,6 +251,17 @@ export function LocationSharingForm({
             ? `Merci d'avoir livré la commande de ${customerName}. Le partage de position est arrêté.`
             : "Votre commande a bien été livrée. Merci pour votre confiance !"}
         </p>
+        {/* Proposé au client dès cet écran plutôt que d'attendre que l'admin
+            pense à cliquer "Demander un avis" — le moment où l'enthousiasme
+            est le plus fort. Le formulaire (avis + photo, modéré avant
+            publication) existe déjà, /avis/[token] ; seul le déclenchement
+            automatique ici est nouveau. */}
+        {role === "customer" && reviewToken ? (
+          <Link href={`/avis/${reviewToken}`} className="btn btn-primary btn-lg btn-block" style={{ marginTop: 16 }}>
+            <Icon name="star" size="sm" />
+            Donner mon avis (+ une photo)
+          </Link>
+        ) : null}
       </div>
     );
   } else if (status === "stopped") {

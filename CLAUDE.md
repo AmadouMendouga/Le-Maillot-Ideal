@@ -12,7 +12,10 @@ Boutique en ligne de maillots de football au Cameroun. Refonte complète de
 framework ni dépendance réseau à l'exécution. Un script Node local génère les
 fiches produit indexables avant le déploiement.
 
-**Client :** Djimi — WhatsApp `+237 655 634 265` · `contact@le-maillot-ideal.com` · Douala.
+**Client :** Amadou — WhatsApp `+237 655 634 265` · `contact@le-maillot-ideal.com` · Douala.
+(Corrigé le 06/09/2026 : la gestion — commandes WhatsApp, contenu du site — est
+assurée par Amadou, pas par Djimi comme indiqué précédemment sur cette ligne
+et dans le texte "Qui sommes-nous" du site public, également corrigé.)
 
 **Modèle de vente :** pas de paiement en ligne sur le site. Le client remplit son
 panier et le site génère un message WhatsApp pré-rempli. Tant que

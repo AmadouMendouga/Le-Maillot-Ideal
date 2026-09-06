@@ -211,7 +211,7 @@ export default async function PortalPage() {
               <div className="about-text">
                 <h3>Qui sommes-nous : derrière chaque commande, une vraie personne</h3>
                 <p>
-                  {settings.businessName} est géré par Djimi, basé à Douala. Chaque commande passée sur WhatsApp est
+                  {settings.businessName} est géré par Amadou, basé à Douala. Chaque commande passée sur WhatsApp est
                   suivie personnellement, de la confirmation jusqu&apos;à la livraison — quel que soit le sport.
                 </p>
                 <div className="about-badges">

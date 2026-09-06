@@ -650,7 +650,8 @@ export interface SharedTrack {
 export async function getSharedLocationViewAction(
   token: string
 ): Promise<
-  { ok: true; customer: SharedTrack; courier: SharedTrack; delivered: boolean } | { ok: false; error: string }
+  | { ok: true; customer: SharedTrack; courier: SharedTrack; delivered: boolean; reviewToken: string | null }
+  | { ok: false; error: string }
 > {
   const found = await findOrderByEitherLocationToken(token);
   if (!found) return { ok: false, error: "Lien invalide." };
@@ -679,5 +680,11 @@ export async function getSharedLocationViewAction(
     // faire passer l'autre partie en "Livrée" sans action de sa part (retour
     // client du 06/09/2026 : le client restait bloqué sur "En route").
     delivered: order.status === "livree",
+    // Permet au client de proposer un avis + une photo dès l'écran "Livraison
+    // terminée !", sans attendre que l'admin pense à cliquer "Demander un
+    // avis" (le mécanisme d'avis+photo existe déjà, /avis/[token] — seul le
+    // moment où on le propose changeait). Jamais avant reviewSubmitted=false
+    // ni avant "livree" : reviewToken peut exister mais avoir déjà servi.
+    reviewToken: order.status === "livree" && !order.reviewSubmitted ? order.reviewToken : null,
   };
 }
