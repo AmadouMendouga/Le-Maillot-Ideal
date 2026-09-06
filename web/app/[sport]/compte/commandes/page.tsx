@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireCustomerOrRedirect } from "@/lib/auth/dal";
 import { getOrdersForCustomer } from "@/lib/data/orders";
 import { OrderHistory } from "@/components/account/OrderHistory";
@@ -24,6 +25,13 @@ export default async function CompteCommandesPage({ params }: PageProps<"/[sport
         <div className="container" style={{ maxWidth: 640 }}>
           <AccountHeader email={customer.email} />
           <OrderHistory orders={orders} />
+          {/* Retour client du 06/09/2026 : la page ne menait nulle part
+              d'autre que la déconnexion — un compte n'est pas un cul-de-sac,
+              on y revient depuis la boutique. */}
+          <Link href={`/${sport}/boutique`} className="btn btn-primary btn-lg btn-block" style={{ marginTop: 24 }}>
+            <Icon name="storefront" size="sm" />
+            Continuer mes achats
+          </Link>
         </div>
       </div>
     </main>
