@@ -20,7 +20,7 @@ import type { Product } from "@/lib/types";
 export const metadata: Metadata = {
   title: "IKIGAI Sport",
   description:
-    "IKIGAI Sport — la boutique de référence pour tes équipements sportifs au Cameroun. Choisis ton sport : maillots, judogi, et bien d'autres.",
+    "IKIGAI Sport — la boutique de référence pour tes équipements sportifs au Cameroun. Maillots, judogi, sneakers et bien d'autres univers, chacun dans sa propre boutique.",
 };
 
 // Portail — page vitrine, pas de catalogue à ce niveau (voir le plan "portail
@@ -59,9 +59,11 @@ export default async function PortalPage() {
   const slides: PortalHeroSlide[] = [
     {
       eyebrow: "La boutique de référence au Cameroun",
-      title: "Un système, plusieurs sports.",
-      lead: `${settings.businessName} regroupe des boutiques dédiées à chaque discipline. Choisis ton sport pour accéder à sa boutique complète.`,
-      ctaLabel: "Choisir un sport",
+      title: "Un système, plusieurs univers.",
+      // "univers", pas "sport" : Sneakers y figure aussi, et ce n'en est pas un
+      // (retour client du 06/09/2026 — voir aussi PortalFooter/Footer).
+      lead: `${settings.businessName} regroupe des boutiques dédiées à chaque univers. Choisis le tien pour accéder à sa boutique complète.`,
+      ctaLabel: "Choisir un univers",
       ctaHref: "#sports",
       color: "var(--hero-bg)",
       image: image(footballProducts[0]),
@@ -274,8 +276,8 @@ export default async function PortalPage() {
                   <Icon name="check-circle" size="lg" />
                 </span>
                 <div>
-                  <p className="service-title">Un site par sport</p>
-                  <p>Une boutique dédiée, propre à chaque discipline</p>
+                  <p className="service-title">Un site par univers</p>
+                  <p>Une boutique dédiée, propre à chaque univers</p>
                 </div>
               </div>
             </div>

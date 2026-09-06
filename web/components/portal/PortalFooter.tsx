@@ -76,7 +76,10 @@ export function PortalFooter({
             </div>
           </div>
           <div>
-            <h4>Sports</h4>
+            {/* Pas "Sports" : Sneakers y figure aussi, et ce n'est pas un
+                sport — retour client du 06/09/2026. "Univers" reprend le mot
+                déjà utilisé plus haut sur le portail ("Nos univers"). */}
+            <h4>Univers</h4>
             <ul>
               {sports.map((sport) => (
                 <li key={sport.key}>

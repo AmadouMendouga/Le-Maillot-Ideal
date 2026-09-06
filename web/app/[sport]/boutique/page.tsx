@@ -10,11 +10,17 @@ import { getSiteSettings } from "@/lib/data/settings";
 
 export async function generateMetadata({ params }: PageProps<"/[sport]/boutique">): Promise<Metadata> {
   const { sport: sportKey } = await params;
-  const sport = await getSportByKey(sportKey);
+  const [sport, leagues] = await Promise.all([getSportByKey(sportKey), getAllLeagues()]);
   if (!sport) return { title: "Boutique introuvable | IKIGAI Sport" };
+  // "filtrable par championnat" ne s'applique qu'aux sports qui en ont
+  // (football) — Judo/Kendo/Nippon Kempo/Sneakers n'en ont aucun, la mention
+  // était fausse pour eux (retour client du 06/09/2026, revue des textes).
+  const hasLeagues = leagues.some((l) => l.sport === sportKey);
   return {
     title: `Boutique ${sport.label} | IKIGAI Sport`,
-    description: `Parcourez le catalogue ${sport.label} : tous les articles disponibles, filtrables par championnat et disponibilité.`,
+    description: hasLeagues
+      ? `Parcourez le catalogue ${sport.label} : tous les articles disponibles, filtrables par championnat et disponibilité.`
+      : `Parcourez le catalogue ${sport.label} : tous les articles disponibles, filtrables par disponibilité et par prix.`,
   };
 }
 

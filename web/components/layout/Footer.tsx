@@ -80,7 +80,8 @@ export function Footer({
             </ul>
           </div>
           <div>
-            <h4>Sports</h4>
+            {/* même correction que PortalFooter.tsx — Sneakers n'est pas un sport. */}
+            <h4>Univers</h4>
             <ul>
               {sports.map((sport) => (
                 <li key={sport.key}>
