@@ -28,7 +28,7 @@ await db
   .update({
     businessName: "IKIGAI Sport",
     heroBadge: "Boutique d'articles de sport au Cameroun",
-    heroTitle2: "Équipe-toi pour ce qui te fait vibrer.",
+    heroTitle2: "Équipez-vous pour ce qui vous fait vibrer.",
     heroLead:
       "Maillots, judogi, sneakers et bien d'autres — une sélection d'articles de sport pour chaque discipline. Commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",
   });

@@ -28,6 +28,7 @@ import {
 } from "../lib/validation.ts";
 import { aggregateItemQuantities, quoteOrderItems, validateOrderItems } from "../lib/orderValidation.ts";
 import { cleanTrackPoints, distanceMeters, hasUsableAccuracy, shouldAppendTrackPoint } from "../lib/location.ts";
+import { publicProductDescription } from "../lib/product.ts";
 
 function sampleProduct(overrides = {}) {
   return {
@@ -57,11 +58,19 @@ function sampleProduct(overrides = {}) {
 }
 
 const baseSettings = {
-  whatsapp: "237655634265",
+  whatsapp: "12345678",
   catalogDataVerified: true,
   commercialTermsVerified: true,
   businessName: "IKIGAI Sport",
 };
+
+test("la description publique remplace l'ancienne marque City Sport", () => {
+  const product = sampleProduct({ description: "Une paire confortable. Disponible chez City Sport." });
+  assert.equal(
+    publicProductDescription(product, baseSettings),
+    "Une paire confortable. Disponible chez IKIGAI Sport."
+  );
+});
 
 // --- FCFA ---------------------------------------------------------------
 
@@ -78,7 +87,7 @@ test("FCFA retombe sur 0 pour une valeur non finie", () => {
 // --- whatsappNumber / freeShippingThreshold ------------------------------
 
 test("whatsappNumber ne garde que les chiffres du numéro configuré", () => {
-  assert.equal(whatsappNumber({ whatsapp: "+237 655 634 265" }), "237655634265");
+  assert.equal(whatsappNumber({ whatsapp: "+12 345 678" }), "12345678");
 });
 
 test("whatsappNumber retombe sur le numéro par défaut si vide", () => {
@@ -223,13 +232,13 @@ test("buildWhatsappCartLink produit le message exact attendu par WhatsApp (catal
     "\n*Total : 24 000 FCFA*\n" +
     "Paiement et livraison selon les modalités applicables à votre zone.\n\n" +
     "Merci de me confirmer la disponibilité et le délai de livraison.";
-  assert.equal(link, `https://wa.me/237655634265?text=${encodeURIComponent(expectedMessage)}`);
+  assert.equal(link, `https://wa.me/12345678?text=${encodeURIComponent(expectedMessage)}`);
 });
 
 test("buildWhatsappCartLink ajoute les mentions « indicatif/à confirmer » tant que rien n'est vérifié", () => {
   const products = [sampleProduct({ price: 12000 })];
   const link = buildWhatsappCartLink([{ slug: "maillot-domicile-test", size: "M", qty: 1 }], products, {
-    whatsapp: "237655634265",
+    whatsapp: "12345678",
     catalogDataVerified: false,
     commercialTermsVerified: false,
     businessName: "IKIGAI Sport",
@@ -250,15 +259,15 @@ test("isHttpUrl accepte uniquement des URL http(s) valides", () => {
 });
 
 test("siteFieldError valide le numéro WhatsApp (8 à 15 chiffres, sans +)", () => {
-  assert.equal(siteFieldError("whatsapp", "237655634265", {}), "");
-  assert.notEqual(siteFieldError("whatsapp", "+237655634265", {}), "");
+  assert.equal(siteFieldError("whatsapp", "12345678", {}), "");
+  assert.notEqual(siteFieldError("whatsapp", "+12345678", {}), "");
   assert.notEqual(siteFieldError("whatsapp", "123", {}), "");
 });
 
 test("siteFieldError exige que whatsappDisplay encode les mêmes chiffres que whatsapp", () => {
-  const site = { whatsapp: "237655634265" };
-  assert.equal(siteFieldError("whatsappDisplay", "+237 655 634 265", site), "");
-  assert.notEqual(siteFieldError("whatsappDisplay", "+237 000 000 000", site), "");
+  const site = { whatsapp: "12345678" };
+  assert.equal(siteFieldError("whatsappDisplay", "+12 345 678", site), "");
+  assert.notEqual(siteFieldError("whatsappDisplay", "+87 654 321", site), "");
 });
 
 test("siteFieldError valide les URL de réseaux sociaux, vide autorisé", () => {

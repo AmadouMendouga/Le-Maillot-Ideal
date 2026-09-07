@@ -60,8 +60,8 @@ export function ProductDetail({ product, settings }: { product: Product; setting
     ? "Les conditions de retour ou d'échange validées avec le vendeur sont rappelées sur WhatsApp avant la commande."
     : "Les conditions de retour ou d'échange sont à confirmer sur WhatsApp avant la commande.";
   const paymentPolicy = settings.commercialTermsVerified
-    ? "Le site n'encaisse aucun paiement. Le moyen et le moment du règlement applicables à votre zone sont convenus sur WhatsApp."
-    : "Les modalités de paiement sont à confirmer sur WhatsApp avant la commande.";
+    ? "Le paiement Mobile Money en ligne est disponible depuis un compte client. Pour une commande WhatsApp, le moyen et le moment du règlement sont convenus avec vous avant validation."
+    : "Le paiement Mobile Money est disponible depuis un compte client. Les autres modalités sont à confirmer sur WhatsApp avant la commande.";
 
   function handleIncQty() {
     if (qty >= max) {
@@ -147,7 +147,9 @@ export function ProductDetail({ product, settings }: { product: Product; setting
         <h1 className="pd-title">{product.name}</h1>
         <p className="pd-meta">
           <Icon name={product.sport === "football" ? "soccer" : "storefront"} size="sm" />
-          {[product.leagueLabel || product.sportLabel, product.kit, `Saison ${product.season}`].filter(Boolean).join(" · ")}
+          {[product.leagueLabel || product.sportLabel, product.kit, product.season ? `Saison ${product.season}` : null]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         <div className="pd-price">
           <span className="price-now">{FCFA(product.price)}</span>

@@ -20,7 +20,7 @@ import type { Product } from "@/lib/types";
 export const metadata: Metadata = {
   title: "IKIGAI Sport",
   description:
-    "IKIGAI Sport — la boutique de référence pour tes équipements sportifs au Cameroun. Maillots, judogi, sneakers et bien d'autres univers, chacun dans sa propre boutique.",
+    "IKIGAI Sport réunit au Cameroun plusieurs univers sportifs : maillots, judogi, équipements de combat, basketball et sneakers.",
 };
 
 // Portail — page vitrine, pas de catalogue à ce niveau (voir le plan "portail
@@ -58,11 +58,11 @@ export default async function PortalPage() {
   // existants), jamais de texte marketing inventé.
   const slides: PortalHeroSlide[] = [
     {
-      eyebrow: "La boutique de référence au Cameroun",
-      title: "Un système, plusieurs univers.",
+      eyebrow: "Votre boutique multisport au Cameroun",
+      title: "Un seul espace, plusieurs univers.",
       // "univers", pas "sport" : Sneakers y figure aussi, et ce n'en est pas un
       // (retour client du 06/09/2026 — voir aussi PortalFooter/Footer).
-      lead: `${settings.businessName} regroupe des boutiques dédiées à chaque univers. Choisis le tien pour accéder à sa boutique complète.`,
+      lead: `${settings.businessName} regroupe des boutiques dédiées à chaque univers. Choisissez le vôtre pour accéder à son catalogue.`,
       ctaLabel: "Choisir un univers",
       ctaHref: "#sports",
       color: "var(--hero-bg)",
@@ -71,9 +71,9 @@ export default async function PortalPage() {
   ];
   if (football && footballCount > 0) {
     slides.push({
-      eyebrow: "Le plus grand catalogue",
+      eyebrow: "Notre sélection la plus large",
       title: `${footballCount} maillots de football.`,
-      lead: "Ligue 1, Premier League, Liga, Serie A, Bundesliga et équipes nationales — pour chaque championnat et chaque équipe.",
+      lead: "Retrouvez les grands championnats et les équipes disponibles dans notre sélection.",
       ctaLabel: "Voir la boutique Football",
       ctaHref: "/football",
       color: safeColor(football.color),
@@ -82,7 +82,7 @@ export default async function PortalPage() {
   }
   if (recentSports.length > 0 && recentCount > 0) {
     slides.push({
-      eyebrow: "Nouveau",
+      eyebrow: "Nouveautés",
       title: recentSports.map((s) => s.label).join(" & ") + ".",
       lead: `${recentCount} articles au catalogue — les dernières arrivées IKIGAI Sport.`,
       ctaLabel: "Découvrir",
@@ -135,13 +135,12 @@ export default async function PortalPage() {
       gradientColor: spotlightGradients["recent-sports"],
     });
   }
-  // Reels City Sport (accord client confirmé pour la vidéo, voir la
-  // conversation) — aperçus boutique/produits, pas rattachés à un sport
-  // précis : renvoient vers Sneakers, le rayon le plus proche du contenu.
+  // Aperçus boutique/produits, pas rattachés à un sport précis : ils
+  // renvoient vers Sneakers, l'univers le plus proche du contenu.
   spotlight.push(
     {
       key: "reel-boutique-1",
-      title: "Chez City Sport",
+      title: "Dans notre boutique",
       href: "/sneakers",
       image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788538920/le-maillot-ideal/portal/spotlight/boutique-poster.jpg",
       video: "https://res.cloudinary.com/ijazcmgk/video/upload/v1788538834/le-maillot-ideal/portal/spotlight/boutique.mp4",
@@ -175,6 +174,9 @@ export default async function PortalPage() {
   return (
     <>
       <PortalPreloader />
+      <a href="#main" className="skip-link">
+        Aller au contenu principal
+      </a>
       <PortalHeader settings={settings} sports={sports} />
 
       <main id="main">
@@ -187,7 +189,7 @@ export default async function PortalPage() {
             <div className="container">
               <div className="section-head">
                 <div>
-                  <h2>À la une : trois univers, un seul système</h2>
+                  <h2>À la une : découvrez nos univers</h2>
                 </div>
               </div>
             </div>
@@ -209,10 +211,10 @@ export default async function PortalPage() {
                 )}
               </div>
               <div className="about-text">
-                <h3>Qui sommes-nous : derrière chaque commande, une vraie personne</h3>
+                <h3>Qui sommes-nous ?</h3>
                 <p>
-                  {settings.businessName} est géré par Amadou, basé à Douala. Chaque commande passée sur WhatsApp est
-                  suivie personnellement, de la confirmation jusqu&apos;à la livraison — quel que soit le sport.
+                  {settings.businessName} est géré par Amadou, à Douala. Chaque commande est suivie personnellement,
+                  de sa confirmation jusqu&apos;à la livraison, quel que soit l&apos;univers choisi.
                 </p>
                 <div className="about-badges">
                   <span>
@@ -233,8 +235,8 @@ export default async function PortalPage() {
           <div className="container">
             <div className="section-head">
               <div>
-                <h2>Nos univers : choisis ton ikigai</h2>
-                <p>Chaque carte ouvre un site complet : boutique, fiches produit, panier et commande WhatsApp.</p>
+                <h2>Trouvez l&apos;univers qui vous ressemble</h2>
+                <p>Chaque univers possède sa boutique, ses fiches produit et son catalogue dédié.</p>
               </div>
             </div>
             <SportGrid sports={sports} products={products} />
@@ -258,8 +260,8 @@ export default async function PortalPage() {
                   <Icon name="money" size="lg" />
                 </span>
                 <div>
-                  <p className="service-title">Paiement à confirmer</p>
-                  <p>Modalités convenues sur WhatsApp avant la commande</p>
+                  <p className="service-title">Paiement flexible</p>
+                  <p>Mobile Money en ligne ou modalités convenues sur WhatsApp</p>
                 </div>
               </div>
               <div className="service-item">
@@ -276,8 +278,8 @@ export default async function PortalPage() {
                   <Icon name="check-circle" size="lg" />
                 </span>
                 <div>
-                  <p className="service-title">Un site par univers</p>
-                  <p>Une boutique dédiée, propre à chaque univers</p>
+                  <p className="service-title">Une boutique par univers</p>
+                  <p>Un catalogue clair et dédié à chaque pratique</p>
                 </div>
               </div>
             </div>
@@ -293,7 +295,7 @@ export default async function PortalPage() {
                     <Icon name="star" size="sm" />
                     Témoignages
                   </span>
-                  <h2>Retours de clients</h2>
+                  <h2>Avis de nos clients</h2>
                 </div>
               </div>
               <AnimatedTestimonials testimonials={testimonials} />

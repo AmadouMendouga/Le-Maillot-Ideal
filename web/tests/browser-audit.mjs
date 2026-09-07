@@ -33,7 +33,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 // createAdminSessionCookie ci-dessous) — doit déjà exister et porter le
 // custom claim {admin:true} (scripts/create-admin.mjs). Aucun mot de passe
 // n'est nécessaire : on signe un jeton personnalisé côté serveur.
-const TEST_ADMIN_EMAIL = process.env.LMI_TEST_ADMIN_EMAIL || "mboamarkets@gmail.com";
+const TEST_ADMIN_EMAIL = process.env.LMI_TEST_ADMIN_EMAIL;
 
 // Domaines externes légitimes depuis la bascule vers Firebase/Cloudinary
 // (plan §7) — tout le reste doit rester servi par notre propre serveur.
@@ -113,6 +113,9 @@ function killProcessTree(child) {
  * mécanisme que la connexion réelle (app/api/session/route.ts), juste sans
  * passer par le formulaire. */
 async function createAdminSessionCookie() {
+  if (!TEST_ADMIN_EMAIL) {
+    throw new Error("LMI_TEST_ADMIN_EMAIL doit être configurée pour tester l'espace administrateur.");
+  }
   const adminApp = initializeApp(
     {
       credential: cert({
@@ -152,7 +155,14 @@ const browser = await chromium.launch({ headless: true });
 
 try {
   const whatsappColors = new Set();
-  const routes = ["", "boutique", "produits/maillot-domicile-cameroun", "phototheque"];
+  const routes = [
+    "",
+    "football",
+    "football/boutique",
+    "football/produits/maillot-domicile-cameroun",
+    "football/phototheque",
+    "confidentialite",
+  ];
 
   for (const route of routes) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
@@ -194,6 +204,20 @@ try {
 
     if (route === "") {
       check((await page.locator(".skip-link").count()) === 1, "le lien d'évitement est absent de l'accueil");
+      check(await page.locator("#portalDrawer").evaluate((nav) => nav.inert), "le menu du portail fermé reste accessible au clavier");
+      await page.locator(".portal-hamburger").click();
+      check(
+        await page.locator("#portalDrawer").evaluate((nav) => !nav.inert),
+        "le menu du portail ouvert reste inaccessible"
+      );
+      await page.keyboard.press("Escape");
+      check(
+        await page.evaluate(() => document.activeElement === document.querySelector(".portal-hamburger")),
+        "la fermeture du menu du portail ne restaure pas le focus"
+      );
+    }
+
+    if (route === "football") {
       const closedNav = await page
         .locator(".main-nav")
         .evaluate((nav) => ({ hidden: nav.getAttribute("aria-hidden"), inert: nav.inert }));
@@ -210,7 +234,7 @@ try {
       );
     }
 
-    if (route.startsWith("produits/")) {
+    if (route.includes("/produits/")) {
       const beforePath = new URL(page.url()).pathname;
       await page.locator(".skip-link").focus();
       await page.keyboard.press("Enter");
@@ -218,9 +242,11 @@ try {
       check(new URL(page.url()).hash === "#main", "le lien d'évitement ne cible pas le contenu");
     }
 
-    const themeBefore = await page.locator("html").getAttribute("data-theme");
-    await page.locator(".theme-toggle").first().click();
-    check(await page.locator("html").getAttribute("data-theme") !== themeBefore, `/${route} ne change pas de thème`);
+    if (await page.locator(".theme-toggle").count()) {
+      const themeBefore = await page.locator("html").getAttribute("data-theme");
+      await page.locator(".theme-toggle").first().click();
+      check(await page.locator("html").getAttribute("data-theme") !== themeBefore, `/${route} ne change pas de thème`);
+    }
 
     await context.close();
   }
@@ -230,7 +256,7 @@ try {
     `plusieurs couleurs de vert WhatsApp détectées : ${[...whatsappColors].join(", ")}`
   );
 
-  for (const route of ["", "boutique", "produits/maillot-domicile-cameroun"]) {
+  for (const route of ["", "football", "football/boutique", "football/produits/maillot-domicile-cameroun", "confidentialite"]) {
     const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
     const page = await context.newPage();
     const errors = [];
@@ -241,7 +267,9 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
       `/${route} déborde en desktop (1400px)`
     );
-    check(await page.locator(".nav-toggle").isHidden(), `/${route} affiche le bouton du menu mobile en desktop`);
+    if (await page.locator(".nav-toggle").count()) {
+      check(await page.locator(".nav-toggle").isHidden(), `/${route} affiche le bouton du menu mobile en desktop`);
+    }
     await context.close();
   }
 
@@ -251,7 +279,7 @@ try {
   // (avant toute exécution JS) porte déjà le contenu essentiel — SEO et repli
   // en cas de JS lent/bloqué sur réseau mobile.
   {
-    const rawHtml = await fetch(`${base}produits/maillot-domicile-cameroun`).then((r) => r.text());
+    const rawHtml = await fetch(`${base}football/produits/maillot-domicile-cameroun`).then((r) => r.text());
     check(rawHtml.includes('class="pd-title"'), "le HTML brut ne contient pas le nom du produit");
     check(rawHtml.includes('class="price-now"'), "le HTML brut ne contient pas le prix");
     check(/href="https:\/\/wa\.me\//.test(rawHtml), "le HTML brut ne contient pas de lien WhatsApp exploitable");
@@ -264,7 +292,7 @@ try {
   {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto(`${base}produits/maillot-domicile-psg`, { waitUntil: "networkidle" });
+    await page.goto(`${base}football/produits/maillot-domicile-psg`, { waitUntil: "networkidle" });
     const realPriceText = await page.locator(".price-now").first().textContent();
     const realPrice = Number((realPriceText || "").replace(/\D/g, ""));
     check(realPrice > 0, "impossible de lire le prix réel du produit de test (maillot-domicile-psg)");
@@ -318,7 +346,7 @@ try {
     await page.addInitScript(() => localStorage.setItem("lmi_cart_v3", "{"));
     const corruptErrors = [];
     page.on("pageerror", (e) => corruptErrors.push(e.message));
-    await page.goto(`${base}boutique`, { waitUntil: "networkidle" });
+    await page.goto(`${base}football/boutique`, { waitUntil: "networkidle" });
     check(corruptErrors.length === 0, "un panier JSON invalide fait planter la boutique");
     check((await page.locator(".product-card").count()) > 0, "le catalogue ne se rend pas après réparation du panier");
     check(

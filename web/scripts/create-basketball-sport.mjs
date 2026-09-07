@@ -27,7 +27,7 @@ const SPORT = {
   color: "#9a3412",
   logo: "",
   heroBadge: "Boutique Basketball au Cameroun",
-  heroTitle1: "Équipe-toi pour",
+  heroTitle1: "Équipez-vous pour",
   heroTitle2: "le terrain.",
   heroLead:
     "Maillots, chaussures et accessoires — une sélection pour chaque baller. Commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",
