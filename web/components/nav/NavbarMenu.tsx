@@ -158,7 +158,9 @@ export function NavbarMenu({ shellRef, basePath, leagues, products, settings }: 
 
   const menus: MenuDef[] = [
     { id: "boutique", label: "Boutique", renderPanel: boutiquePanel },
-    { id: "championnats", label: "Championnats", renderPanel: leaguePanel },
+    ...(leagues.length > 0
+      ? [{ id: "championnats", label: "Championnats", renderPanel: leaguePanel } satisfies MenuDef]
+      : []),
     { id: "aide", label: "Aide", renderPanel: aidePanel },
   ];
 

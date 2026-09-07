@@ -2194,7 +2194,7 @@ body.portal-drawer-open { overflow: hidden; }
    une photo a des zones claires locales qui peuvent rester sous 4.5:1 même
    scrim appliqué. L'ombre portée assure la lisibilité quel que soit le pixel
    sous le texte, sans assombrir toute la photo. */
-.portal-hero-content h1, .portal-hero-content p {
+.portal-hero-content h1, .portal-hero-content h2, .portal-hero-content p {
   text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 4px 20px rgba(0,0,0,.6);
 }
 /* .btn-primary garde son halo vert (--e8) au survol partout ailleurs sur le
@@ -2203,12 +2203,12 @@ body.portal-drawer-open { overflow: hidden; }
 .portal-hero-content .btn-primary:hover, .portal-hero-content .btn-primary:focus-visible {
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
-.portal-hero-content h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -1.2px; text-transform: uppercase; margin-bottom: .3em; }
+.portal-hero-content h1, .portal-hero-content h2 { font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -1.2px; text-transform: uppercase; margin-bottom: .3em; }
 .portal-hero-content p { font-size: 1rem; opacity: .92; font-weight: 500; max-width: 46ch; margin-bottom: 26px; }
 .portal-hero-reveal { transform: translateY(30px); opacity: 0; }
 .portal-hero-slide.active .portal-hero-reveal { animation: portalHeroReveal 1s ease forwards; }
 .portal-hero-slide.active .hero-badge { animation-delay: .3s; }
-.portal-hero-slide.active h1 { animation-delay: .6s; }
+.portal-hero-slide.active h1, .portal-hero-slide.active h2 { animation-delay: .6s; }
 .portal-hero-slide.active p { animation-delay: .9s; }
 .portal-hero-slide.active .btn { animation-delay: 1.2s; }
 @keyframes portalHeroReveal {

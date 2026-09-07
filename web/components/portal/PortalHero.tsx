@@ -60,7 +60,11 @@ export function PortalHero({ slides }: { slides: PortalHeroSlide[] }) {
             </div>
             <div className="container portal-hero-content">
               <span className="hero-badge portal-hero-reveal">{slide.eyebrow}</span>
-              <h1 className="portal-hero-reveal">{slide.title}</h1>
+              {i === 0 ? (
+                <h1 className="portal-hero-reveal">{slide.title}</h1>
+              ) : (
+                <h2 className="portal-hero-reveal">{slide.title}</h2>
+              )}
               <p className="portal-hero-reveal">{slide.lead}</p>
               <Link href={slide.ctaHref} className="btn btn-primary btn-lg portal-hero-reveal">
                 {slide.ctaLabel}

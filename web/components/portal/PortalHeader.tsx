@@ -34,6 +34,13 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
   const lastScrollRef = useRef(0);
   const topbarRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+
+  function closeDrawer(restoreFocus = true) {
+    setDrawerOpen(false);
+    if (restoreFocus) requestAnimationFrame(() => hamburgerRef.current?.focus());
+  }
 
   useEffect(() => {
     function onScroll() {
@@ -60,11 +67,32 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
   useEffect(() => {
     document.body.classList.toggle("portal-drawer-open", drawerOpen);
     if (!drawerOpen) return;
+    const drawer = drawerRef.current;
+    const raf = requestAnimationFrame(() => drawer?.querySelector<HTMLElement>("button, a[href]")?.focus());
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setDrawerOpen(false);
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDrawer(true);
+        return;
+      }
+      if (e.key !== "Tab" || !drawer) return;
+      const focusable = [...drawer.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]")].filter(
+        (element) => element.getClientRects().length > 0
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", onKey);
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("keydown", onKey);
       document.body.classList.remove("portal-drawer-open");
     };
@@ -98,12 +126,13 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
           <div className="portal-header-actions">
             <ThemeToggle />
             <button
+              ref={hamburgerRef}
               type="button"
               className={"portal-hamburger" + (drawerOpen ? " active" : "")}
               aria-label={drawerOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={drawerOpen}
               aria-controls="portalDrawer"
-              onClick={() => setDrawerOpen((v) => !v)}
+              onClick={() => (drawerOpen ? closeDrawer(true) : setDrawerOpen(true))}
             >
               <span className="line line-1" />
               <span className="line line-2" />
@@ -116,16 +145,17 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
       <div
         className={"portal-overlay" + (drawerOpen ? " open" : "")}
         aria-hidden="true"
-        onClick={() => setDrawerOpen(false)}
+        onClick={() => closeDrawer(true)}
       />
 
       <nav
         id="portalDrawer"
+        ref={drawerRef}
         className={"portal-drawer" + (drawerOpen ? " open" : "")}
         aria-label="Menu du portail"
         inert={!drawerOpen}
       >
-        <button type="button" className="portal-drawer-close" aria-label="Fermer le menu" onClick={() => setDrawerOpen(false)}>
+        <button type="button" className="portal-drawer-close" aria-label="Fermer le menu" onClick={() => closeDrawer(true)}>
           <Icon name="close" />
         </button>
 
@@ -133,7 +163,7 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
         <ul className="portal-drawer-list">
           {sports.map((sport) => (
             <li key={sport.key}>
-              <Link href={`/${sport.key}`} onClick={() => setDrawerOpen(false)}>
+              <Link href={`/${sport.key}`} onClick={() => closeDrawer(false)}>
                 {sport.label}
               </Link>
             </li>
@@ -147,7 +177,7 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
             href={`https://wa.me/${waNumber}`}
             target="_blank"
             rel="noopener"
-            onClick={() => setDrawerOpen(false)}
+            onClick={() => closeDrawer(false)}
           >
             <Icon name="whatsapp" size="sm" />
             Nous contacter sur WhatsApp

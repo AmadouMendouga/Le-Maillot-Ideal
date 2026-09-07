@@ -81,7 +81,7 @@ function makeDb(initial) {
 
 function fixture(extra = {}) {
   const db = makeDb({
-    "customers/client-test": { name: "Client test", phone: "237600000000" },
+    "customers/client-test": { name: "Client test", phone: "12345678" },
     "products/maillot-test": { name: "Maillot test", price: 12000, stock: 10, sizes: ["M", "L"] },
     ...extra,
   });

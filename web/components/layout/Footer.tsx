@@ -26,11 +26,11 @@ export function Footer({
               </span>
               <span>{settings.businessName}</span>
             </Link>
-            <p style={{ marginTop: 12 }}>Une sélection d&apos;articles de sport avec demande de commande sur WhatsApp.</p>
+            <p style={{ marginTop: 12 }}>Des articles sélectionnés pour votre pratique, avec accompagnement jusqu&apos;à la livraison.</p>
             <div className="footer-badges">
               <span>
                 <Icon name="shield" size="sm" />
-                Modalités confirmées avant commande
+                Assistance avant et après commande
               </span>
               <span>
                 <Icon name="location" size="sm" />
@@ -116,7 +116,7 @@ export function Footer({
         </div>
         <div className="footer-bottom">
           <span>
-            © {new Date().getFullYear()} By NARA Team - {settings.businessName}. Tous droits réservés.
+            © {new Date().getFullYear()} {settings.businessName}. Conçu par NARA Team. Tous droits réservés.
           </span>
           <span>Site non affilié aux marques, clubs ou ligues mentionnés.</span>
         </div>

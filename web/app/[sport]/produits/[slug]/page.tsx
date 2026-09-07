@@ -106,7 +106,7 @@ export default async function ProductPage({ params }: PageProps<"/[sport]/produi
       ? relatedByLeague
       : allProducts.filter((p) => p.sport === product.sport && p.slug !== product.slug)
   ).slice(0, 4);
-  const relatedEyebrow = relatedByLeague.length > 0 ? "Dans le même championnat" : "Dans le même sport";
+  const relatedEyebrow = relatedByLeague.length > 0 ? "Dans le même championnat" : "Dans le même univers";
 
   return (
     <main id="main">

@@ -40,7 +40,7 @@ before(async () => {
     await setDoc(doc(db, "sports", "sport-test"), { label: "Football Test" });
     await setDoc(doc(db, "gallery", "photo-test"), { src: "https://res.cloudinary.com/test/x.jpg" });
     await setDoc(doc(db, "testimonials", "avis-test"), { name: "Cliente Test" });
-    await setDoc(doc(db, "settings", "site"), { whatsapp: "237655634265" });
+    await setDoc(doc(db, "settings", "site"), { whatsapp: "12345678" });
   });
 });
 

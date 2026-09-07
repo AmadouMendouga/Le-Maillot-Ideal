@@ -21,7 +21,7 @@ const SPOTLIGHT_CARDS: { key: string; label: string }[] = [
   { key: "football", label: "Football" },
   { key: "arts-martiaux", label: "Arts martiaux" },
   { key: "recent-sports", label: "Basketball & Sneakers" },
-  { key: "reel-boutique-1", label: "Chez City Sport" },
+  { key: "reel-boutique-1", label: "Dans notre boutique" },
   { key: "reel-boutique-2", label: "Nouveautés en boutique" },
   { key: "reel-boutique-3", label: "Zoom sur les tissus" },
 ];
@@ -138,7 +138,7 @@ export function SiteSettingsAdmin({ initialSettings }: { initialSettings: SiteSe
               inputMode="numeric"
               pattern="[1-9][0-9]{7,14}"
               required
-              placeholder="237655634265"
+              placeholder="Ex. 237 6XX XX XX XX"
               onChange={(e) => setField("whatsapp", e.target.value)}
               onBlur={reportInvalid}
             />

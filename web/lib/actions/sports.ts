@@ -47,13 +47,13 @@ export interface SportInput extends SportHeroInput {
 function heroDefaults(label: string): Required<SportHeroInput> {
   return {
     heroBadge: `Boutique ${label} au Cameroun`,
-    heroTitle1: "Équipe-toi pour",
+    heroTitle1: "Équipez-vous pour",
     heroTitle2: `${label}.`,
     heroLead: `Une sélection d'articles ${label} — commande sur WhatsApp, paiement selon les modalités confirmées avec vous.`,
-    statDelay: "48h",
-    statDelayLabel: "Délai moyen",
-    statRating: "—",
-    statRatingLabel: "Note moyenne",
+    statDelay: "Sur WhatsApp",
+    statDelayLabel: "Délai confirmé avant commande",
+    statRating: "Selon le modèle",
+    statRatingLabel: "Tailles à confirmer",
   };
 }
 
