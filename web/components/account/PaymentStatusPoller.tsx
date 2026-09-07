@@ -82,6 +82,20 @@ export function PaymentStatusPoller({
     );
   }
 
+  if (status === "review") {
+    return (
+      <div className="contact-card">
+        <Icon name="info" size="xl" />
+        <h3>Paiement reçu — vérification nécessaire</h3>
+        <p>{reason || "Votre paiement a été reçu, mais la disponibilité doit être vérifiée par notre équipe."}</p>
+        <p className="form-note">Ne recommencez pas le paiement. Nous vous contacterons pour finaliser la commande.</p>
+        <Link href={`/${sport}/compte/commandes`} className="btn btn-primary btn-block" style={{ marginTop: 14 }}>
+          Voir mes commandes
+        </Link>
+      </div>
+    );
+  }
+
   if (status === "failed") {
     return (
       <div className="contact-card">

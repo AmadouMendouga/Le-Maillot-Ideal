@@ -1,45 +1,79 @@
 import "server-only";
+import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
-import type { Order, Product } from "@/lib/types";
+import { decrementQuotedStock, incrementQuotedStock, loadInventoryQuote } from "@/lib/orderInventory";
+import type { Order } from "@/lib/types";
 
-// Séparé de lib/actions/payments.ts ("use server") volontairement : tout
-// export async d'un fichier "use server" devient un point d'entrée appelable
-// directement par un client (Server Action), avec ses propres arguments non
-// validés. applyPaymentResult prend un Order complet et un statut tels
-// quels — elle ne doit être appelable que par du code déjà gardé côté
-// serveur (la signature du webhook, ou la session + le contrôle de
-// propriété de checkPaymentStatusAction), jamais directement depuis le
-// navigateur.
+export type PaymentApplicationResult = "paid" | "failed" | "needs_review" | "ignored";
+
+/** Applique le statut et son effet de stock dans une seule transaction idempotente. */
 export async function applyPaymentResult(
-  order: Order,
+  orderId: string,
   status: "SUCCESSFUL" | "FAILED",
   reason: string | null
-): Promise<void> {
-  const orderRef = adminDb.collection("orders").doc(order.id);
-
-  if (status === "FAILED") {
-    await orderRef.update({ paymentStatus: "failed", paymentFailureReason: reason || "Paiement refusé." });
-    return;
-  }
-
-  await adminDb.runTransaction(async (tx) => {
-    // Toutes les lectures d'abord (règle des transactions Firestore : aucune
-    // écriture avant que toutes les lectures soient faites).
+): Promise<PaymentApplicationResult> {
+  const orderRef = adminDb.collection("orders").doc(orderId);
+  const result = await adminDb.runTransaction(async (tx): Promise<PaymentApplicationResult> => {
     const freshSnap = await tx.get(orderRef);
-    const fresh = freshSnap.data() as Order;
-    if (fresh.paymentStatus === "paid") return; // déjà traité (webhook + vérification manuelle en même temps)
+    if (!freshSnap.exists) return "ignored";
+    const fresh = { id: freshSnap.id, ...(freshSnap.data() as Omit<Order, "id">) };
 
-    const items = fresh.items || [];
-    const productRefs = items.map((item) => adminDb.collection("products").doc(item.slug));
-    const productSnaps = await Promise.all(productRefs.map((ref) => tx.get(ref)));
+    // Un paiement acquis n'est jamais rétrogradé par une notification tardive.
+    if (fresh.paymentStatus === "paid" || fresh.paymentStatus === "review") return "ignored";
 
-    for (let i = 0; i < items.length; i++) {
-      const productSnap = productSnaps[i];
-      if (!productSnap.exists) continue;
-      const stock = (productSnap.data() as Product).stock;
-      tx.update(productRefs[i], { stock: Math.max(0, stock - items[i].qty) });
+    if (status === "FAILED") {
+      if (fresh.paymentStatus === "failed") return "ignored";
+      if (fresh.stockState === "reserved") {
+        const inventory = await loadInventoryQuote(tx, fresh.items || [], {
+          validateSizes: false,
+          enforceStock: false,
+        });
+        if (!inventory.ok) {
+          tx.update(orderRef, {
+            paymentStatus: "failed",
+            paymentFailureReason: reason || "Paiement refusé.",
+            stockState: "needs_review",
+            inventoryIssue: true,
+          });
+          return "needs_review";
+        }
+        incrementQuotedStock(tx, inventory.quote);
+      }
+      tx.update(orderRef, {
+        paymentStatus: "failed",
+        paymentFailureReason: reason || "Paiement refusé.",
+        stockState: fresh.stockState === "reserved" ? "released" : fresh.stockState,
+      });
+      return "failed";
     }
 
-    tx.update(orderRef, { paymentStatus: "paid", paidAt: new Date().toISOString() });
+    if (fresh.stockState !== "reserved") {
+      // Compatibilité avec les anciennes commandes et avec une réussite tardive
+      // après libération : on reprend le stock au plus une fois.
+      const inventory = await loadInventoryQuote(tx, fresh.items || []);
+      if (!inventory.ok) {
+        tx.update(orderRef, {
+          paymentStatus: "review",
+          paidAt: new Date().toISOString(),
+          stockState: "needs_review",
+          inventoryIssue: true,
+          paymentFailureReason: `Paiement reçu, intervention requise : ${inventory.error}`,
+        });
+        return "needs_review";
+      }
+      decrementQuotedStock(tx, inventory.quote);
+    }
+
+    tx.update(orderRef, {
+      paymentStatus: "paid",
+      paidAt: fresh.paidAt || new Date().toISOString(),
+      stockState: "committed",
+      inventoryIssue: false,
+      paymentFailureReason: null,
+    });
+    return "paid";
   });
+
+  if (result !== "ignored") revalidatePath("/", "layout");
+  return result;
 }

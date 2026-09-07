@@ -7,14 +7,16 @@
 // sécurité repose sur le reviewToken (crypto.randomUUID(), 122 bits d'entropie,
 // à usage unique) plutôt que sur une session — jamais sur une vérification côté
 // navigateur (CLAUDE.md §12).
-import { randomUUID } from "node:crypto";
+import { createHash, randomInt, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { verifyAdminSession, verifyCustomerSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
+import { decrementQuotedStock, loadInventoryQuote } from "@/lib/orderInventory";
+import { validateOrderItems } from "@/lib/orderValidation";
 import { signUpload } from "@/lib/cloudinary";
 import { SQUARE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 import type { UploadSignature } from "@/lib/actions/upload";
-import type { LiveLocation, Order, OrderItem, Product, TestimonialSubmission } from "@/lib/types";
+import type { LiveLocation, Order, OrderItem, TestimonialSubmission } from "@/lib/types";
 
 // Champs de paiement par défaut pour une commande qui ne passe pas par
 // CamPay (WhatsApp/admin) — payée à la livraison comme aujourd'hui, hors
@@ -28,61 +30,17 @@ const UNPAID_PAYMENT_FIELDS = {
   paymentFailureReason: null,
 };
 
-// Le bouton « Commander sur WhatsApp » (CartPanel) n'est pas désactivé après
-// coup et le panier n'est pas vidé — un client peut vouloir rouvrir WhatsApp
-// s'il a fermé l'onglet par erreur, donc recliquer. Sans garde, chaque clic
-// recrée une commande ET redécompte le stock pour le même panier (repéré en
-// admin : plusieurs lignes identiques pour le même client, quelques secondes
-// d'écart). Une commande identique (mêmes articles) du même client créée
-// dans cette fenêtre est considérée comme le même clic répété.
-const DUPLICATE_ORDER_WINDOW_MS = 90 * 1000;
-
-function itemsSignature(items: OrderItem[]): string {
-  return items
-    .map((item) => `${item.slug}:${item.size}:${item.qty}`)
-    .sort()
-    .join("|");
-}
-
 // Code à 4 chiffres, montré au client, demandé par le livreur avant de
 // pouvoir clôturer la livraison — confirme qu'il a bien trouvé le bon
 // client, sans caméra ni scan (voir markOrderDeliveredByCourierAction).
 function generateDeliveryCode(): string {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  return String(randomInt(1000, 10000));
 }
 
-// Décompte le stock au moment où la vente est enregistrée (pas à la
-// livraison) : « j'achète les 8 derniers, le stock passe direct en rupture »
-// — sinon un deuxième client pourrait commander le même article pendant que
-// le premier est encore en cours de livraison. Toutes les lectures d'abord,
-// puis toutes les écritures (règle des transactions Firestore, voir
-// lib/paymentHelpers.ts qui suit déjà ce principe pour CamPay).
-async function decrementStockForItems(items: OrderItem[]): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!items.length) return { ok: true };
+class OrderInputError extends Error {}
 
-  try {
-    await adminDb.runTransaction(async (tx) => {
-      const refs = items.map((item) => adminDb.collection("products").doc(item.slug));
-      const snaps = await Promise.all(refs.map((ref) => tx.get(ref)));
-
-      for (let i = 0; i < items.length; i++) {
-        const snap = snaps[i];
-        if (!snap.exists) throw new Error(`Article introuvable : ${items[i].slug}.`);
-        const product = snap.data() as Product;
-        if (product.stock < items[i].qty) {
-          throw new Error(`Stock insuffisant pour ${product.name} (${product.stock} restant(s)).`);
-        }
-      }
-      for (let i = 0; i < items.length; i++) {
-        const product = snaps[i].data() as Product;
-        tx.update(refs[i], { stock: product.stock - items[i].qty });
-      }
-    });
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Stock insuffisant." };
-  }
-
-  return { ok: true };
+function customerOrderDocumentId(uid: string, requestId: string): string {
+  return `whatsapp-${createHash("sha256").update(`${uid}:${requestId}`).digest("hex").slice(0, 40)}`;
 }
 
 async function findOrderByToken(
@@ -126,7 +84,13 @@ async function findOrderByEitherLocationToken(
   const byCustomer = await findOrderByToken(token, "locationToken");
   if (byCustomer) return { order: byCustomer, role: "customer" };
   const byCourier = await findOrderByToken(token, "courierLocationToken");
-  if (byCourier) return { order: byCourier, role: "courier" };
+  if (byCourier) {
+    if (byCourier.assignedCourierId) {
+      const courier = await adminDb.collection("couriers").doc(byCourier.assignedCourierId).get();
+      if (!courier.exists || courier.data()?.active !== true) return null;
+    }
+    return { order: byCourier, role: "courier" };
+  }
   return null;
 }
 
@@ -148,28 +112,23 @@ export async function createOrderAction(
   const customerName = input.customerName.trim();
   const customerPhone = input.customerPhone.replace(/\D/g, "");
   const orderSummary = input.orderSummary.trim();
-  const items = (input.items || []).filter((item) => item.slug && item.qty > 0);
+  const rawItems = input.items || [];
+  const validated = rawItems.length ? validateOrderItems(rawItems) : { ok: true as const, items: [] as OrderItem[] };
 
   if (!customerName) return { ok: false, error: "Le nom du client est obligatoire." };
   if (customerPhone.length < 8 || customerPhone.length > 15) {
     return { ok: false, error: "Le numéro WhatsApp doit contenir 8 à 15 chiffres." };
   }
   if (!orderSummary) return { ok: false, error: "Décrivez le contenu de la commande." };
+  if (!validated.ok) return validated;
+  const items = validated.items;
 
-  // Facultatif : sans articles renseignés, la commande est enregistrée comme
-  // avant (juste un résumé libre), sans toucher au stock — on ne décompte
-  // que ce qu'on sait précisément avoir vendu.
-  if (items.length) {
-    const stockResult = await decrementStockForItems(items);
-    if (!stockResult.ok) return stockResult;
-  }
-
-  const ref = await adminDb.collection("orders").add({
+  const ref = adminDb.collection("orders").doc();
+  const baseOrder = {
     customerName,
     customerPhone,
     orderSummary,
     address: input.address?.trim() || null,
-    ...(items.length ? { items } : {}),
     locationToken: null,
     locationSharing: false,
     liveLocation: null,
@@ -184,7 +143,22 @@ export async function createOrderAction(
     reviewSubmitted: false,
     uid: null,
     ...UNPAID_PAYMENT_FIELDS,
-  });
+  };
+
+  try {
+    if (items.length) {
+      await adminDb.runTransaction(async (tx) => {
+        const inventory = await loadInventoryQuote(tx, items);
+        if (!inventory.ok) throw new OrderInputError(inventory.error);
+        decrementQuotedStock(tx, inventory.quote);
+        tx.set(ref, { ...baseOrder, items: inventory.quote.items, total: inventory.quote.total });
+      });
+    } else {
+      await ref.set(baseOrder);
+    }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Impossible d'enregistrer la commande." };
+  }
 
   if (items.length) revalidatePath("/", "layout");
 
@@ -212,8 +186,11 @@ export async function updateOrderAddressAction(
 
 export interface CreateCustomerOrderInput {
   items: OrderItem[];
-  orderSummary: string;
-  total: number;
+  /** Stable pour un même clic/réessai : rend création de commande et stock idempotents. */
+  requestId: string;
+  /** Conservés optionnels pour les anciens clients, mais toujours ignorés côté serveur. */
+  orderSummary?: string;
+  total?: number;
 }
 
 // Appelée depuis CartPanel au clic sur « Commander sur WhatsApp », en plus de
@@ -225,51 +202,54 @@ export async function createCustomerOrderAction(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const session = await verifyCustomerSession();
 
-  if (!Array.isArray(input.items) || input.items.length === 0) {
+  if (!input || !Array.isArray(input.items) || input.items.length === 0) {
     return { ok: false, error: "Panier vide." };
+  }
+  const requestId = String(input.requestId || "").trim();
+  if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) {
+    return { ok: false, error: "Identifiant de commande invalide." };
   }
 
   const profileSnap = await adminDb.collection("customers").doc(session.uid).get();
   if (!profileSnap.exists) return { ok: false, error: "Profil introuvable." };
   const profile = profileSnap.data() as { name: string; phone: string };
 
-  const signature = itemsSignature(input.items);
-  const existingSnap = await adminDb.collection("orders").where("uid", "==", session.uid).get();
-  const duplicate = existingSnap.docs.find((d) => {
-    const o = d.data() as Order;
-    return (
-      Array.isArray(o.items) &&
-      itemsSignature(o.items) === signature &&
-      Date.now() - new Date(o.createdAt).getTime() < DUPLICATE_ORDER_WINDOW_MS
-    );
-  });
-  if (duplicate) return { ok: true, id: duplicate.id };
+  const ref = adminDb.collection("orders").doc(customerOrderDocumentId(session.uid, requestId));
+  try {
+    await adminDb.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      if (existing.exists) return;
 
-  const stockResult = await decrementStockForItems(input.items);
-  if (!stockResult.ok) return stockResult;
-
-  const ref = await adminDb.collection("orders").add({
-    customerName: profile.name,
-    customerPhone: profile.phone,
-    orderSummary: input.orderSummary.trim(),
-    address: null,
-    locationToken: null,
-    locationSharing: false,
-    liveLocation: null,
-    courierLocationToken: null,
-    courierLocationSharing: false,
-    courierLiveLocation: null,
-    deliveryCode: generateDeliveryCode(),
-    items: input.items,
-    total: input.total,
-    status: "confirmee",
-    createdAt: new Date().toISOString(),
-    deliveredAt: null,
-    reviewToken: null,
-    reviewSubmitted: false,
-    uid: session.uid,
-    ...UNPAID_PAYMENT_FIELDS,
-  });
+      const inventory = await loadInventoryQuote(tx, input.items);
+      if (!inventory.ok) throw new OrderInputError(inventory.error);
+      decrementQuotedStock(tx, inventory.quote);
+      tx.set(ref, {
+        customerName: profile.name,
+        customerPhone: profile.phone,
+        orderSummary: inventory.quote.summary,
+        address: null,
+        locationToken: null,
+        locationSharing: false,
+        liveLocation: null,
+        courierLocationToken: null,
+        courierLocationSharing: false,
+        courierLiveLocation: null,
+        deliveryCode: generateDeliveryCode(),
+        items: inventory.quote.items,
+        total: inventory.quote.total,
+        checkoutRequestId: requestId,
+        status: "confirmee",
+        createdAt: new Date().toISOString(),
+        deliveredAt: null,
+        reviewToken: null,
+        reviewSubmitted: false,
+        uid: session.uid,
+        ...UNPAID_PAYMENT_FIELDS,
+      });
+    });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Impossible d'enregistrer la commande." };
+  }
 
   revalidatePath("/", "layout");
 
@@ -685,6 +665,6 @@ export async function getSharedLocationViewAction(
     // avis" (le mécanisme d'avis+photo existe déjà, /avis/[token] — seul le
     // moment où on le propose changeait). Jamais avant reviewSubmitted=false
     // ni avant "livree" : reviewToken peut exister mais avoir déjà servi.
-    reviewToken: order.status === "livree" && !order.reviewSubmitted ? order.reviewToken : null,
+    reviewToken: found.role === "customer" && order.status === "livree" && !order.reviewSubmitted ? order.reviewToken : null,
   };
 }

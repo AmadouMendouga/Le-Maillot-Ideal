@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Order } from "@/lib/types";
 
 // Intégration CamPay (mobile money MTN/Orange) — addendum 3 du plan. Doc API
 // consultée directement sur leur Postman documenter (auth par jeton
@@ -47,7 +48,16 @@ export async function campayCollect(input: CampayCollectInput): Promise<CampayCo
   if (!res.ok) {
     throw new Error(await readErrorMessage(res, "CamPay a refusé la demande de paiement."));
   }
-  return res.json();
+  const body = await res.json();
+  if (
+    !body ||
+    typeof body.reference !== "string" || !body.reference ||
+    typeof body.ussd_code !== "string" ||
+    typeof body.operator !== "string"
+  ) {
+    throw new Error("Réponse CamPay invalide lors de l'initialisation du paiement.");
+  }
+  return body as CampayCollectResult;
 }
 
 export interface CampayTransactionStatus {
@@ -58,6 +68,15 @@ export interface CampayTransactionStatus {
   currency: string;
   operator: string;
   reason: string | null;
+}
+
+/** Compare la transaction relue chez CamPay à ce que la commande attend. */
+export function campayTransactionMismatch(order: Order, transaction: CampayTransactionStatus): string | null {
+  if (order.campayReference && transaction.reference !== order.campayReference) return "Référence CamPay incohérente.";
+  if (!order.paymentReference || transaction.external_reference !== order.paymentReference) return "Référence externe incohérente.";
+  if (!Number.isFinite(transaction.amount) || transaction.amount !== order.total) return "Montant CamPay incohérent.";
+  if (transaction.currency !== "XAF") return "Devise CamPay incohérente.";
+  return null;
 }
 
 /** Filet de secours si le webhook tarde — voir checkPaymentStatusAction. */
@@ -84,6 +103,17 @@ export function verifyCampayWebhookSignature(token: string, secret: string): boo
   const parts = token.split(".");
   if (parts.length !== 3) return false;
   const [headerB64, payloadB64, signatureB64] = parts;
+
+  try {
+    const header = JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8")) as { alg?: string };
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8")) as { exp?: number; nbf?: number };
+    const now = Math.floor(Date.now() / 1000);
+    if (header.alg !== "HS256") return false;
+    if (typeof payload.exp === "number" && payload.exp < now) return false;
+    if (typeof payload.nbf === "number" && payload.nbf > now + 60) return false;
+  } catch {
+    return false;
+  }
 
   const expected = base64url(createHmac("sha256", secret).update(`${headerB64}.${payloadB64}`).digest());
   const provided = Buffer.from(signatureB64);

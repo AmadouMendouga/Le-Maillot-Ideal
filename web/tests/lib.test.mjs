@@ -26,6 +26,7 @@ import {
   syncDeliveryThreshold,
   productPatchError,
 } from "../lib/validation.ts";
+import { aggregateItemQuantities, quoteOrderItems, validateOrderItems } from "../lib/orderValidation.ts";
 
 function sampleProduct(overrides = {}) {
   return {
@@ -366,4 +367,60 @@ test("productPatchError rejette l'absence de taille", () => {
 
 test("productPatchError accepte un produit correct", () => {
   assert.equal(productPatchError(samplePatch()), null);
+});
+
+// --- validation serveur des commandes --------------------------------------
+
+test("validateOrderItems refuse les quantités négatives, fractionnaires et trop élevées", () => {
+  for (const qty of [-1, 0, 1.5, 100, "2"]) {
+    assert.equal(validateOrderItems([{ slug: "maillot-domicile-test", size: "M", qty }]).ok, false);
+  }
+});
+
+test("validateOrderItems refuse une taille vide et un slug non canonique", () => {
+  assert.equal(validateOrderItems([{ slug: "../orders", size: "M", qty: 1 }]).ok, false);
+  assert.equal(validateOrderItems([{ slug: "maillot-domicile-test", size: "", qty: 1 }]).ok, false);
+});
+
+test("validateOrderItems fusionne les lignes identiques sans garder de champs injectés", () => {
+  const result = validateOrderItems([
+    { slug: "maillot-domicile-test", size: "M", qty: 1, price: 1 },
+    { slug: "maillot-domicile-test", size: "M", qty: 2 },
+  ]);
+  assert.deepEqual(result, { ok: true, items: [{ slug: "maillot-domicile-test", size: "M", qty: 3 }] });
+});
+
+test("aggregateItemQuantities cumule toutes les tailles du même produit", () => {
+  const quantities = aggregateItemQuantities([
+    { slug: "maillot-domicile-test", size: "M", qty: 2 },
+    { slug: "maillot-domicile-test", size: "L", qty: 3 },
+  ]);
+  assert.equal(quantities.get("maillot-domicile-test"), 5);
+});
+
+test("quoteOrderItems recalcule le total et le résumé depuis le catalogue", () => {
+  const product = sampleProduct({ price: 12000, stock: 10 });
+  const result = quoteOrderItems([{ slug: product.slug, size: "M", qty: 2 }], new Map([[product.slug, product]]));
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.quote.total, 24000);
+    assert.equal(result.quote.summary, "2x Maillot Domicile Test (M)");
+  }
+});
+
+test("quoteOrderItems refuse une taille absente du produit", () => {
+  const product = sampleProduct();
+  assert.equal(quoteOrderItems([{ slug: product.slug, size: "XXL", qty: 1 }], new Map([[product.slug, product]])).ok, false);
+});
+
+test("quoteOrderItems contrôle le stock cumulé entre plusieurs tailles", () => {
+  const product = sampleProduct({ stock: 4 });
+  const result = quoteOrderItems(
+    [
+      { slug: product.slug, size: "M", qty: 2 },
+      { slug: product.slug, size: "L", qty: 3 },
+    ],
+    new Map([[product.slug, product]])
+  );
+  assert.equal(result.ok, false);
 });

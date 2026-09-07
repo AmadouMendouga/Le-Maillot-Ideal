@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { adminDb } from "@/lib/firebase/admin";
+import { verifyAdminSession, verifyCustomerSession } from "@/lib/auth/dal";
 import type { Order, TestimonialSubmission } from "@/lib/types";
 
 // Contrairement à lib/data/products.ts et consorts, ces lectures passent par
@@ -8,11 +9,13 @@ import type { Order, TestimonialSubmission } from "@/lib/types";
 // en lecture côté client (voir firestore.rules), donc seul un Server Component
 // déjà protégé par requireAdminOrRedirect() peut les charger.
 export const getAllOrders = cache(async (): Promise<Order[]> => {
+  await verifyAdminSession();
   const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, "id">) }));
 });
 
 export const getPendingTestimonialSubmissions = cache(async (): Promise<TestimonialSubmission[]> => {
+  await verifyAdminSession();
   const snap = await adminDb.collection("testimonialSubmissions").orderBy("submittedAt", "desc").get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TestimonialSubmission, "id">) }));
 });
@@ -24,6 +27,8 @@ export const getPendingTestimonialSubmissions = cache(async (): Promise<Testimon
 // index composite à déployer (même friction que firestore.rules) — inutile
 // vu le volume par client.
 export const getOrdersForCustomer = cache(async (uid: string): Promise<Order[]> => {
+  const session = await verifyCustomerSession();
+  if (session.uid !== uid) return [];
   const snap = await adminDb.collection("orders").where("uid", "==", uid).get();
   return snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, "id">) }))
@@ -34,6 +39,8 @@ export const getOrdersForCustomer = cache(async (uid: string): Promise<Order[]> 
 // correspondre au client connecté — sinon on renvoie null plutôt que la
 // commande d'un tiers, même si l'id est deviné.
 export const getOrderById = cache(async (id: string, ownerUid: string): Promise<Order | null> => {
+  const session = await verifyCustomerSession();
+  if (session.uid !== ownerUid) return null;
   const snap = await adminDb.collection("orders").doc(id).get();
   if (!snap.exists) return null;
   const order = { id: snap.id, ...(snap.data() as Omit<Order, "id">) };

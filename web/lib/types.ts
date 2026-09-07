@@ -110,7 +110,8 @@ export interface Courier {
 }
 
 export type OrderStatus = "confirmee" | "livree";
-export type PaymentStatus = "unpaid" | "pending" | "paid" | "failed";
+export type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "review";
+export type OrderStockState = "reserved" | "committed" | "released" | "needs_review";
 
 export interface OrderItem {
   slug: string;
@@ -156,6 +157,11 @@ export interface Order {
   ussdCode: string | null;
   paidAt: string | null;
   paymentFailureReason: string | null;
+  /** Cycle du stock CamPay. Absent sur les commandes antérieures à cette protection. */
+  stockState?: OrderStockState;
+  inventoryIssue?: boolean;
+  paymentInitiationStartedAt?: string | null;
+  paymentOperator?: string | null;
 }
 
 export interface Customer {

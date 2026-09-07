@@ -1,5 +1,5 @@
 import { adminDb } from "@/lib/firebase/admin";
-import { verifyCampayWebhookSignature } from "@/lib/campay";
+import { campayGetTransaction, campayTransactionMismatch, verifyCampayWebhookSignature } from "@/lib/campay";
 import { applyPaymentResult } from "@/lib/paymentHelpers";
 import type { Order } from "@/lib/types";
 
@@ -11,35 +11,53 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   if (!body) return Response.json({ ok: false }, { status: 400 });
 
-  const { status, external_reference, reason, endpoint, signature } = body as {
-    status?: string;
+  const { external_reference, endpoint, signature, reference } = body as {
     external_reference?: string;
-    reason?: string | null;
     endpoint?: string;
     signature?: string;
+    reference?: string;
   };
 
-  if (!verifyCampayWebhookSignature(signature || "", process.env.CAMPAY_WEBHOOK_KEY || "")) {
+  if (typeof signature !== "string" || signature.length > 8192 || !verifyCampayWebhookSignature(signature, process.env.CAMPAY_WEBHOOK_KEY || "")) {
     return Response.json({ ok: false, error: "Signature invalide." }, { status: 401 });
   }
 
   // On ne traite que les paiements (collect) ; les retraits (withdraw)
   // n'existent pas dans ce flux.
-  if (endpoint !== "collect" || !external_reference) {
+  if (endpoint !== "collect") {
     return Response.json({ ok: true });
   }
-  if (status !== "SUCCESSFUL" && status !== "FAILED") {
-    return Response.json({ ok: true });
+  if (typeof external_reference !== "string" || !external_reference.trim() || external_reference.length > 200) {
+    return Response.json({ ok: false, error: "Référence externe invalide." }, { status: 400 });
   }
-
-  const snap = await adminDb.collection("orders").where("paymentReference", "==", external_reference).limit(1).get();
+  const snap = await adminDb.collection("orders").where("paymentReference", "==", external_reference.trim()).limit(1).get();
   if (snap.empty) {
     return Response.json({ ok: true });
   }
 
   const doc = snap.docs[0];
   const order: Order = { id: doc.id, ...(doc.data() as Omit<Order, "id">) };
-  await applyPaymentResult(order, status, reason ?? null);
+  const providerReference = order.campayReference || (typeof reference === "string" ? reference.trim() : "");
+  if (!providerReference) {
+    return Response.json({ ok: false, error: "Transaction pas encore rattachée." }, { status: 409 });
+  }
+
+  // Le corps du webhook n'est qu'un signal : le statut qui fait autorité est
+  // relu auprès de CamPay et réconcilié avec la commande avant toute mutation.
+  let transaction;
+  try {
+    transaction = await campayGetTransaction(providerReference);
+  } catch {
+    return Response.json({ ok: false, error: "Vérification CamPay temporairement indisponible." }, { status: 503 });
+  }
+  const mismatch = campayTransactionMismatch(order, transaction);
+  if (mismatch) return Response.json({ ok: false, error: mismatch }, { status: 409 });
+  if (!order.campayReference) {
+    await doc.ref.update({ campayReference: transaction.reference });
+  }
+  if (transaction.status === "SUCCESSFUL" || transaction.status === "FAILED") {
+    await applyPaymentResult(order.id, transaction.status, transaction.reason);
+  }
 
   return Response.json({ ok: true });
 }

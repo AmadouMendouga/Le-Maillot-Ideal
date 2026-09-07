@@ -20,6 +20,19 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
   const { sport } = useParams<{ sport: string }>();
   const { details, count, total, isPanelOpen, whatsappLink, removeFromCart, changeQty, closePanel } = useCart();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const checkoutKeysRef = useRef<{ signature: string; whatsapp: string; campay: string } | null>(null);
+
+  function checkoutRequestId(channel: "whatsapp" | "campay"): string {
+    const signature = JSON.stringify(details.map((d) => [d.slug, d.size, d.qty]));
+    if (!checkoutKeysRef.current || checkoutKeysRef.current.signature !== signature) {
+      checkoutKeysRef.current = {
+        signature,
+        whatsapp: crypto.randomUUID(),
+        campay: crypto.randomUUID(),
+      };
+    }
+    return checkoutKeysRef.current[channel];
+  }
 
   // Réactif (pas juste auth.currentUser au clic) : au premier rendu, le SDK
   // Firebase n'a pas encore restauré la session, on ne peut savoir si un
@@ -33,11 +46,9 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
   async function recordCustomerOrder() {
     if (!auth.currentUser) return;
     try {
-      const orderSummary = details.map((d) => `${d.qty}x ${d.product.name} (${d.size})`).join(", ");
       await createCustomerOrderAction({
         items: details.map((d) => ({ slug: d.slug, size: d.size, qty: d.qty })),
-        orderSummary,
-        total,
+        requestId: checkoutRequestId("whatsapp"),
       });
     } catch {
       // silencieux — voir le commentaire ci-dessus
@@ -51,8 +62,10 @@ export function CartPanel({ settings }: { settings: SiteSettings }) {
   async function handlePayOnline() {
     const result = await initiateCampayPaymentAction({
       items: details.map((d) => ({ slug: d.slug, size: d.size, qty: d.qty })),
+      requestId: checkoutRequestId("campay"),
     });
     if (!result.ok) {
+      if (checkoutKeysRef.current) checkoutKeysRef.current.campay = crypto.randomUUID();
       showToast(result.error, "error", true);
       throw new Error(result.error);
     }

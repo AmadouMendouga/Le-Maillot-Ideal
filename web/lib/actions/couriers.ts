@@ -44,7 +44,27 @@ export async function setCourierActiveAction(id: string, active: boolean): Promi
   const ref = adminDb.collection("couriers").doc(id);
   const snap = await ref.get();
   if (!snap.exists) return { ok: false, error: "Livreur introuvable." };
-  await ref.update({ active });
+  if (active) {
+    await ref.update({ active: true });
+    return { ok: true };
+  }
+
+  // Désactivation et révocation des livraisons en cours dans un même batch.
+  const assigned = await adminDb.collection("orders").where("assignedCourierId", "==", id).get();
+  const batch = adminDb.batch();
+  batch.update(ref, { active: false });
+  assigned.docs.forEach((orderDoc) => {
+    const order = orderDoc.data() as Order;
+    if (order.status === "confirmee") {
+      batch.update(orderDoc.ref, {
+        assignedCourierId: null,
+        courierLocationToken: null,
+        courierLocationSharing: false,
+        courierLiveLocation: null,
+      });
+    }
+  });
+  await batch.commit();
   return { ok: true };
 }
 
@@ -64,13 +84,27 @@ export async function assignCourierToOrderAction(
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
 
   if (!courierId) {
-    await ref.update({ assignedCourierId: null });
+    await ref.update({
+      assignedCourierId: null,
+      courierLocationToken: null,
+      courierLocationSharing: false,
+      courierLiveLocation: null,
+    });
     return { ok: true };
   }
 
-  const order = snap.data() as Order;
-  const token = order.courierLocationToken || randomUUID();
-  await ref.update({ assignedCourierId: courierId, courierLocationToken: token });
+  const courierSnap = await adminDb.collection("couriers").doc(courierId).get();
+  if (!courierSnap.exists || (courierSnap.data() as Courier).active !== true) {
+    return { ok: false, error: "Ce livreur n'est pas actif." };
+  }
+
+  // Toute affectation produit une nouvelle capacité et révoque les anciens liens.
+  await ref.update({
+    assignedCourierId: courierId,
+    courierLocationToken: randomUUID(),
+    courierLocationSharing: false,
+    courierLiveLocation: null,
+  });
   revalidatePath("/", "layout");
   return { ok: true };
 }

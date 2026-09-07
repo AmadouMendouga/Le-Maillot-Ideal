@@ -913,6 +913,15 @@ export function OrdersAdmin({
                   </td>
                   <td>
                     <div className="sub">{order.orderSummary}</div>
+                    {order.paymentStatus === "review" || order.inventoryIssue ? (
+                      <div className="adm-warn" style={{ marginTop: 8 }}>
+                        <Icon name="error" size="sm" />
+                        <div>
+                          <strong>Paiement reçu — stock à vérifier</strong>
+                          {order.paymentFailureReason ? <div>{order.paymentFailureReason}</div> : null}
+                        </div>
+                      </div>
+                    ) : null}
                   </td>
                   <td>
                     <AddressCell order={order} />
