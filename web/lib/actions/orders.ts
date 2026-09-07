@@ -13,6 +13,7 @@ import { verifyAdminSession, verifyCustomerSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import { decrementQuotedStock, loadInventoryQuote } from "@/lib/orderInventory";
 import { validateOrderItems } from "@/lib/orderValidation";
+import { hasUsableAccuracy, MAX_TRACK_POINTS, shouldAppendTrackPoint } from "@/lib/location";
 import { signUpload } from "@/lib/cloudinary";
 import { SQUARE_TRANSFORMATION } from "@/lib/cloudinaryTransforms";
 import type { UploadSignature } from "@/lib/actions/upload";
@@ -35,6 +36,10 @@ const UNPAID_PAYMENT_FIELDS = {
 // client, sans caméra ni scan (voir markOrderDeliveredByCourierAction).
 function generateDeliveryCode(): string {
   return String(randomInt(1000, 10000));
+}
+
+function locationHistoryPurgeDueAt(from: Date): string {
+  return new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
 class OrderInputError extends Error {}
@@ -267,14 +272,16 @@ export async function markOrderDeliveredAction(
 
   const order = snap.data() as Order;
   const reviewToken = order.reviewToken || randomUUID();
+  const deliveredAt = order.deliveredAt || new Date().toISOString();
   await ref.update({
     status: "livree",
-    deliveredAt: order.deliveredAt || new Date().toISOString(),
+    deliveredAt,
     reviewToken,
     // La livraison est faite, plus besoin de suivre la position — évite
     // qu'un onglet resté ouvert continue de remonter des positions inutiles.
     locationSharing: false,
     courierLocationSharing: false,
+    locationHistoryPurgeDueAt: locationHistoryPurgeDueAt(new Date(deliveredAt)),
   });
 
   return { ok: true, reviewToken };
@@ -529,20 +536,48 @@ export async function markOrderDeliveredByCourierAction(
   const found = await findOrderByEitherLocationToken(token);
   if (!found) return { ok: false, error: "Lien invalide." };
   if (found.role !== "courier") return { ok: false, error: "Seul le lien du livreur permet de clôturer la livraison." };
-  const { order } = found;
-  if (order.status !== "confirmee") return { ok: false, error: "Cette livraison est déjà clôturée." };
-  if (!order.deliveryCode || String(code || "").trim() !== order.deliveryCode) {
-    return { ok: false, error: "Code incorrect — demandez-le au client." };
-  }
+  const cleanToken = String(token || "").trim();
+  const cleanCode = String(code || "").replace(/\D/g, "").slice(0, 4);
+  const orderRef = adminDb.collection("orders").doc(found.order.id);
+  const outcome = await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(orderRef);
+    if (!snap.exists) return { ok: false as const, error: "Lien invalide." };
+    const order = snap.data() as Order;
+    if (order.courierLocationToken !== cleanToken) return { ok: false as const, error: "Lien invalide." };
+    if (order.status !== "confirmee") return { ok: false as const, error: "Cette livraison est déjà clôturée." };
 
-  const reviewToken = order.reviewToken || randomUUID();
-  await adminDb.collection("orders").doc(order.id).update({
-    status: "livree",
-    deliveredAt: order.deliveredAt || new Date().toISOString(),
-    reviewToken,
-    locationSharing: false,
-    courierLocationSharing: false,
+    const now = new Date();
+    const lockedUntil = order.deliveryCodeLockedUntil ? new Date(order.deliveryCodeLockedUntil) : null;
+    if (lockedUntil && lockedUntil.getTime() > now.getTime()) {
+      return { ok: false as const, error: "Trop de codes incorrects. Réessayez dans quelques minutes." };
+    }
+    if (!order.deliveryCode || cleanCode !== order.deliveryCode) {
+      const attempts = (order.deliveryCodeAttempts || 0) + 1;
+      const lock = attempts >= 5 ? new Date(now.getTime() + 10 * 60 * 1000).toISOString() : null;
+      tx.update(orderRef, {
+        deliveryCodeAttempts: attempts >= 5 ? 0 : attempts,
+        deliveryCodeLockedUntil: lock,
+      });
+      return {
+        ok: false as const,
+        error: lock ? "Trop de codes incorrects. Réessayez dans 10 minutes." : "Code incorrect — demandez-le au client.",
+      };
+    }
+
+    const deliveredAt = order.deliveredAt || now.toISOString();
+    tx.update(orderRef, {
+      status: "livree",
+      deliveredAt,
+      reviewToken: order.reviewToken || randomUUID(),
+      locationSharing: false,
+      courierLocationSharing: false,
+      deliveryCodeAttempts: 0,
+      deliveryCodeLockedUntil: null,
+      locationHistoryPurgeDueAt: locationHistoryPurgeDueAt(new Date(deliveredAt)),
+    });
+    return { ok: true as const };
   });
+  if (!outcome.ok) return outcome;
 
   // Pas de revalidatePath ici (contrairement aux autres actions de ce
   // fichier) : cette action est appelée depuis la page publique du livreur
@@ -557,7 +592,10 @@ export async function markOrderDeliveredByCourierAction(
 export async function updateLiveLocationAction(
   token: string,
   lat: number,
-  lng: number
+  lng: number,
+  accuracy?: number,
+  speed?: number | null,
+  heading?: number | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const found = await findOrderByEitherLocationToken(token);
   if (!found) return { ok: false, error: "Lien invalide." };
@@ -567,14 +605,50 @@ export async function updateLiveLocationAction(
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return { ok: false, error: "Position invalide." };
   }
+  if (!hasUsableAccuracy(accuracy)) {
+    return { ok: false, error: "Signal GPS trop imprécis. Placez-vous si possible près d'une fenêtre ou à l'extérieur." };
+  }
 
   const fields = locationFields(role);
   const at = new Date().toISOString();
   const orderRef = adminDb.collection("orders").doc(order.id);
-  await Promise.all([
-    orderRef.update({ [fields.sharing]: true, [fields.live]: { lat, lng, updatedAt: at } }),
-    orderRef.collection(fields.points).add({ lat, lng, at }),
-  ]);
+  const pointRef = orderRef.collection(fields.points).doc();
+  const cleanToken = String(token || "").trim();
+  const next: LocationPoint = {
+    lat,
+    lng,
+    at,
+    ...(accuracy === undefined ? {} : { accuracy }),
+    speed: typeof speed === "number" && Number.isFinite(speed) && speed >= 0 ? speed : null,
+    heading: typeof heading === "number" && Number.isFinite(heading) && heading >= 0 && heading <= 360 ? heading : null,
+  };
+
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(orderRef);
+    if (!snap.exists) throw new Error("invalid");
+    const currentOrder = snap.data() as Order;
+    if (currentOrder.status !== "confirmee" || currentOrder[fields.token] !== cleanToken) throw new Error("invalid");
+
+    const previousLive = currentOrder[fields.live];
+    if (previousLive && Date.now() - new Date(previousLive.updatedAt).getTime() < 4000) return;
+    const previous = previousLive
+      ? { ...previousLive, at: previousLive.updatedAt }
+      : null;
+    const append = shouldAppendTrackPoint(previous, next);
+    const liveLocation = append || !previousLive
+      ? {
+          lat: next.lat,
+          lng: next.lng,
+          updatedAt: at,
+          ...(next.accuracy === undefined ? {} : { accuracy: next.accuracy }),
+          speed: next.speed,
+          heading: next.heading,
+        }
+      : { ...previousLive, updatedAt: at, accuracy: Math.min(previousLive.accuracy ?? accuracy ?? 100, accuracy ?? 100) };
+
+    tx.update(orderRef, { [fields.sharing]: true, [fields.live]: liveLocation });
+    if (append) tx.set(pointRef, next);
+  });
 
   return { ok: true };
 }
@@ -592,6 +666,9 @@ export interface LocationPoint {
   lat: number;
   lng: number;
   at: string;
+  accuracy?: number;
+  speed?: number | null;
+  heading?: number | null;
 }
 
 export async function getOrderLocationHistoryAction(
@@ -607,11 +684,11 @@ export async function getOrderLocationHistoryAction(
   const orderRef = adminDb.collection("orders").doc(id);
   const [snap, pointsSnap] = await Promise.all([
     orderRef.get(),
-    orderRef.collection(fields.points).orderBy("at", "asc").get(),
+    orderRef.collection(fields.points).orderBy("at", "desc").limit(MAX_TRACK_POINTS).get(),
   ]);
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
   const order = snap.data() as Order;
-  const points = pointsSnap.docs.map((d) => d.data() as LocationPoint);
+  const points = pointsSnap.docs.map((d) => d.data() as LocationPoint).reverse();
 
   return { ok: true, locationSharing: order[fields.sharing], liveLocation: order[fields.live], points };
 }
@@ -637,20 +714,18 @@ export async function getSharedLocationViewAction(
   if (!found) return { ok: false, error: "Lien invalide." };
   const { order } = found;
 
-  const [customerPoints, courierPoints] = await Promise.all([
-    adminDb.collection("orders").doc(order.id).collection("locationPoints").orderBy("at", "asc").get(),
-    adminDb.collection("orders").doc(order.id).collection("courierLocationPoints").orderBy("at", "asc").get(),
-  ]);
-
   return {
     ok: true,
     customer: {
-      points: customerPoints.docs.map((d) => d.data() as LocationPoint),
+      // La carte publique utilise les positions actuelles et l'itinéraire
+      // routier. L'historique reste réservé au tiroir admin : ne pas relire
+      // jusqu'à 400 documents toutes les 6 secondes sur chaque téléphone.
+      points: [],
       current: order.liveLocation,
       sharing: order.locationSharing,
     },
     courier: {
-      points: courierPoints.docs.map((d) => d.data() as LocationPoint),
+      points: [],
       current: order.courierLiveLocation,
       sharing: order.courierLocationSharing,
     },

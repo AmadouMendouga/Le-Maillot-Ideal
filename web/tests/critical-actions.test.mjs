@@ -243,3 +243,21 @@ test("livraison : réaffecter révoque l'ancien jeton et le livreur ne reçoit p
   assert.equal(shared.ok, true);
   assert.equal(shared.reviewToken, null);
 });
+
+test("livraison : cinq codes erronés verrouillent temporairement la confirmation", async () => {
+  const f = fixture({
+    "orders/delivery-code": {
+      status: "confirmee", courierLocationToken: "courier-token", deliveryCode: "1234",
+      deliveryCodeAttempts: 0, reviewToken: null, deliveredAt: null,
+    },
+  });
+  const action = f.load("lib/actions/orders.ts").markOrderDeliveredByCourierAction;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const result = await action("courier-token", "9999");
+    assert.equal(result.ok, false);
+  }
+  const row = f.db.rows.get("orders/delivery-code");
+  assert.ok(row.deliveryCodeLockedUntil);
+  assert.equal((await action("courier-token", "1234")).ok, false);
+  assert.equal(f.db.rows.get("orders/delivery-code").status, "confirmee");
+});

@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { LocationPoint } from "@/lib/actions/orders";
+import { cleanTrackPoints, distanceMeters } from "@/lib/location";
 
 // OpenFreeMap : tuiles vectorielles gratuites, sans clé API, sans limite —
 // contrairement à CARTO (testé : exige désormais une clé, "API KEY REQUIRED"
@@ -33,7 +34,7 @@ function styleUrlForTheme(dark: boolean): string {
 
 export interface DeliveryTrack {
   points: LocationPoint[];
-  current: { lat: number; lng: number } | null;
+  current: { lat: number; lng: number; accuracy?: number } | null;
   sharing: boolean;
 }
 
@@ -94,18 +95,6 @@ async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number;
   }
 }
 
-// Distance approximative en mètres (formule équirectangulaire, largement
-// suffisante à l'échelle d'une ville) — sert seulement à décider si la
-// position a assez bougé pour justifier un nouvel appel à OSRM.
-function approxMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const meanLat = ((a.lat + b.lat) / 2) * (Math.PI / 180);
-  const x = dLng * Math.cos(meanLat);
-  return Math.sqrt(dLat * dLat + x * x) * R;
-}
-
 export function DeliveryMap({
   customer,
   courier,
@@ -129,6 +118,7 @@ export function DeliveryMap({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; minutes: number; arrival: string } | null>(null);
+  const [autoFollow, setAutoFollow] = useState(true);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type Leaflet réel, importé dynamiquement (pas de dépendance de type au niveau module)
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -136,10 +126,12 @@ export function DeliveryMap({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- calque MapLibre réel (binding Leaflet), importé dynamiquement
   const glLayerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- objets Leaflet réels, importés dynamiquement
-  type TrackLayers = { line: any; marker: any | null };
+  type TrackLayers = { line: any; marker: any | null; accuracy: any | null };
   const tracksRef = useRef<{ customer: TrackLayers; courier: TrackLayers } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- polyligne Leaflet réelle
   const routeLineRef = useRef<any>(null);
+  const routeRequestRef = useRef(0);
+  const viewportRef = useRef<Array<{ lat: number; lng: number }>>([]);
   // Évite de rappeler OSRM à chaque sondage (toutes les 6s) si personne n'a
   // vraiment bougé — voir le throttle plus bas.
   const routeStateRef = useRef<{ from: { lat: number; lng: number }; to: { lat: number; lng: number }; fetchedAt: number } | null>(
@@ -181,9 +173,10 @@ export function DeliveryMap({
       // (livreur) dans app/lmi.css : chaque piste garde une seule couleur du
       // marqueur au tracé, pour rester lisible même quand les deux se croisent.
       mapRef.current = map;
+      map.on("dragstart", () => setAutoFollow(false));
       tracksRef.current = {
-        customer: { line: L.polyline([], { color: "#ff6b00", weight: 4, opacity: 0.85 }).addTo(map), marker: null },
-        courier: { line: L.polyline([], { color: "#16a34a", weight: 4, opacity: 0.85 }).addTo(map), marker: null },
+        customer: { line: L.polyline([], { color: "#ff6b00", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
+        courier: { line: L.polyline([], { color: "#16a34a", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
       };
       // Itinéraire routier (OSRM) entre le livreur et le client — but même de
       // la carte : aider à se retrouver, pas juste montrer deux traces
@@ -237,6 +230,7 @@ export function DeliveryMap({
         tracksRef.current = null;
         routeLineRef.current = null;
         routeStateRef.current = null;
+        viewportRef.current = [];
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialisation unique, la mise à jour se fait dans l'effet suivant
@@ -255,7 +249,10 @@ export function DeliveryMap({
       ["courier", courier],
     ] as const) {
       const t = tracks[role];
-      const latLngs = track.points.map((p) => [p.lat, p.lng] as [number, number]);
+      // La vue publique montre la route utile, pas le bruit du GPS brut. Le
+      // trajet nettoyé reste disponible dans le tiroir d'administration.
+      const visiblePoints = fullScreen ? [] : cleanTrackPoints(track.points);
+      const latLngs = visiblePoints.map((p) => [p.lat, p.lng] as [number, number]);
       t.line.setLatLngs(latLngs);
 
       const last = track.current || (track.points.length ? track.points[track.points.length - 1] : null);
@@ -268,6 +265,22 @@ export function DeliveryMap({
       } else {
         t.marker.setLatLng([last.lat, last.lng]);
         t.marker.getElement()?.querySelector(".dlv-marker")?.classList.toggle("idle", !track.sharing);
+      }
+      if (last.accuracy && last.accuracy > 8) {
+        if (!t.accuracy) {
+          t.accuracy = L.circle([last.lat, last.lng], {
+            radius: last.accuracy,
+            color: role === "customer" ? "#ff6b00" : "#16a34a",
+            fillOpacity: 0.08,
+            opacity: 0.3,
+            weight: 1,
+          }).addTo(map);
+        } else {
+          t.accuracy.setLatLng([last.lat, last.lng]).setRadius(last.accuracy);
+        }
+      } else if (t.accuracy) {
+        t.accuracy.remove();
+        t.accuracy = null;
       }
       lasts.push([last.lat, last.lng]);
     }
@@ -282,11 +295,12 @@ export function DeliveryMap({
       const to = customer.current;
       const prev = routeStateRef.current;
       const stale = !prev || Date.now() - prev.fetchedAt > 30000;
-      const moved = !prev || approxMeters(prev.from, from) > 25 || approxMeters(prev.to, to) > 25;
+      const moved = !prev || distanceMeters(prev.from, from) > 25 || distanceMeters(prev.to, to) > 25;
       if (stale && moved) {
         routeStateRef.current = { from, to, fetchedAt: Date.now() };
+        const requestId = ++routeRequestRef.current;
         fetchRoute(from, to).then((result) => {
-          if (!result) return;
+          if (!result || requestId !== routeRequestRef.current) return;
           routeLineRef.current?.setLatLngs(result.coords);
           setRouteStats({
             distanceKm: result.distanceMeters / 1000,
@@ -300,11 +314,12 @@ export function DeliveryMap({
       }
     } else {
       routeLineRef.current?.setLatLngs([]);
+      routeRequestRef.current += 1;
       routeStateRef.current = null;
       setRouteStats(null);
     }
 
-    if (lasts.length) {
+    if (lasts.length && autoFollow) {
       // Passe par les méthodes de LEAFLET (fitBounds/setView), pas par
       // l'API MapLibre (getMaplibreMap().fitBounds/easeTo) : le pont
       // @maplibre/maplibre-gl-leaflet ne synchronise que dans un sens
@@ -316,11 +331,13 @@ export function DeliveryMap({
       // (repéré le 06/09/2026 avec deux positions à ~2km d'écart). Piloter
       // Leaflet laisse le pont faire la synchronisation lui-même, dans le
       // sens pour lequel il est prévu.
-      const allLatLngs: [number, number][] = [
-        ...tracks.customer.line.getLatLngs().map((p: { lat: number; lng: number }) => [p.lat, p.lng] as [number, number]),
-        ...tracks.courier.line.getLatLngs().map((p: { lat: number; lng: number }) => [p.lat, p.lng] as [number, number]),
-        ...lasts,
-      ];
+      const previous = viewportRef.current;
+      const moved = previous.length !== lasts.length || lasts.some((point, index) => {
+        const old = previous[index];
+        return !old || distanceMeters(old, { lat: point[0], lng: point[1] }) > 20;
+      });
+      if (!moved) return;
+      viewportRef.current = lasts.map(([lat, lng]) => ({ lat, lng }));
 
       // Sans animation : un déplacement de caméra animé pendant que MapLibre
       // charge de nouvelles tuiles (vraie position, pas la donnée de test
@@ -329,8 +346,8 @@ export function DeliveryMap({
       // élégant mais fiable. Protégé par try/catch : mieux vaut une carte
       // qui ne recentre pas cette fois qu'une page qui plante.
       try {
-        if (allLatLngs.length > 1) {
-          map.fitBounds(allLatLngs, { padding: [40, 40], animate: false });
+        if (lasts.length > 1) {
+          map.fitBounds(lasts, { padding: [40, 40], animate: false, maxZoom: 16 });
         } else {
           map.setView(lasts[0], Math.max(map.getZoom(), 15), { animate: false });
         }
@@ -338,7 +355,21 @@ export function DeliveryMap({
         // best effort — voir commentaire ci-dessus
       }
     }
-  }, [customer, courier]);
+  }, [customer, courier, fullScreen, autoFollow]);
+
+  function recenter() {
+    const map = mapRef.current;
+    const positions = [customer.current, courier.current].filter(Boolean) as Array<{ lat: number; lng: number }>;
+    if (!map || !positions.length) return;
+    setAutoFollow(true);
+    viewportRef.current = positions;
+    try {
+      if (positions.length > 1) map.fitBounds(positions.map((p) => [p.lat, p.lng]), { padding: [40, 40], animate: false, maxZoom: 16 });
+      else map.setView([positions[0].lat, positions[0].lng], Math.max(map.getZoom(), 15), { animate: false });
+    } catch {
+      // Le suivi reprendra automatiquement à la prochaine mesure.
+    }
+  }
 
   const activeCount = (customer.sharing ? 1 : 0) + (courier.sharing ? 1 : 0);
 
@@ -354,6 +385,11 @@ export function DeliveryMap({
             : { width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }
         }
       />
+      {!autoFollow && (customer.current || courier.current) ? (
+        <button type="button" className="dlv-recenter" onClick={recenter}>
+          Recentrer
+        </button>
+      ) : null}
       {showRouteStats && routeStats ? (
         <div className="dlv-route-stats">
           <div>

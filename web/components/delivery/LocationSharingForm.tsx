@@ -19,6 +19,7 @@ import {
 } from "@/lib/actions/orders";
 import { DeliveryMap } from "@/components/delivery/DeliveryMap";
 import { showToast } from "@/components/Toast";
+import { hasUsableAccuracy, shouldAppendTrackPoint, type GeoSample } from "@/lib/location";
 
 // Le navigateur peut rappeler watchPosition très souvent (chaque seconde en
 // haute précision) — on ne remonte au serveur qu'au maximum toutes les 10s,
@@ -42,10 +43,13 @@ function timeAgo(iso: string): string {
 
 function trackStatusLine(label: string, track: SharedTrack) {
   if (!track.current) return null;
+  const ageSeconds = Math.max(0, Math.round((Date.now() - new Date(track.current.updatedAt).getTime()) / 1000));
   return (
     <p className="sub">
       <strong>{label}</strong> — {track.sharing ? "partage actif" : "partage arrêté"} · dernière position{" "}
       {timeAgo(track.current.updatedAt)}
+      {ageSeconds > 45 && track.sharing ? " · signal interrompu" : ""}
+      {track.current.accuracy ? ` · précision ±${Math.round(track.current.accuracy)} m` : ""}
     </p>
   );
 }
@@ -136,12 +140,17 @@ export function LocationSharingForm({
   const [reviewToken, setReviewToken] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
+  const [scanError, setScanError] = useState("");
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [locationWarning, setLocationWarning] = useState("");
   const [scanning, setScanning] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const lastSentRef = useRef(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanRafRef = useRef<number | null>(null);
+  const lastAcceptedRef = useRef<GeoSample | null>(null);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
 
   function stopScan() {
     if (scanRafRef.current !== null) cancelAnimationFrame(scanRafRef.current);
@@ -152,7 +161,9 @@ export function LocationSharingForm({
   }
 
   async function startScan() {
+    setScanError("");
     try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera-unavailable");
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
       setScanning(true);
@@ -170,19 +181,22 @@ export function LocationSharingForm({
       // Safari/iOS). jsQR fonctionne partout où la caméra fonctionne.
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      const tick = () => {
+      let lastScanAt = 0;
+      const tick = (frameAt: number) => {
         const video = videoRef.current;
-        if (!video || !ctx || video.readyState < 2) {
+        if (!video || !ctx || video.readyState < 2 || frameAt - lastScanAt < 160) {
           scanRafRef.current = requestAnimationFrame(tick);
           return;
         }
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        lastScanAt = frameAt;
+        const scale = Math.min(1, 640 / video.videoWidth);
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const result = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: "dontInvert" });
-        const value = result?.data.replace(/\D/g, "").slice(0, 4) ?? "";
-        if (value.length === 4) {
+        const result = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: "attemptBoth" });
+        const value = result?.data.trim() ?? "";
+        if (/^\d{4}$/.test(value)) {
           stopScan();
           setCodeInput(value);
           markDelivered(value);
@@ -192,13 +206,15 @@ export function LocationSharingForm({
       };
       scanRafRef.current = requestAnimationFrame(tick);
     } catch {
-      showToast("Accès à la caméra refusé ou indisponible — saisissez le code manuellement.", "error", true);
+      stopScan();
+      setScanError("Caméra refusée ou indisponible. Saisissez le code manuellement.");
     }
   }
 
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      wakeLockRef.current?.release().catch(() => {});
       stopScan();
     };
   }, []);
@@ -218,6 +234,8 @@ export function LocationSharingForm({
           navigator.geolocation.clearWatch(watchIdRef.current);
           watchIdRef.current = null;
         }
+        wakeLockRef.current?.release().catch(() => {});
+        wakeLockRef.current = null;
       }
       if (result.reviewToken) setReviewToken(result.reviewToken);
     }
@@ -232,11 +250,34 @@ export function LocationSharingForm({
   function handlePosition(pos: GeolocationPosition) {
     setStatus("sharing");
     const now = Date.now();
+    const accuracy = Math.round(pos.coords.accuracy);
+    setGpsAccuracy(accuracy);
+    if (!hasUsableAccuracy(accuracy)) {
+      setLocationWarning("Signal GPS trop imprécis. Placez-vous près d'une fenêtre ou à l'extérieur.");
+      return;
+    }
     if (now - lastSentRef.current < MIN_INTERVAL_MS) return;
+    const sample: GeoSample = {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      at: new Date(now).toISOString(),
+      accuracy,
+      speed: pos.coords.speed,
+      heading: pos.coords.heading,
+    };
+    const append = shouldAppendTrackPoint(lastAcceptedRef.current, sample);
+    const heartbeat = now - lastSentRef.current >= 60000;
+    if (!append && !heartbeat) return;
     lastSentRef.current = now;
-    updateLiveLocationAction(token, pos.coords.latitude, pos.coords.longitude)
+    updateLiveLocationAction(token, sample.lat, sample.lng, accuracy, sample.speed, sample.heading)
       .then((result) => {
-        if (result.ok) setLastUpdateAt(new Date());
+        if (result.ok) {
+          if (append) lastAcceptedRef.current = sample;
+          setLastUpdateAt(new Date());
+          setLocationWarning("");
+        } else {
+          setLocationWarning(result.error);
+        }
       })
       .catch(() => {
         // silencieux — la prochaine position (dans MIN_INTERVAL_MS) réessaiera
@@ -248,11 +289,14 @@ export function LocationSharingForm({
     else setStatus("unavailable");
   }
 
-  function startSharing() {
+  async function startSharing() {
     if (!("geolocation" in navigator)) {
       setStatus("unsupported");
       return;
     }
+    if (watchIdRef.current !== null) return;
+    const wakeLockNavigator = navigator as Navigator & { wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> } };
+    wakeLockRef.current = await wakeLockNavigator.wakeLock?.request("screen").catch(() => null) ?? null;
     watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
       enableHighAccuracy: true,
       maximumAge: 5000,
@@ -277,6 +321,8 @@ export function LocationSharingForm({
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
+      await wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
       setDelivered(true);
     } catch {
       showToast("Échec de l'enregistrement. Vérifiez votre connexion et réessayez.", "error", true);
@@ -290,6 +336,8 @@ export function LocationSharingForm({
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
+    await wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
     setStatus("stopped");
     try {
       await stopLocationSharingAction(token);
@@ -353,7 +401,9 @@ export function LocationSharingForm({
         </div>
         <p className="form-note">
           {lastUpdateAt ? `Dernière position envoyée à ${lastUpdateAt.toLocaleTimeString("fr-FR")}.` : "Localisation en cours…"}
+          {gpsAccuracy !== null ? ` Précision GPS : ±${gpsAccuracy} m.` : ""}
         </p>
+        {locationWarning ? <p className="form-note" style={{ color: "var(--error)" }}>{locationWarning}</p> : null}
         <button type="button" className="btn btn-tonal btn-lg btn-block" onClick={stopSharing}>
           <Icon name="close" size="sm" />
           Arrêter le partage
@@ -450,6 +500,19 @@ export function LocationSharingForm({
               </a>
             </div>
 
+            {customerTrack.current ? (
+              <a
+                className="btn btn-primary btn-lg btn-block"
+                style={{ marginBottom: 10 }}
+                href={`https://www.google.com/maps/dir/?api=1&destination=${customerTrack.current.lat},${customerTrack.current.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="location" size="sm" />
+                Naviguer vers le client
+              </a>
+            ) : null}
+
             {scanning ? (
               <div className="dlv-scan">
                 <video ref={videoRef} muted playsInline />
@@ -464,6 +527,7 @@ export function LocationSharingForm({
                 Scanner le QR du client
               </button>
             )}
+            {scanError ? <p className="form-note" style={{ color: "var(--error)", marginBottom: 10 }}>{scanError}</p> : null}
 
             <div className="form-row" style={{ marginBottom: 8 }}>
               <label htmlFor="dlvCode">Ou saisir le code (4 chiffres)</label>
