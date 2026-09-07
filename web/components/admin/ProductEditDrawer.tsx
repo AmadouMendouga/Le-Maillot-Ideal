@@ -40,6 +40,7 @@ export function ProductEditDrawer({
   const [team, setTeam] = useState(product?.team ?? "");
   const [sport, setSport] = useState(product?.sport ?? sports[0]?.key ?? "");
   const [kit, setKit] = useState(product?.kit ?? "");
+  const [barcode, setBarcode] = useState(product?.barcode ?? "");
   const [league, setLeague] = useState(product?.league ?? "");
   const [season, setSeason] = useState(product?.season ?? "");
   const [price, setPrice] = useState(product ? String(product.price) : "");
@@ -115,6 +116,7 @@ export function ProductEditDrawer({
       name: name.trim(),
       team: team.trim(),
       kit: kit.trim() || undefined,
+      barcode: barcode.trim() || undefined,
       price: Number(price),
       priceOriginal: Number(priceOriginal),
       stock: Number(stock),
@@ -361,9 +363,19 @@ export function ProductEditDrawer({
               : "Aucune remise affichée (le prix barré doit être supérieur au prix de vente)."}
           </p>
 
-          <div className="adm-field">
-            <label>Saison</label>
-            <input value={season} onChange={(e) => setSeason(e.target.value)} />
+          <div className="adm-grid2">
+            <div className="adm-field">
+              <label>Saison</label>
+              <input value={season} onChange={(e) => setSeason(e.target.value)} />
+            </div>
+            <div className="adm-field">
+              <label>Code-barres (optionnel)</label>
+              <input
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                placeholder="Votre propre code, ex. celui de votre app de caisse"
+              />
+            </div>
           </div>
           <div className="adm-field">
             <label>Description</label>

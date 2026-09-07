@@ -35,6 +35,7 @@ export function ProductCreateDrawer({
   const [team, setTeam] = useState("");
   const [sport, setSport] = useState(sports[0]?.key ?? "");
   const [kit, setKit] = useState<string>(sports[0]?.key === FOOTBALL_SPORT_KEY ? KITS[0] : "");
+  const [barcode, setBarcode] = useState("");
   const [league, setLeague] = useState("");
   const [season, setSeason] = useState("2026/2027");
   const [price, setPrice] = useState("");
@@ -90,6 +91,7 @@ export function ProductCreateDrawer({
       name: name.trim(),
       team: team.trim(),
       kit: kit.trim() || undefined,
+      barcode: barcode.trim() || undefined,
       price: Number(price),
       priceOriginal: Number(priceOriginal),
       stock: Number(stock),
@@ -258,9 +260,19 @@ export function ProductCreateDrawer({
           : "Aucune remise affichée (le prix barré doit être supérieur au prix de vente)."}
       </p>
 
-      <div className="adm-field">
-        <label>Saison</label>
-        <input value={season} onChange={(e) => setSeason(e.target.value)} />
+      <div className="adm-grid2">
+        <div className="adm-field">
+          <label>Saison</label>
+          <input value={season} onChange={(e) => setSeason(e.target.value)} />
+        </div>
+        <div className="adm-field">
+          <label>Code-barres (optionnel)</label>
+          <input
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            placeholder="Votre propre code, ex. celui de votre app de caisse"
+          />
+        </div>
       </div>
       <div className="adm-field">
         <label>Description</label>

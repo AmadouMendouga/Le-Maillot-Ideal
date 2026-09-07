@@ -18,6 +18,12 @@ export interface Product {
   team: string;
   /** Libre depuis IKIGAI Sport (ex-union stricte "Domicile"|"Extérieur"|"Third") — non validé au runtime, voir productPatchError. */
   kit?: string;
+  /** Code que l'admin choisit lui-même — pas généré par le site — pour retrouver
+   * un produit en tapant/scannant ce code dans la recherche de l'admin. Même
+   * principe qu'un code-barres d'inventaire (voir flutter_billing_app, l'app
+   * de caisse du client, qui utilise le même genre de code pour ses propres
+   * articles) : aucun format imposé, l'admin garde le sien s'il en a déjà un. */
+  barcode?: string;
   sport: string;
   sportLabel: string;
   /** Optionnel : seuls les produits rattachés à un championnat (football aujourd'hui) en ont un. */

@@ -71,7 +71,11 @@ export function ProductsAdmin({
       if (filters.league && p.league !== filters.league) return false;
       if (filters.q) {
         const q = filters.q.toLowerCase();
-        if (!p.name.toLowerCase().includes(q) && !p.team.toLowerCase().includes(q)) return false;
+        // Le même champ sert aussi à la recherche par code-barres : un lecteur
+        // de code-barres USB se comporte comme un clavier, taper/scanner un
+        // code ici retrouve directement le produit, sans champ dédié.
+        const matchesBarcode = !!p.barcode && p.barcode.toLowerCase() === q;
+        if (!matchesBarcode && !p.name.toLowerCase().includes(q) && !p.team.toLowerCase().includes(q)) return false;
       }
       if (filters.status === "out" && p.stock !== 0) return false;
       if (filters.status === "low" && !(p.stock > 0 && p.stock <= 5)) return false;
@@ -111,8 +115,8 @@ export function ProductsAdmin({
           <input
             type="search"
             className="search-input"
-            aria-label="Rechercher un maillot"
-            placeholder="Rechercher une équipe, un maillot…"
+            aria-label="Rechercher un maillot ou scanner un code-barres"
+            placeholder="Équipe, maillot, ou scannez un code-barres…"
             style={{ width: "100%" }}
             value={filters.q}
             onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}

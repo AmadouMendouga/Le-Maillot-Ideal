@@ -81,6 +81,7 @@ export interface ProductPatch {
   name: string;
   team: string;
   kit: Product["kit"];
+  barcode: Product["barcode"];
   price: number;
   priceOriginal: number;
   stock: number;
