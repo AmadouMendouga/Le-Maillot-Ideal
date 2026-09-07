@@ -51,6 +51,23 @@ function trackStatusLine(label: string, track: SharedTrack) {
 
 const EMPTY_TRACK: SharedTrack = { points: [], current: null, sharing: false };
 
+// API native de détection de codes (Shape Detection API) — pas dans le lib
+// DOM par défaut de TypeScript, et pas supportée partout (absente de Safari/
+// iOS notamment) : détectée à l'exécution (`"BarcodeDetector" in window`),
+// avec repli systématique sur la saisie manuelle déjà en place — jamais un
+// prérequis, juste un raccourci quand disponible.
+interface DetectedBarcode {
+  rawValue: string;
+}
+interface BarcodeDetectorLike {
+  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>;
+}
+declare global {
+  interface Window {
+    BarcodeDetector?: new (options: { formats: string[] }) => BarcodeDetectorLike;
+  }
+}
+
 const STEPS = ["Confirmée", "En route", "Livrée"] as const;
 
 // Repère visuel de progression (retour client du 06/09/2026, inspiré des
@@ -113,6 +130,7 @@ export function LocationSharingForm({
   role,
   delivery,
   deliveryCode,
+  deliveryCodeQr,
 }: {
   token: string;
   customerName: string;
@@ -123,6 +141,8 @@ export function LocationSharingForm({
   delivery?: CourierDeliveryDetails;
   /** Code à 4 chiffres, présent uniquement côté client — à donner au livreur pour qu'il clôture la livraison. */
   deliveryCode?: string;
+  /** QR encodant deliveryCode (data URL, généré côté serveur — voir lib/qr.ts), présent uniquement côté client. */
+  deliveryCodeQr?: string;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
@@ -132,12 +152,67 @@ export function LocationSharingForm({
   const [reviewToken, setReviewToken] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
+  const [scanning, setScanning] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const lastSentRef = useRef(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanRafRef = useRef<number | null>(null);
+
+  function stopScan() {
+    if (scanRafRef.current !== null) cancelAnimationFrame(scanRafRef.current);
+    scanRafRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setScanning(false);
+  }
+
+  async function startScan() {
+    if (!window.BarcodeDetector) {
+      showToast("Scan non pris en charge sur cet appareil — saisissez le code manuellement.", "error", true);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      setScanning(true);
+      // <video> n'existe qu'une fois scanning=true (rendu conditionnel) —
+      // le flux ne peut s'y attacher qu'après ce rendu.
+      requestAnimationFrame(() => {
+        if (!videoRef.current) return;
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      });
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      const tick = async () => {
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          scanRafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+        try {
+          const codes = await detector.detect(videoRef.current);
+          const value = codes[0]?.rawValue.replace(/\D/g, "").slice(0, 4) ?? "";
+          if (value.length === 4) {
+            stopScan();
+            setCodeInput(value);
+            markDelivered(value);
+            return;
+          }
+        } catch {
+          // image de la trame illisible — on retente à la suivante
+        }
+        scanRafRef.current = requestAnimationFrame(tick);
+      };
+      scanRafRef.current = requestAnimationFrame(tick);
+    } catch {
+      showToast("Accès à la caméra refusé ou indisponible — saisissez le code manuellement.", "error", true);
+    }
+  }
 
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      stopScan();
     };
   }, []);
 
@@ -198,15 +273,15 @@ export function LocationSharingForm({
     });
   }
 
-  async function markDelivered() {
+  async function markDelivered(code: string = codeInput) {
     setCodeError("");
-    if (codeInput.trim().length !== 4) {
+    if (code.trim().length !== 4) {
       setCodeError("Saisissez les 4 chiffres donnés par le client.");
       return;
     }
     setDelivering(true);
     try {
-      const result = await markOrderDeliveredByCourierAction(token, codeInput.trim());
+      const result = await markOrderDeliveredByCourierAction(token, code.trim());
       if (!result.ok) {
         setCodeError(result.error);
         return;
@@ -388,8 +463,23 @@ export function LocationSharingForm({
               </a>
             </div>
 
+            {scanning ? (
+              <div className="dlv-scan">
+                <video ref={videoRef} muted playsInline />
+                <button type="button" className="btn btn-tonal btn-sm" onClick={stopScan}>
+                  <Icon name="close" size="sm" />
+                  Annuler le scan
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="btn btn-tonal btn-lg btn-block" style={{ marginBottom: 10 }} onClick={startScan}>
+                <Icon name="qr-scanner" size="sm" />
+                Scanner le QR du client
+              </button>
+            )}
+
             <div className="form-row" style={{ marginBottom: 8 }}>
-              <label htmlFor="dlvCode">Code du client (4 chiffres)</label>
+              <label htmlFor="dlvCode">Ou saisir le code (4 chiffres)</label>
               <input
                 id="dlvCode"
                 inputMode="numeric"
@@ -409,7 +499,7 @@ export function LocationSharingForm({
                 {codeError}
               </p>
             ) : null}
-            <button type="button" className="btn btn-primary btn-lg btn-block" onClick={markDelivered} disabled={delivering}>
+            <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => markDelivered()} disabled={delivering}>
               <Icon name="check-circle" size="sm" />
               {delivering ? "Enregistrement…" : "Confirmer la livraison"}
             </button>
@@ -419,8 +509,21 @@ export function LocationSharingForm({
         {role === "customer" && deliveryCode && !delivered && status !== "stopped" ? (
           <div className="dlv-code-box">
             <p>Votre code de livraison</p>
+            {deliveryCodeQr ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={deliveryCodeQr} alt="" width={140} height={140} className="dlv-code-qr" />
+            ) : null}
             <strong>{deliveryCode}</strong>
-            <p className="sub">Donnez-le au livreur à la réception de votre commande.</p>
+            <p className="sub">
+              Montrez ce QR (ou donnez le code) au livreur à la réception de votre commande.
+            </p>
+            {/* Même consigne que Uber Eats/DoorDash — ce genre de code est
+                justement ce que les faux livreurs demandent par téléphone
+                pour se faire passer pour le vrai (retour client du
+                07/09/2026, recherche sur les pratiques du secteur). */}
+            <p className="sub" style={{ color: "var(--error)", opacity: 1, fontWeight: 600 }}>
+              Ne le communiquez jamais par téléphone — montrez-le uniquement en personne.
+            </p>
           </div>
         ) : null}
 

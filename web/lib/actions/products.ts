@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import { productPatchError, type ProductPatch } from "@/lib/validation";
+import { generateProductBarcode } from "@/lib/barcode";
 
 export interface UpdateProductInput extends ProductPatch {
   slug: string;
@@ -154,6 +155,17 @@ export async function createProductAction(
     suffix++;
   }
 
+  // Aucun produit ne doit rester sans code — l'admin garde la main s'il en a
+  // déjà saisi un (patch.barcode ci-dessus), sinon on lui en attribue un.
+  // Collision quasi impossible sur 12 chiffres aléatoires, vérifiée quand
+  // même (même patron que le slug ci-dessus).
+  let barcode = patch.barcode;
+  if (!barcode) {
+    do {
+      barcode = generateProductBarcode();
+    } while ((await adminDb.collection("products").where("barcode", "==", barcode).limit(1).get()).size > 0);
+  }
+
   const discountPct =
     patch.priceOriginal > patch.price && patch.priceOriginal > 0
       ? Math.round((1 - patch.price / patch.priceOriginal) * 100)
@@ -164,6 +176,7 @@ export async function createProductAction(
     .doc(slug)
     .set({
       ...patch,
+      barcode,
       sport: input.sport,
       sportLabel: sport.label,
       league: input.league || null,

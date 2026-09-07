@@ -3,6 +3,7 @@ import { Icon } from "@/components/icons/Icon";
 import { getOrderForLocationAction } from "@/lib/actions/orders";
 import { getSiteSettings } from "@/lib/data/settings";
 import { whatsappNumber } from "@/lib/cart";
+import { deliveryCodeQrDataUrl } from "@/lib/qr";
 import { LocationSharingForm } from "@/components/delivery/LocationSharingForm";
 
 // Route publique hors du groupe (site) : pas de navbar ni de panier, même
@@ -53,6 +54,10 @@ export default async function LocationSharingPage({ params }: { params: Promise<
     );
   }
 
+  // QR uniquement côté client (deliveryCode n'est jamais transmis au livreur,
+  // voir getOrderForLocationAction) — même garde que le PIN qu'il encode.
+  const deliveryCodeQr = result.deliveryCode ? await deliveryCodeQrDataUrl(result.deliveryCode) : undefined;
+
   return (
     <main>
       <LocationSharingForm
@@ -62,6 +67,7 @@ export default async function LocationSharingPage({ params }: { params: Promise<
         role={result.role}
         delivery={result.delivery}
         deliveryCode={result.deliveryCode}
+        deliveryCodeQr={deliveryCodeQr}
       />
     </main>
   );

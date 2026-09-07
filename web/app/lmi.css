@@ -1923,6 +1923,17 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
 .dlv-code-box p { margin: 0; font-size: .78rem; font-weight: 600; }
 .dlv-code-box strong { display: block; font-size: 2rem; font-weight: 800; letter-spacing: .3em; margin: 4px 0; }
 .dlv-code-box .sub { color: inherit; opacity: .8; }
+.dlv-code-qr {
+  display: block; margin: 8px auto; border-radius: var(--r-item);
+  background: #fff; padding: 8px; /* le QR est noir sur blanc quel que soit le thème — le rendu SVG/PNG ne s'adapte pas au voile violet du conteneur */
+}
+
+/* ---------- Scan caméra (confirmation de livraison, côté livreur) ---------- */
+.dlv-scan {
+  margin-bottom: 10px; border-radius: var(--r-item); overflow: hidden;
+  background: #000; display: flex; flex-direction: column; gap: 8px; padding: 8px;
+}
+.dlv-scan video { width: 100%; border-radius: var(--r-item); display: block; aspect-ratio: 4/3; object-fit: cover; }
 
 .dlv-live-badge {
   position: absolute; top: 10px; left: 10px; z-index: 1000;
