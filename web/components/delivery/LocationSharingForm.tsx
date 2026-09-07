@@ -7,6 +7,7 @@
 // un bouton « Arrêter » est toujours visible une fois le partage actif.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import jsQR from "jsqr";
 import { Icon } from "@/components/icons/Icon";
 import {
   updateLiveLocationAction,
@@ -50,23 +51,6 @@ function trackStatusLine(label: string, track: SharedTrack) {
 }
 
 const EMPTY_TRACK: SharedTrack = { points: [], current: null, sharing: false };
-
-// API native de détection de codes (Shape Detection API) — pas dans le lib
-// DOM par défaut de TypeScript, et pas supportée partout (absente de Safari/
-// iOS notamment) : détectée à l'exécution (`"BarcodeDetector" in window`),
-// avec repli systématique sur la saisie manuelle déjà en place — jamais un
-// prérequis, juste un raccourci quand disponible.
-interface DetectedBarcode {
-  rawValue: string;
-}
-interface BarcodeDetectorLike {
-  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>;
-}
-declare global {
-  interface Window {
-    BarcodeDetector?: new (options: { formats: string[] }) => BarcodeDetectorLike;
-  }
-}
 
 const STEPS = ["Confirmée", "En route", "Livrée"] as const;
 
@@ -168,10 +152,6 @@ export function LocationSharingForm({
   }
 
   async function startScan() {
-    if (!window.BarcodeDetector) {
-      showToast("Scan non pris en charge sur cet appareil — saisissez le code manuellement.", "error", true);
-      return;
-    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
@@ -183,23 +163,30 @@ export function LocationSharingForm({
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
       });
-      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-      const tick = async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2) {
+      // Décodage logiciel (jsQR) sur les trames de la caméra plutôt que l'API
+      // native BarcodeDetector — celle-ci s'est révélée absente sur un vrai
+      // téléphone testé le 07/09/2026 (Shape Detection API, disponible
+      // seulement sur Chrome/Android avec Google Play Services, jamais sur
+      // Safari/iOS). jsQR fonctionne partout où la caméra fonctionne.
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const tick = () => {
+        const video = videoRef.current;
+        if (!video || !ctx || video.readyState < 2) {
           scanRafRef.current = requestAnimationFrame(tick);
           return;
         }
-        try {
-          const codes = await detector.detect(videoRef.current);
-          const value = codes[0]?.rawValue.replace(/\D/g, "").slice(0, 4) ?? "";
-          if (value.length === 4) {
-            stopScan();
-            setCodeInput(value);
-            markDelivered(value);
-            return;
-          }
-        } catch {
-          // image de la trame illisible — on retente à la suivante
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const result = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: "dontInvert" });
+        const value = result?.data.replace(/\D/g, "").slice(0, 4) ?? "";
+        if (value.length === 4) {
+          stopScan();
+          setCodeInput(value);
+          markDelivered(value);
+          return;
         }
         scanRafRef.current = requestAnimationFrame(tick);
       };
