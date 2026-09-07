@@ -27,6 +27,7 @@ import {
   productPatchError,
 } from "../lib/validation.ts";
 import { aggregateItemQuantities, quoteOrderItems, validateOrderItems } from "../lib/orderValidation.ts";
+import { cleanTrackPoints, distanceMeters, hasUsableAccuracy, shouldAppendTrackPoint } from "../lib/location.ts";
 
 function sampleProduct(overrides = {}) {
   return {
@@ -423,4 +424,29 @@ test("quoteOrderItems contrôle le stock cumulé entre plusieurs tailles", () =>
     new Map([[product.slug, product]])
   );
   assert.equal(result.ok, false);
+});
+
+// --- stabilisation du suivi GPS --------------------------------------------
+
+test("le filtre GPS refuse une précision trop faible", () => {
+  assert.equal(hasUsableAccuracy(25), true);
+  assert.equal(hasUsableAccuracy(150), false);
+});
+
+test("le filtre GPS ignore le bruit stationnaire mais garde un vrai déplacement", () => {
+  const first = { lat: 4.0511, lng: 9.7679, at: "2026-09-07T12:00:00.000Z", accuracy: 20 };
+  const jitter = { lat: 4.05115, lng: 9.76793, at: "2026-09-07T12:00:10.000Z", accuracy: 24 };
+  const moved = { lat: 4.052, lng: 9.7688, at: "2026-09-07T12:00:30.000Z", accuracy: 12 };
+  assert.equal(shouldAppendTrackPoint(first, jitter), false);
+  assert.equal(shouldAppendTrackPoint(first, moved), true);
+  assert.ok(distanceMeters(first, moved) > 100);
+});
+
+test("cleanTrackPoints retire les sauts impossibles et plafonne l'historique", () => {
+  const points = [
+    { lat: 4.0511, lng: 9.7679, at: "2026-09-07T12:00:00.000Z", accuracy: 10 },
+    { lat: 5.0511, lng: 10.7679, at: "2026-09-07T12:00:10.000Z", accuracy: 10 },
+    { lat: 4.052, lng: 9.7688, at: "2026-09-07T12:00:30.000Z", accuracy: 10 },
+  ];
+  assert.deepEqual(cleanTrackPoints(points, 2), [points[0], points[2]]);
 });
