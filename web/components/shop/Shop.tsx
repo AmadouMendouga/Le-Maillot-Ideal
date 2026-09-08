@@ -191,6 +191,16 @@ export function Shop({
           </div>
         )}
 
+        {settings.showDemoNotice && (
+          <div className="demo-note">
+            <Icon name="info" />
+            <div>
+              <strong>Photos de démonstration.</strong> Les visuels produits sont des images de test — remplacez-les
+              par vos vraies photos de produits.
+            </div>
+          </div>
+        )}
+
         {!verified && (
           <div className="catalog-note" role="note">
             <Icon name="info" />

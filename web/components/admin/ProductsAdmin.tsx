@@ -173,13 +173,14 @@ export function ProductsAdmin({
               <th style={{ width: 130 }}>Prix</th>
               <th style={{ width: 110 }}>Stock</th>
               <th style={{ width: 110 }}>État</th>
+              <th style={{ width: 140 }}>Code-barres</th>
               <th style={{ width: 96 }}></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={7}>
                   <div className="adm-empty">
                     <Icon name="search" />
                     <div>Aucun maillot ne correspond à ce filtre.</div>
@@ -218,6 +219,9 @@ export function ProductsAdmin({
                   </td>
                   <td>
                     {p.isNew ? <span className="badge badge-new">Nouveau</span> : <span className="sub">—</span>}
+                  </td>
+                  <td>
+                    {p.barcode ? <span className="sub">{p.barcode}</span> : <span className="sub">—</span>}
                   </td>
                   <td>
                     <div className="adm-row-actions">
