@@ -8,7 +8,10 @@
 CLAUDE.md
 DEPLOIEMENT.md
 PROMPT-PRELANCEMENT.md
+README.md
+bench/
 tests/
+.github/
 node_modules/
 .gitignore
 .htaccess
