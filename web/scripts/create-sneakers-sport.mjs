@@ -30,7 +30,7 @@ const SPORT = {
   color: "#6d28d9",
   logo: "",
   heroBadge: "Boutique Sneakers au Cameroun",
-  heroTitle1: "Équipe-toi pour",
+  heroTitle1: "Équipez-vous pour",
   heroTitle2: "la rue.",
   heroLead:
     "Sneakers et streetwear des plus grandes marques — une sélection pour chaque style. Commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",

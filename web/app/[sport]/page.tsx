@@ -24,7 +24,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Quels moyens de paiement acceptez-vous ?",
     answer:
-      "Le site n'encaisse aucun paiement en ligne. Le moyen et le moment du paiement sont confirmés avec vous sur WhatsApp avant la commande.",
+      "Vous pouvez payer en ligne par Mobile Money depuis votre compte client. Vous pouvez aussi commander sur WhatsApp et convenir directement des modalités de paiement.",
   },
   {
     question: "Livrez-vous en dehors de Douala et Yaoundé ?",
@@ -130,8 +130,8 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
                 <Icon name="money" size="lg" />
               </span>
               <div>
-                <p className="service-title">Paiement à confirmer</p>
-                <p>Modalités convenues sur WhatsApp avant la commande</p>
+                <p className="service-title">Paiement flexible</p>
+                <p>Mobile Money en ligne ou modalités convenues sur WhatsApp</p>
               </div>
             </div>
             <div className="service-item">
@@ -191,7 +191,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
           <div className="section-head">
             <div>
               <h2>Sélection du catalogue</h2>
-              <p>Une sélection à faire confirmer sur WhatsApp avant toute commande.</p>
+              <p>Découvrez les articles mis en avant dans cet univers.</p>
             </div>
             <Link className="btn btn-tonal" href={`/${sportKey}/boutique`}>
               Voir tout <Icon name="arrow-forward" size="sm" />
@@ -235,8 +235,8 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
             </table>
           </div>
           <p className="form-note">
-            La destination, le délai, les frais et le moyen de paiement sont confirmés avec vous sur WhatsApp avant
-            toute commande.
+            La destination, le délai et les frais sont confirmés avant la livraison. Pour une commande WhatsApp, les
+            modalités de paiement sont également convenues avec vous avant validation.
           </p>
         </div>
       </section>
@@ -250,7 +250,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
                   <Icon name="star" size="sm" />
                   Témoignages
                 </span>
-                <h2>Retours de clients</h2>
+                <h2>Avis de nos clients</h2>
               </div>
               <Link className="btn btn-tonal" href={`/${sportKey}/phototheque`}>
                 Voir la photothèque <Icon name="arrow-forward" size="sm" />
@@ -265,14 +265,14 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
         <div className="container">
           <div className="about-grid">
             <div className="about-photo">
-              <Icon name="person" />
-              <span>Photo à venir</span>
+              <Icon name="storefront" />
+              <span>Service client à Douala</span>
             </div>
             <div className="about-text">
-              <h3>Qui sommes-nous : derrière chaque commande, une vraie personne</h3>
+              <h3>Qui sommes-nous ?</h3>
               <p>
-                {settings.businessName} est géré par Amadou, basé à Douala. Chaque commande passée sur WhatsApp est
-                suivie personnellement, de la confirmation jusqu&apos;à la livraison.
+                {settings.businessName} est géré par Amadou, à Douala. Chaque commande est suivie personnellement,
+                de sa confirmation jusqu&apos;à la livraison.
               </p>
               <div className="about-badges">
                 <span>

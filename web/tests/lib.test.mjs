@@ -27,6 +27,9 @@ import {
   productPatchError,
 } from "../lib/validation.ts";
 import { aggregateItemQuantities, quoteOrderItems, validateOrderItems } from "../lib/orderValidation.ts";
+import { cleanTrackPoints, distanceMeters, hasUsableAccuracy, routeLocationIssue, shouldAppendTrackPoint } from "../lib/location.ts";
+import { publicProductDescription } from "../lib/product.ts";
+import { canGenerateTrackingLink, publicProgressStep } from "../lib/orderWorkflow.ts";
 
 function sampleProduct(overrides = {}) {
   return {
@@ -56,11 +59,19 @@ function sampleProduct(overrides = {}) {
 }
 
 const baseSettings = {
-  whatsapp: "237655634265",
+  whatsapp: "12345678",
   catalogDataVerified: true,
   commercialTermsVerified: true,
   businessName: "IKIGAI Sport",
 };
+
+test("la description publique remplace l'ancienne marque City Sport", () => {
+  const product = sampleProduct({ description: "Une paire confortable. Disponible chez City Sport." });
+  assert.equal(
+    publicProductDescription(product, baseSettings),
+    "Une paire confortable. Disponible chez IKIGAI Sport."
+  );
+});
 
 // --- FCFA ---------------------------------------------------------------
 
@@ -77,7 +88,7 @@ test("FCFA retombe sur 0 pour une valeur non finie", () => {
 // --- whatsappNumber / freeShippingThreshold ------------------------------
 
 test("whatsappNumber ne garde que les chiffres du numéro configuré", () => {
-  assert.equal(whatsappNumber({ whatsapp: "+237 655 634 265" }), "237655634265");
+  assert.equal(whatsappNumber({ whatsapp: "+12 345 678" }), "12345678");
 });
 
 test("whatsappNumber retombe sur le numéro par défaut si vide", () => {
@@ -222,13 +233,13 @@ test("buildWhatsappCartLink produit le message exact attendu par WhatsApp (catal
     "\n*Total : 24 000 FCFA*\n" +
     "Paiement et livraison selon les modalités applicables à votre zone.\n\n" +
     "Merci de me confirmer la disponibilité et le délai de livraison.";
-  assert.equal(link, `https://wa.me/237655634265?text=${encodeURIComponent(expectedMessage)}`);
+  assert.equal(link, `https://wa.me/12345678?text=${encodeURIComponent(expectedMessage)}`);
 });
 
 test("buildWhatsappCartLink ajoute les mentions « indicatif/à confirmer » tant que rien n'est vérifié", () => {
   const products = [sampleProduct({ price: 12000 })];
   const link = buildWhatsappCartLink([{ slug: "maillot-domicile-test", size: "M", qty: 1 }], products, {
-    whatsapp: "237655634265",
+    whatsapp: "12345678",
     catalogDataVerified: false,
     commercialTermsVerified: false,
     businessName: "IKIGAI Sport",
@@ -249,15 +260,15 @@ test("isHttpUrl accepte uniquement des URL http(s) valides", () => {
 });
 
 test("siteFieldError valide le numéro WhatsApp (8 à 15 chiffres, sans +)", () => {
-  assert.equal(siteFieldError("whatsapp", "237655634265", {}), "");
-  assert.notEqual(siteFieldError("whatsapp", "+237655634265", {}), "");
+  assert.equal(siteFieldError("whatsapp", "12345678", {}), "");
+  assert.notEqual(siteFieldError("whatsapp", "+12345678", {}), "");
   assert.notEqual(siteFieldError("whatsapp", "123", {}), "");
 });
 
 test("siteFieldError exige que whatsappDisplay encode les mêmes chiffres que whatsapp", () => {
-  const site = { whatsapp: "237655634265" };
-  assert.equal(siteFieldError("whatsappDisplay", "+237 655 634 265", site), "");
-  assert.notEqual(siteFieldError("whatsappDisplay", "+237 000 000 000", site), "");
+  const site = { whatsapp: "12345678" };
+  assert.equal(siteFieldError("whatsappDisplay", "+12 345 678", site), "");
+  assert.notEqual(siteFieldError("whatsappDisplay", "+87 654 321", site), "");
 });
 
 test("siteFieldError valide les URL de réseaux sociaux, vide autorisé", () => {
@@ -423,4 +434,48 @@ test("quoteOrderItems contrôle le stock cumulé entre plusieurs tailles", () =>
     new Map([[product.slug, product]])
   );
   assert.equal(result.ok, false);
+});
+
+// --- stabilisation du suivi GPS --------------------------------------------
+
+test("le filtre GPS refuse une précision trop faible", () => {
+  assert.equal(hasUsableAccuracy(25), true);
+  assert.equal(hasUsableAccuracy(150), false);
+});
+
+test("le filtre GPS ignore le bruit stationnaire mais garde un vrai déplacement", () => {
+  const first = { lat: 4.0511, lng: 9.7679, at: "2026-09-07T12:00:00.000Z", accuracy: 20 };
+  const jitter = { lat: 4.05115, lng: 9.76793, at: "2026-09-07T12:00:10.000Z", accuracy: 24 };
+  const moved = { lat: 4.052, lng: 9.7688, at: "2026-09-07T12:00:30.000Z", accuracy: 12 };
+  assert.equal(shouldAppendTrackPoint(first, jitter), false);
+  assert.equal(shouldAppendTrackPoint(first, moved), true);
+  assert.ok(distanceMeters(first, moved) > 100);
+});
+
+test("cleanTrackPoints retire les sauts impossibles et plafonne l'historique", () => {
+  const points = [
+    { lat: 4.0511, lng: 9.7679, at: "2026-09-07T12:00:00.000Z", accuracy: 10 },
+    { lat: 5.0511, lng: 10.7679, at: "2026-09-07T12:00:10.000Z", accuracy: 10 },
+    { lat: 4.052, lng: 9.7688, at: "2026-09-07T12:00:30.000Z", accuracy: 10 },
+  ];
+  assert.deepEqual(cleanTrackPoints(points, 2), [points[0], points[2]]);
+});
+
+test("l'itinéraire refuse deux positions sur des continents différents ou périmées", () => {
+  const now = Date.parse("2026-09-08T05:00:00.000Z");
+  const douala = { lat: 4.0511, lng: 9.7679, updatedAt: "2026-09-08T04:59:30.000Z" };
+  const bonamoussadi = { lat: 4.09, lng: 9.74, updatedAt: "2026-09-08T04:59:40.000Z" };
+  const america = { lat: 40.7128, lng: -74.006, updatedAt: "2026-09-08T04:59:40.000Z" };
+  const old = { ...bonamoussadi, updatedAt: "2026-09-08T04:30:00.000Z" };
+  assert.equal(routeLocationIssue(douala, bonamoussadi, now), null);
+  assert.equal(routeLocationIssue(douala, america, now), "positions_trop_eloignees");
+  assert.equal(routeLocationIssue(douala, old, now), "position_perimee");
+});
+
+test("le lien client n'est disponible qu'au départ, le lien livreur dès que la commande est prête", () => {
+  assert.equal(canGenerateTrackingLink("confirmee", "customer"), false);
+  assert.equal(canGenerateTrackingLink("prete", "courier"), true);
+  assert.equal(canGenerateTrackingLink("prete", "customer"), false);
+  assert.equal(canGenerateTrackingLink("en_route", "customer"), true);
+  assert.equal(publicProgressStep("arrivee"), 3);
 });

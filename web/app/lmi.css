@@ -1864,6 +1864,13 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
 .dlv-marker--courier .ring { background: #16a34a; }
 .dlv-marker.idle .ring { display: none; }
 .dlv-marker.idle .tail { opacity: .7; }
+.dlv-recenter {
+  position: absolute; right: 14px; bottom: 14px; z-index: 500;
+  min-height: 42px; padding: 0 16px; border: 0; border-radius: 999px;
+  background: var(--surface); color: var(--on-surface); font: inherit; font-weight: 750;
+  box-shadow: 0 3px 14px rgba(0,0,0,.24); cursor: pointer;
+}
+.dlv-recenter:focus-visible { outline: 3px solid var(--secondary); outline-offset: 2px; }
 @keyframes dlv-pulse {
   0% { transform: scale(.45); opacity: .55; }
   100% { transform: scale(1); opacity: 0; }
@@ -1919,7 +1926,7 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
    nom en tête, actions en boutons circulaires. Le vert IKIGAI reste réservé
    à l'accent (WhatsApp, dot actif du repère), pas de bascule noir/blanc pur. */
 .dlv-info-card {
-  padding: 14px; border-radius: var(--r-item);
+  margin-bottom: 16px; padding: 14px; border-radius: var(--r-item);
   background: var(--surface); border: 1px solid var(--outline-variant);
   box-shadow: var(--e2);
 }
@@ -1981,6 +1988,23 @@ html[data-theme="dark"] .dlv-code-box { background: var(--surface-container-low)
   background: rgba(20, 20, 20, .78); color: #fff; font-size: .74rem; font-weight: 700;
   padding: 5px 10px 5px 8px; border-radius: var(--r-pill); pointer-events: none;
   transform: translateZ(0);
+}
+
+.dlv-route-warning {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 500;
+  width: min(88%, 520px);
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: var(--r-item);
+  background: color-mix(in srgb, var(--error) 92%, #000);
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: var(--shadow-2);
 }
 .dlv-live-badge .rec-dot {
   width: 7px; height: 7px; border-radius: 50%; background: #ff6b00; flex-shrink: 0;
@@ -2227,7 +2251,7 @@ body.portal-drawer-open { overflow: hidden; }
    une photo a des zones claires locales qui peuvent rester sous 4.5:1 même
    scrim appliqué. L'ombre portée assure la lisibilité quel que soit le pixel
    sous le texte, sans assombrir toute la photo. */
-.portal-hero-content h1, .portal-hero-content p {
+.portal-hero-content h1, .portal-hero-content h2, .portal-hero-content p {
   text-shadow: 0 1px 3px rgba(0,0,0,.85), 0 4px 20px rgba(0,0,0,.6);
 }
 /* .btn-primary garde son halo vert (--e8) au survol partout ailleurs sur le
@@ -2236,12 +2260,12 @@ body.portal-drawer-open { overflow: hidden; }
 .portal-hero-content .btn-primary:hover, .portal-hero-content .btn-primary:focus-visible {
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
 }
-.portal-hero-content h1 { font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -1.2px; text-transform: uppercase; margin-bottom: .3em; }
+.portal-hero-content h1, .portal-hero-content h2 { font-size: clamp(1.9rem, 4vw, 2.9rem); letter-spacing: -1.2px; text-transform: uppercase; margin-bottom: .3em; }
 .portal-hero-content p { font-size: 1rem; opacity: .92; font-weight: 500; max-width: 46ch; margin-bottom: 26px; }
 .portal-hero-reveal { transform: translateY(30px); opacity: 0; }
 .portal-hero-slide.active .portal-hero-reveal { animation: portalHeroReveal 1s ease forwards; }
 .portal-hero-slide.active .hero-badge { animation-delay: .3s; }
-.portal-hero-slide.active h1 { animation-delay: .6s; }
+.portal-hero-slide.active h1, .portal-hero-slide.active h2 { animation-delay: .6s; }
 .portal-hero-slide.active p { animation-delay: .9s; }
 .portal-hero-slide.active .btn { animation-delay: 1.2s; }
 @keyframes portalHeroReveal {

@@ -5,7 +5,7 @@ import { ToastHost } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "IKIGAI Sport",
-  description: "Boutique d'articles de sport au Cameroun — maillots, judogi, sneakers et bien d'autres.",
+  description: "Boutique multisport au Cameroun : maillots, judogi, équipements de combat, basketball et sneakers.",
 };
 
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("lmi_theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`;

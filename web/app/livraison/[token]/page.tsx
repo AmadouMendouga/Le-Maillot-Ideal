@@ -68,6 +68,7 @@ export default async function LocationSharingPage({ params }: { params: Promise<
         delivery={result.delivery}
         deliveryCode={result.deliveryCode}
         deliveryCodeQr={deliveryCodeQr}
+        initialOrderStatus={result.status}
       />
     </main>
   );

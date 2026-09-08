@@ -45,7 +45,7 @@ export default async function BoutiquePage({ params }: PageProps<"/[sport]/bouti
             <Icon name="storefront" size="xl" />
             Boutique {sport.label}
           </h1>
-          <p>Tous nos produits {sport.label}, en un seul endroit.</p>
+          <p>Découvrez tous les articles de l&apos;univers {sport.label}.</p>
         </div>
       </div>
 

@@ -30,8 +30,8 @@ const db = getFirestore(app);
 const SPORT_HERO = {
   football: {
     heroBadge: "Boutique de maillots de football au Cameroun",
-    heroTitle1: "Porte ta passion.",
-    heroTitle2: "Ton maillot idéal t'attend.",
+    heroTitle1: "Portez votre passion.",
+    heroTitle2: "Votre maillot idéal vous attend.",
     heroLead:
       "Maillots de football pour chaque championnat et chaque équipe — commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",
     statDelay: "Sur WhatsApp",
@@ -41,7 +41,7 @@ const SPORT_HERO = {
   },
   judo: {
     heroBadge: "Boutique Judo au Cameroun",
-    heroTitle1: "Équipe-toi pour",
+    heroTitle1: "Équipez-vous pour",
     heroTitle2: "le tatami.",
     heroLead:
       "Judogi, ceintures et accessoires — une sélection pour chaque judoka. Commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",
@@ -52,7 +52,7 @@ const SPORT_HERO = {
   },
   "nippon-kempo": {
     heroBadge: "Boutique Nippon Kempo au Cameroun",
-    heroTitle1: "Équipe-toi pour",
+    heroTitle1: "Équipez-vous pour",
     heroTitle2: "le combat.",
     heroLead:
       "Kempogi, protections et accessoires — une sélection pour chaque pratiquant de Nippon Kempo. Commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",
@@ -63,7 +63,7 @@ const SPORT_HERO = {
   },
   kendo: {
     heroBadge: "Boutique Kendo au Cameroun",
-    heroTitle1: "Équipe-toi pour",
+    heroTitle1: "Équipez-vous pour",
     heroTitle2: "le dojo.",
     heroLead:
       "Accessoires de Shinai et bien d'autres — une sélection pour chaque kendoka. Commande sur WhatsApp, paiement selon les modalités confirmées avec vous.",

@@ -7,16 +7,20 @@ import { StatefulButton } from "@/components/StatefulButton";
 import { getGallery } from "@/lib/data/gallery";
 import { getTestimonials } from "@/lib/data/testimonials";
 import { getSiteSettings } from "@/lib/data/settings";
+import { getSportByKey } from "@/lib/data/sports";
 import { whatsappNumber } from "@/lib/cart";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export const metadata: Metadata = {
-  title: "Photothèque | IKIGAI Sport",
-  description:
-    "Photothèque IKIGAI Sport. Les photos et témoignages sont publiés après validation et autorisation des personnes concernées.",
-  robots: { index: false, follow: true },
-};
+export async function generateMetadata({ params }: PageProps<"/[sport]/phototheque">): Promise<Metadata> {
+  const { sport: sportKey } = await params;
+  const sport = await getSportByKey(sportKey);
+  return {
+    title: `Photothèque${sport ? ` ${sport.label}` : ""} | IKIGAI Sport`,
+    description: "Photos et avis clients publiés par IKIGAI Sport après validation.",
+    robots: { index: false, follow: true },
+  };
+}
 
 export default async function PhototequePage({ params }: PageProps<"/[sport]/phototheque">) {
   const { sport: sportKey } = await params;
@@ -75,14 +79,15 @@ export default async function PhototequePage({ params }: PageProps<"/[sport]/pho
       {showGallery && (
         <section className="section">
           <div className="container">
-            <div className="demo-note">
-              <Icon name="info" />
-              <div>
-                <strong>Photos de démonstration.</strong> Les images ci-dessous servent uniquement à visualiser la
-                mise en page. Remplacez-les par vos propres photos (maillots portés, colis livrés, boutique) avant
-                la mise en ligne.
+            {settings.showDemoNotice ? (
+              <div className="demo-note">
+                <Icon name="info" />
+                <div>
+                  <strong>Photos de démonstration.</strong> Ces images servent à visualiser la mise en page et doivent
+                  être remplacées par des photos validées avant la communication officielle.
+                </div>
               </div>
-            </div>
+            ) : null}
             <div className="section-head">
               <div>
                 <span className="eyebrow">
@@ -107,7 +112,7 @@ export default async function PhototequePage({ params }: PageProps<"/[sport]/pho
                   <Icon name="star" size="sm" />
                   Témoignages
                 </span>
-                <h2>Retours de clients</h2>
+                <h2>Avis de nos clients</h2>
               </div>
             </div>
             <AnimatedTestimonials testimonials={testimonials} />

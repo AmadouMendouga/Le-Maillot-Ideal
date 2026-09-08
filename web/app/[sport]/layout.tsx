@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAllLeagues } from "@/lib/data/leagues";
 import { getAllSports } from "@/lib/data/sports";
@@ -19,6 +20,16 @@ import { CartPanel } from "@/components/cart/CartPanel";
 export async function generateStaticParams() {
   const sports = await getAllSports();
   return sports.map((s) => ({ sport: s.key }));
+}
+
+export async function generateMetadata({ params }: LayoutProps<"/[sport]">): Promise<Metadata> {
+  const { sport: sportKey } = await params;
+  const sport = (await getAllSports()).find((item) => item.key === sportKey);
+  if (!sport) return {};
+  return {
+    title: `${sport.label} | IKIGAI Sport`,
+    description: sport.heroLead,
+  };
 }
 
 export default async function SportLayout({ children, params }: LayoutProps<"/[sport]">) {
