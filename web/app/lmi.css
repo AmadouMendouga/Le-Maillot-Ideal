@@ -472,9 +472,13 @@ html[data-theme="dark"] .product-card { background: var(--surface-container-low)
   border: 1px solid transparent;
 }
 .badge-new { background: var(--primary); color: var(--on-primary); }
-/* Promo reste dans la famille verte (retrait de l'orange, 08/09/2026) mais
-   sur la nuance secondaire — la distinguer d'un coup d'œil de .badge-new. */
-.badge-promo { background: var(--secondary-container); color: var(--on-secondary-container); }
+/* Retour client du 08/09/2026, complété le même jour : la teinte verte
+   choisie pour remplacer l'orange se confondait avec .badge-stock-ok (même
+   paire de tokens) — la réduction doit ressortir plus qu'un badge de stock.
+   Couleur dédiée (rose/magenta), fixe dans les deux thèmes (le badge est un
+   pastille opaque posée sur la photo produit, jamais sur le fond de page —
+   pas besoin de suivre --surface). Toujours pas d'orange. */
+.badge-promo { background: #fce7f3; color: #9d174d; }
 .badge-stock-ok { background: var(--secondary-container); color: var(--on-secondary-container); border-color: color-mix(in srgb, var(--on-secondary-container) 22%, transparent); }
 .badge-stock-low { background: var(--tertiary-container); color: var(--on-tertiary-container); border-color: color-mix(in srgb, var(--on-tertiary-container) 22%, transparent); }
 .badge-stock-out { background: var(--error-container); color: var(--on-error-container); border-color: color-mix(in srgb, var(--on-error-container) 22%, transparent); }
