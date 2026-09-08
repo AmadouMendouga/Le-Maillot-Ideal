@@ -45,9 +45,14 @@
   --secondary-container: #bbf7d0; /* grass-200 */
   --on-secondary-container: #14532d;
 
-  --tertiary: #ff6b00;            /* flame — couleur promo du site de référence */
-  --tertiary-container: #ffe4cc;
-  --on-tertiary-container: #7c2d00;
+  /* Retour client du 08/09/2026 : une seule couleur d'accent (le vert),
+     l'orange "flame" du site de référence est retiré partout — --tertiary
+     devient un neutre sombre (même rôle qu'avant : étoiles de notation,
+     encart "photos de démo", badge stock bas), pas une nouvelle couleur de
+     marque. */
+  --tertiary: #1e2440;            /* identique à --on-surface */
+  --tertiary-container: #e6eaf4;  /* identique à --surface-container-high */
+  --on-tertiary-container: #1e2440;
 
   --error: #ef4444;
   --on-error: #ffffff;
@@ -110,9 +115,9 @@ html[data-theme="dark"] {
   --secondary-container: #15803d; /* grass-700 */
   --on-secondary-container: #dcfce7;
 
-  --tertiary: #ff8c3c;            /* flame éclairci */
-  --tertiary-container: #7c2d00;
-  --on-tertiary-container: #ffe4cc;
+  --tertiary: #e6eaf4;            /* identique à --on-surface (sombre) */
+  --tertiary-container: #262c4a;  /* identique à --surface-container-high (sombre) */
+  --on-tertiary-container: #e6eaf4;
 
   --error: #f2b8b5;
   --on-error: #601410;
@@ -467,11 +472,9 @@ html[data-theme="dark"] .product-card { background: var(--surface-container-low)
   border: 1px solid transparent;
 }
 .badge-new { background: var(--primary); color: var(--on-primary); }
-/* --tertiary n'a pas de couleur "on-tertiary" dédiée dans ce système de
-   tokens (contrairement à --primary/--on-primary) et un blanc fixe tombe
-   sous 3:1 avec sa version éclaircie en thème sombre — même paire
-   container/on-container que les autres variantes de badge ci-dessous. */
-.badge-promo { background: var(--tertiary-container); color: var(--on-tertiary-container); }
+/* Promo reste dans la famille verte (retrait de l'orange, 08/09/2026) mais
+   sur la nuance secondaire — la distinguer d'un coup d'œil de .badge-new. */
+.badge-promo { background: var(--secondary-container); color: var(--on-secondary-container); }
 .badge-stock-ok { background: var(--secondary-container); color: var(--on-secondary-container); border-color: color-mix(in srgb, var(--on-secondary-container) 22%, transparent); }
 .badge-stock-low { background: var(--tertiary-container); color: var(--on-tertiary-container); border-color: color-mix(in srgb, var(--on-tertiary-container) 22%, transparent); }
 .badge-stock-out { background: var(--error-container); color: var(--on-error-container); border-color: color-mix(in srgb, var(--on-error-container) 22%, transparent); }
@@ -1846,7 +1849,7 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
   display: flex; align-items: center; justify-content: center;
   border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
 }
-.dlv-marker--customer .badge { background: #ff6b00; }
+.dlv-marker--customer .badge { background: #1e2440; }
 .dlv-marker--courier .badge { background: #16a34a; }
 /* Pointe du repère (façon épingle) : carré tourné à 45°, sa pointe basse
    tombe sur l'ancre Leaflet. */
@@ -1854,13 +1857,13 @@ html[data-theme="dark"] .mborder-highlight { background: radial-gradient(var(--p
   position: absolute; top: 25px; left: 11px; width: 10px; height: 10px;
   border-radius: 0 0 3px 0; transform: rotate(45deg); box-shadow: 1px 1px 2px rgba(0, 0, 0, .3);
 }
-.dlv-marker--customer .tail { background: #ff6b00; }
+.dlv-marker--customer .tail { background: #1e2440; }
 .dlv-marker--courier .tail { background: #16a34a; }
 .dlv-marker .ring {
   position: absolute; top: 0; left: 3px; width: 26px; height: 26px; border-radius: 50%;
   opacity: .55; animation: dlv-pulse 1.8s ease-out infinite;
 }
-.dlv-marker--customer .ring { background: #ff6b00; }
+.dlv-marker--customer .ring { background: #1e2440; }
 .dlv-marker--courier .ring { background: #16a34a; }
 .dlv-marker.idle .ring { display: none; }
 .dlv-marker.idle .tail { opacity: .7; }
@@ -2007,7 +2010,7 @@ html[data-theme="dark"] .dlv-code-box { background: var(--surface-container-low)
   box-shadow: var(--shadow-2);
 }
 .dlv-live-badge .rec-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: #ff6b00; flex-shrink: 0;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--primary); flex-shrink: 0;
   animation: dlv-blink 1.4s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .dlv-live-badge .rec-dot { animation: none; } }

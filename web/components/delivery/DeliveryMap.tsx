@@ -170,13 +170,14 @@ export function DeliveryMap({
       glLayerRef.current = maplibreGL({ style: styleUrlForTheme(darkMap || isDarkTheme()) }).addTo(map);
 
       // Couleurs Leaflet en dur (l'API attend une vraie chaîne, pas une
-      // variable CSS) — mêmes valeurs que --tertiary (client) et --secondary
-      // (livreur) dans app/lmi.css : chaque piste garde une seule couleur du
-      // marqueur au tracé, pour rester lisible même quand les deux se croisent.
+      // variable CSS) — mêmes valeurs que --tertiary (client, retiré de
+      // l'orange le 08/09/2026) et --secondary (livreur) dans app/lmi.css :
+      // chaque piste garde une seule couleur du marqueur au tracé, pour
+      // rester lisible même quand les deux se croisent.
       mapRef.current = map;
       map.on("dragstart", () => setAutoFollow(false));
       tracksRef.current = {
-        customer: { line: L.polyline([], { color: "#ff6b00", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
+        customer: { line: L.polyline([], { color: "#1e2440", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
         courier: { line: L.polyline([], { color: "#16a34a", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
       };
       // Itinéraire routier (OSRM) entre le livreur et le client — but même de
@@ -271,7 +272,7 @@ export function DeliveryMap({
         if (!t.accuracy) {
           t.accuracy = L.circle([last.lat, last.lng], {
             radius: last.accuracy,
-            color: role === "customer" ? "#ff6b00" : "#16a34a",
+            color: role === "customer" ? "#1e2440" : "#16a34a",
             fillOpacity: 0.08,
             opacity: 0.3,
             weight: 1,

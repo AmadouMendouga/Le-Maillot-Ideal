@@ -92,7 +92,7 @@ function TrackLegend({ view }: { view: { customer: SharedTrack; courier: SharedT
     <div className="dlv-sheet-status">
       <div style={{ display: "flex", gap: 14, fontSize: ".78rem", color: "var(--on-surface-variant)", flexWrap: "wrap" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ff6b00", display: "inline-block" }} />
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#1e2440", display: "inline-block" }} />
           Client
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
