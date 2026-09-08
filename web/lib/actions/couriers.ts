@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import type { Courier, Order } from "@/lib/types";
+import { COURIER_ACCESS_STATUSES, normalizeOrderStatus, TERMINAL_ORDER_STATUSES } from "@/lib/orderWorkflow";
 
 export async function registerCourierAction(input: {
   name: string;
@@ -55,7 +56,7 @@ export async function setCourierActiveAction(id: string, active: boolean): Promi
   batch.update(ref, { active: false });
   assigned.docs.forEach((orderDoc) => {
     const order = orderDoc.data() as Order;
-    if (order.status === "confirmee") {
+    if (!TERMINAL_ORDER_STATUSES.has(normalizeOrderStatus(order.status))) {
       batch.update(orderDoc.ref, {
         assignedCourierId: null,
         courierLocationToken: null,
@@ -82,13 +83,21 @@ export async function assignCourierToOrderAction(
   const ref = adminDb.collection("orders").doc(orderId);
   const snap = await ref.get();
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
+  const order = snap.data() as Order;
+  const status = normalizeOrderStatus(order.status);
+  if (TERMINAL_ORDER_STATUSES.has(status)) return { ok: false, error: "Cette commande est déjà clôturée." };
+  if (courierId && status !== "prete" && status !== "livreur_assigne") {
+    return { ok: false, error: "Passez d'abord la commande à « Prête à livrer »." };
+  }
 
   if (!courierId) {
     await ref.update({
       assignedCourierId: null,
       courierLocationToken: null,
+      courierLocationTokenExpiresAt: null,
       courierLocationSharing: false,
       courierLiveLocation: null,
+      ...(status === "livreur_assigne" ? { status: "prete", statusUpdatedAt: new Date().toISOString() } : {}),
     });
     return { ok: true };
   }
@@ -102,8 +111,11 @@ export async function assignCourierToOrderAction(
   await ref.update({
     assignedCourierId: courierId,
     courierLocationToken: randomUUID(),
+    courierLocationTokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     courierLocationSharing: false,
     courierLiveLocation: null,
+    status: "livreur_assigne",
+    statusUpdatedAt: new Date().toISOString(),
   });
   revalidatePath("/", "layout");
   return { ok: true };
@@ -144,12 +156,10 @@ export async function getCourierDashboardAction(token: string): Promise<
   const courier = courierDoc.data() as Omit<Courier, "id">;
   if (!courier.active) return { ok: false, error: "Ce profil livreur n'est plus actif. Contactez-nous pour en savoir plus." };
 
-  const orderSnap = await adminDb
-    .collection("orders")
-    .where("assignedCourierId", "==", courierDoc.id)
-    .where("status", "==", "confirmee")
-    .limit(1)
-    .get();
+  const assignedSnap = await adminDb.collection("orders").where("assignedCourierId", "==", courierDoc.id).get();
+  const orderDoc = assignedSnap.docs
+    .filter((doc) => COURIER_ACCESS_STATUSES.has(normalizeOrderStatus((doc.data() as Order).status)))
+    .sort((a, b) => String((a.data() as Order).createdAt).localeCompare(String((b.data() as Order).createdAt)))[0];
 
   // Faible volume par livreur — calcul des totaux en mémoire plutôt qu'un
   // index composite Firestore supplémentaire (même choix que
@@ -166,11 +176,10 @@ export async function getCourierDashboardAction(token: string): Promise<
     .slice(0, 10)
     .map((o) => ({ orderSummary: o.orderSummary, amount: o.courierPayout || 0, deliveredAt: o.deliveredAt || "" }));
 
-  if (orderSnap.empty) {
+  if (!orderDoc) {
     return { ok: true, name: courier.name, activeDeliveryToken: null, totalDelivered, totalEarned, recentPayouts };
   }
 
-  const orderDoc = orderSnap.docs[0];
   const order = orderDoc.data() as Order;
   let deliveryToken = order.courierLocationToken;
   if (!deliveryToken) {

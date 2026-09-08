@@ -1949,6 +1949,23 @@ html[data-theme="dark"] .dlv-sheet { background: var(--surface-container-low); b
   padding: 5px 10px 5px 8px; border-radius: var(--r-pill); pointer-events: none;
   transform: translateZ(0);
 }
+
+.dlv-route-warning {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 500;
+  width: min(88%, 520px);
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: var(--r-item);
+  background: color-mix(in srgb, var(--error) 92%, #000);
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: var(--shadow-2);
+}
 .dlv-live-badge .rec-dot {
   width: 7px; height: 7px; border-radius: 50%; background: #ff6b00; flex-shrink: 0;
   animation: dlv-blink 1.4s ease-in-out infinite;

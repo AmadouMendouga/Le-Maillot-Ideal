@@ -66,6 +66,7 @@ export async function applyPaymentResult(
 
     tx.update(orderRef, {
       paymentStatus: "paid",
+      ...(fresh.status === "recue" ? { status: "confirmee", statusUpdatedAt: new Date().toISOString() } : {}),
       paidAt: fresh.paidAt || new Date().toISOString(),
       stockState: "committed",
       inventoryIssue: false,

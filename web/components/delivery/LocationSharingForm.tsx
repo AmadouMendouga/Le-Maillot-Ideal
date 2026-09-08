@@ -13,13 +13,16 @@ import {
   updateLiveLocationAction,
   stopLocationSharingAction,
   getSharedLocationViewAction,
+  markCourierArrivedAction,
   markOrderDeliveredByCourierAction,
+  startDeliveryByCourierAction,
   type SharedTrack,
   type CourierDeliveryDetails,
 } from "@/lib/actions/orders";
 import { DeliveryMap } from "@/components/delivery/DeliveryMap";
 import { showToast } from "@/components/Toast";
 import { hasUsableAccuracy, shouldAppendTrackPoint, type GeoSample } from "@/lib/location";
+import type { OrderStatus } from "@/lib/types";
 
 // Le navigateur peut rappeler watchPosition très souvent (chaque seconde en
 // haute précision) — on ne remonte au serveur qu'au maximum toutes les 10s,
@@ -119,6 +122,7 @@ export function LocationSharingForm({
   delivery,
   deliveryCode,
   deliveryCodeQr,
+  initialOrderStatus,
 }: {
   token: string;
   customerName: string;
@@ -131,6 +135,7 @@ export function LocationSharingForm({
   deliveryCode?: string;
   /** QR encodant deliveryCode (data URL, généré côté serveur — voir lib/qr.ts), présent uniquement côté client. */
   deliveryCodeQr?: string;
+  initialOrderStatus: OrderStatus;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
@@ -138,6 +143,7 @@ export function LocationSharingForm({
   const [delivering, setDelivering] = useState(false);
   const [delivered, setDelivered] = useState(false);
   const [reviewToken, setReviewToken] = useState<string | null>(null);
+  const [orderStatus, setOrderStatus] = useState<OrderStatus>(initialOrderStatus);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const [scanError, setScanError] = useState("");
@@ -228,6 +234,7 @@ export function LocationSharingForm({
       const result = await getSharedLocationViewAction(token);
       if (cancelled || !result.ok) return;
       setSharedView({ customer: result.customer, courier: result.courier });
+      setOrderStatus(result.status);
       if (result.delivered) {
         setDelivered(true);
         if (watchIdRef.current !== null) {
@@ -295,6 +302,14 @@ export function LocationSharingForm({
       return;
     }
     if (watchIdRef.current !== null) return;
+    if (role === "courier" && orderStatus !== "en_route" && orderStatus !== "arrivee") {
+      const started = await startDeliveryByCourierAction(token);
+      if (!started.ok) {
+        setLocationWarning(started.error);
+        return;
+      }
+      setOrderStatus("en_route");
+    }
     const wakeLockNavigator = navigator as Navigator & { wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> } };
     wakeLockRef.current = await wakeLockNavigator.wakeLock?.request("screen").catch(() => null) ?? null;
     watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
@@ -331,6 +346,18 @@ export function LocationSharingForm({
     }
   }
 
+  async function markArrived() {
+    setDelivering(true);
+    try {
+      const result = await markCourierArrivedAction(token);
+      if (!result.ok) return setCodeError(result.error);
+      setOrderStatus("arrivee");
+      showToast("Arrivée signalée au client", "check-circle");
+    } finally {
+      setDelivering(false);
+    }
+  }
+
   async function stopSharing() {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -348,7 +375,7 @@ export function LocationSharingForm({
 
   const customerTrack = sharedView?.customer ?? EMPTY_TRACK;
   const courierTrack = sharedView?.courier ?? EMPTY_TRACK;
-  const step: 0 | 1 | 2 = delivered ? 2 : courierTrack.sharing ? 1 : 0;
+  const step: 0 | 1 | 2 = delivered ? 2 : orderStatus === "en_route" || orderStatus === "arrivee" ? 1 : 0;
 
   let sheet: ReactNode;
   if (delivered) {
@@ -434,9 +461,8 @@ export function LocationSharingForm({
           <>
             <h3>Bonjour 👋</h3>
             <p>
-              Merci de livrer la commande de {customerName} ! Partagez votre position pendant le trajet pour qu&apos;IKIGAI
-              Sport puisse suivre la livraison en direct. Elle n&apos;est visible que par eux, sert uniquement à
-              cette livraison, et vous pouvez arrêter à tout moment.
+              La commande de {customerName} est prête. Appuyez sur « Démarrer la course » au moment du départ :
+              le suivi et la position du client ne seront activés qu&apos;à partir de cet instant.
             </p>
           </>
         ) : (
@@ -453,7 +479,7 @@ export function LocationSharingForm({
         ) : null}
         <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startSharing}>
           <Icon name="location" size="sm" />
-          Partager ma position
+          {role === "courier" && orderStatus !== "en_route" && orderStatus !== "arrivee" ? "Démarrer la course" : "Partager ma position"}
         </button>
       </>
     );
@@ -480,6 +506,7 @@ export function LocationSharingForm({
                 {delivery.address}
               </p>
             ) : null}
+            {delivery.deliverySlot ? <p className="sub" style={{ margin: "4px 0 0" }}><strong>Créneau :</strong> {delivery.deliverySlot}</p> : null}
             <p className="sub" style={{ margin: "6px 0 14px" }}>
               {delivery.orderSummary}
             </p>
@@ -513,7 +540,13 @@ export function LocationSharingForm({
               </a>
             ) : null}
 
-            {scanning ? (
+            {orderStatus === "en_route" ? (
+              <button type="button" className="btn btn-primary btn-lg btn-block" style={{ marginBottom: 10 }} disabled={delivering} onClick={markArrived}>
+                <Icon name="location" size="sm" />Je suis arrivé
+              </button>
+            ) : null}
+
+            {orderStatus === "arrivee" && scanning ? (
               <div className="dlv-scan">
                 <video ref={videoRef} muted playsInline />
                 <button type="button" className="btn btn-tonal btn-sm" onClick={stopScan}>
@@ -521,15 +554,15 @@ export function LocationSharingForm({
                   Annuler le scan
                 </button>
               </div>
-            ) : (
+            ) : orderStatus === "arrivee" ? (
               <button type="button" className="btn btn-tonal btn-lg btn-block" style={{ marginBottom: 10 }} onClick={startScan}>
                 <Icon name="qr-scanner" size="sm" />
                 Scanner le QR du client
               </button>
-            )}
+            ) : null}
             {scanError ? <p className="form-note" style={{ color: "var(--error)", marginBottom: 10 }}>{scanError}</p> : null}
 
-            <div className="form-row" style={{ marginBottom: 8 }}>
+            {orderStatus === "arrivee" ? <><div className="form-row" style={{ marginBottom: 8 }}>
               <label htmlFor="dlvCode">Ou saisir le code (4 chiffres)</label>
               <input
                 id="dlvCode"
@@ -553,7 +586,7 @@ export function LocationSharingForm({
             <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => markDelivered()} disabled={delivering}>
               <Icon name="check-circle" size="sm" />
               {delivering ? "Enregistrement…" : "Confirmer la livraison"}
-            </button>
+            </button></> : <p className="form-note">Le code de remise sera demandé après avoir signalé votre arrivée.</p>}
           </div>
         ) : null}
 

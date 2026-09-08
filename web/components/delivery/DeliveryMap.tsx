@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { LocationPoint } from "@/lib/actions/orders";
-import { cleanTrackPoints, distanceMeters } from "@/lib/location";
+import { cleanTrackPoints, distanceMeters, routeLocationIssue, type RouteLocationIssue } from "@/lib/location";
 
 // OpenFreeMap : tuiles vectorielles gratuites, sans clé API, sans limite —
 // contrairement à CARTO (testé : exige désormais une clé, "API KEY REQUIRED"
@@ -34,7 +34,7 @@ function styleUrlForTheme(dark: boolean): string {
 
 export interface DeliveryTrack {
   points: LocationPoint[];
-  current: { lat: number; lng: number; accuracy?: number } | null;
+  current: { lat: number; lng: number; accuracy?: number; updatedAt?: string } | null;
   sharing: boolean;
 }
 
@@ -118,6 +118,7 @@ export function DeliveryMap({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; minutes: number; arrival: string } | null>(null);
+  const [routeIssue, setRouteIssue] = useState<RouteLocationIssue>(null);
   const [autoFollow, setAutoFollow] = useState(true);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type Leaflet réel, importé dynamiquement (pas de dépendance de type au niveau module)
   const mapRef = useRef<any>(null);
@@ -290,7 +291,9 @@ export function DeliveryMap({
     // l'instance OSRM publique (gratuite, sans clé, mais pas garantie —
     // best effort : en cas d'échec, l'ancien itinéraire affiché ne bouge
     // pas plutôt que de disparaître).
-    if (customer.current && courier.current && routeLineRef.current) {
+    const issue = customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
+    setRouteIssue(issue);
+    if (customer.current && courier.current && routeLineRef.current && !issue) {
       const from = courier.current;
       const to = customer.current;
       const prev = routeStateRef.current;
@@ -346,10 +349,11 @@ export function DeliveryMap({
       // élégant mais fiable. Protégé par try/catch : mieux vaut une carte
       // qui ne recentre pas cette fois qu'une page qui plante.
       try {
-        if (lasts.length > 1) {
+        if (lasts.length > 1 && !issue) {
           map.fitBounds(lasts, { padding: [40, 40], animate: false, maxZoom: 16 });
         } else {
-          map.setView(lasts[0], Math.max(map.getZoom(), 15), { animate: false });
+          const focus = courier.current || customer.current;
+          if (focus) map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 15), { animate: false });
         }
       } catch {
         // best effort — voir commentaire ci-dessus
@@ -364,8 +368,12 @@ export function DeliveryMap({
     setAutoFollow(true);
     viewportRef.current = positions;
     try {
-      if (positions.length > 1) map.fitBounds(positions.map((p) => [p.lat, p.lng]), { padding: [40, 40], animate: false, maxZoom: 16 });
-      else map.setView([positions[0].lat, positions[0].lng], Math.max(map.getZoom(), 15), { animate: false });
+      const issue = customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
+      if (positions.length > 1 && !issue) map.fitBounds(positions.map((p) => [p.lat, p.lng]), { padding: [40, 40], animate: false, maxZoom: 16 });
+      else {
+        const focus = courier.current || customer.current || positions[0];
+        map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 15), { animate: false });
+      }
     } catch {
       // Le suivi reprendra automatiquement à la prochaine mesure.
     }
@@ -389,6 +397,13 @@ export function DeliveryMap({
         <button type="button" className="dlv-recenter" onClick={recenter}>
           Recentrer
         </button>
+      ) : null}
+      {routeIssue ? (
+        <div className="dlv-route-warning" role="alert">
+          {routeIssue === "positions_trop_eloignees"
+            ? "Positions incohérentes : vérifiez la position du client avant de partir."
+            : "Itinéraire suspendu : une position est trop ancienne. Relancez le partage GPS."}
+        </div>
       ) : null}
       {showRouteStats && routeStats ? (
         <div className="dlv-route-stats">

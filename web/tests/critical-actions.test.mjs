@@ -226,7 +226,7 @@ test("livraison : réaffecter révoque l'ancien jeton et le livreur ne reçoit p
   const f = fixture({
     "couriers/new": { active: true },
     "orders/delivery": {
-      status: "confirmee", assignedCourierId: "old", courierLocationToken: "old-token",
+      status: "prete", assignedCourierId: "old", courierLocationToken: "old-token",
       courierLocationSharing: true, courierLiveLocation: null, locationToken: "customer-token",
     },
   });
@@ -247,7 +247,7 @@ test("livraison : réaffecter révoque l'ancien jeton et le livreur ne reçoit p
 test("livraison : cinq codes erronés verrouillent temporairement la confirmation", async () => {
   const f = fixture({
     "orders/delivery-code": {
-      status: "confirmee", courierLocationToken: "courier-token", deliveryCode: "1234",
+      status: "arrivee", courierLocationToken: "courier-token", deliveryCode: "1234",
       deliveryCodeAttempts: 0, reviewToken: null, deliveredAt: null,
     },
   });
@@ -259,5 +259,33 @@ test("livraison : cinq codes erronés verrouillent temporairement la confirmatio
   const row = f.db.rows.get("orders/delivery-code");
   assert.ok(row.deliveryCodeLockedUntil);
   assert.equal((await action("courier-token", "1234")).ok, false);
-  assert.equal(f.db.rows.get("orders/delivery-code").status, "confirmee");
+  assert.equal(f.db.rows.get("orders/delivery-code").status, "arrivee");
+});
+
+test("livraison : le client ne reçoit son lien qu'après le départ réel du livreur", async () => {
+  const f = fixture({
+    "orders/workflow": {
+      status: "livreur_assigne", courierLocationToken: "courier-start", locationToken: null,
+      courierLocationSharing: false, courierLiveLocation: null, locationSharing: false, liveLocation: null,
+    },
+  });
+  const actions = f.load("lib/actions/orders.ts");
+  assert.equal((await actions.getOrCreateLocationTokenAction("workflow", "customer")).ok, false);
+  assert.equal((await actions.startDeliveryByCourierAction("courier-start")).ok, true);
+  assert.equal(f.db.rows.get("orders/workflow").status, "en_route");
+  assert.equal((await actions.getOrCreateLocationTokenAction("workflow", "customer")).ok, true);
+});
+
+test("livraison : le code de remise n'est accepté qu'après l'arrivée", async () => {
+  const f = fixture({
+    "orders/handover": {
+      status: "en_route", courierLocationToken: "courier-handover", deliveryCode: "4321",
+      courierLocationSharing: true, locationSharing: true, reviewToken: null, deliveredAt: null,
+    },
+  });
+  const actions = f.load("lib/actions/orders.ts");
+  assert.equal((await actions.markOrderDeliveredByCourierAction("courier-handover", "4321")).ok, false);
+  assert.equal((await actions.markCourierArrivedAction("courier-handover")).ok, true);
+  assert.equal((await actions.markOrderDeliveredByCourierAction("courier-handover", "4321")).ok, true);
+  assert.equal(f.db.rows.get("orders/handover").status, "livree");
 });

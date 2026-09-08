@@ -27,8 +27,9 @@ import {
   productPatchError,
 } from "../lib/validation.ts";
 import { aggregateItemQuantities, quoteOrderItems, validateOrderItems } from "../lib/orderValidation.ts";
-import { cleanTrackPoints, distanceMeters, hasUsableAccuracy, shouldAppendTrackPoint } from "../lib/location.ts";
+import { cleanTrackPoints, distanceMeters, hasUsableAccuracy, routeLocationIssue, shouldAppendTrackPoint } from "../lib/location.ts";
 import { publicProductDescription } from "../lib/product.ts";
+import { canGenerateTrackingLink, publicProgressStep } from "../lib/orderWorkflow.ts";
 
 function sampleProduct(overrides = {}) {
   return {
@@ -458,4 +459,23 @@ test("cleanTrackPoints retire les sauts impossibles et plafonne l'historique", (
     { lat: 4.052, lng: 9.7688, at: "2026-09-07T12:00:30.000Z", accuracy: 10 },
   ];
   assert.deepEqual(cleanTrackPoints(points, 2), [points[0], points[2]]);
+});
+
+test("l'itinéraire refuse deux positions sur des continents différents ou périmées", () => {
+  const now = Date.parse("2026-09-08T05:00:00.000Z");
+  const douala = { lat: 4.0511, lng: 9.7679, updatedAt: "2026-09-08T04:59:30.000Z" };
+  const bonamoussadi = { lat: 4.09, lng: 9.74, updatedAt: "2026-09-08T04:59:40.000Z" };
+  const america = { lat: 40.7128, lng: -74.006, updatedAt: "2026-09-08T04:59:40.000Z" };
+  const old = { ...bonamoussadi, updatedAt: "2026-09-08T04:30:00.000Z" };
+  assert.equal(routeLocationIssue(douala, bonamoussadi, now), null);
+  assert.equal(routeLocationIssue(douala, america, now), "positions_trop_eloignees");
+  assert.equal(routeLocationIssue(douala, old, now), "position_perimee");
+});
+
+test("le lien client n'est disponible qu'au départ, le lien livreur dès que la commande est prête", () => {
+  assert.equal(canGenerateTrackingLink("confirmee", "customer"), false);
+  assert.equal(canGenerateTrackingLink("prete", "courier"), true);
+  assert.equal(canGenerateTrackingLink("prete", "customer"), false);
+  assert.equal(canGenerateTrackingLink("en_route", "customer"), true);
+  assert.equal(publicProgressStep("arrivee"), 3);
 });

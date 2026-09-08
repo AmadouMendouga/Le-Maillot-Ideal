@@ -9,6 +9,8 @@ export interface GeoSample {
 
 export const MAX_LOCATION_ACCURACY_METERS = 100;
 export const MAX_TRACK_POINTS = 200;
+export const MAX_DELIVERY_ROUTE_METERS = 100_000;
+export const MAX_ROUTE_POSITION_AGE_MS = 5 * 60 * 1000;
 
 export function distanceMeters(a: Pick<GeoSample, "lat" | "lng">, b: Pick<GeoSample, "lat" | "lng">): number {
   const earthRadius = 6_371_000;
@@ -17,6 +19,19 @@ export function distanceMeters(a: Pick<GeoSample, "lat" | "lng">, b: Pick<GeoSam
   const meanLat = ((a.lat + b.lat) / 2) * (Math.PI / 180);
   const x = dLng * Math.cos(meanLat);
   return Math.sqrt(dLat * dLat + x * x) * earthRadius;
+}
+
+export type RouteLocationIssue = "positions_trop_eloignees" | "position_perimee" | null;
+
+export function routeLocationIssue(
+  customer: { lat: number; lng: number; updatedAt?: string },
+  courier: { lat: number; lng: number; updatedAt?: string },
+  now = Date.now()
+): RouteLocationIssue {
+  if (distanceMeters(customer, courier) > MAX_DELIVERY_ROUTE_METERS) return "positions_trop_eloignees";
+  const dates = [customer.updatedAt, courier.updatedAt].filter(Boolean).map((value) => Date.parse(value!));
+  if (dates.some((date) => !Number.isFinite(date) || now - date > MAX_ROUTE_POSITION_AGE_MS)) return "position_perimee";
+  return null;
 }
 
 export function hasUsableAccuracy(accuracy: number | undefined): boolean {
