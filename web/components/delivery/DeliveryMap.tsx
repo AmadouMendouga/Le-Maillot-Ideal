@@ -21,6 +21,7 @@ import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { LocationPoint } from "@/lib/actions/orders";
 import { cleanTrackPoints, distanceMeters, routeLocationIssue, type RouteLocationIssue } from "@/lib/location";
+import { Icon } from "@/components/icons/Icon";
 
 // OpenFreeMap : tuiles vectorielles gratuites, sans clé API, sans limite —
 // contrairement à CARTO (testé : exige désormais une clé, "API KEY REQUIRED"
@@ -76,10 +77,10 @@ interface RouteResult {
   durationSeconds: number;
 }
 
-async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }): Promise<RouteResult | null> {
+async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }, signal: AbortSignal): Promise<RouteResult | null> {
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) return null;
     const data = await res.json();
     const route = data?.routes?.[0];
@@ -101,6 +102,7 @@ export function DeliveryMap({
   fullScreen = false,
   darkMap = false,
   showRouteStats = false,
+  viewportKey,
 }: {
   customer: DeliveryTrack;
   courier: DeliveryTrack;
@@ -115,8 +117,13 @@ export function DeliveryMap({
    * calculé depuis l'itinéraire OSRM déjà récupéré — remplace le petit badge
    * "En direct" plutôt que de l'empiler. */
   showRouteStats?: boolean;
+  /** Recalcule la taille de la carte lorsque le panneau change. */
+  viewportKey?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState(false);
+  const [routeStatus, setRouteStatus] = useState<"waiting" | "loading" | "ready" | "unavailable">("waiting");
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; minutes: number; arrival: string } | null>(null);
   const [routeIssue, setRouteIssue] = useState<RouteLocationIssue>(null);
   const [autoFollow, setAutoFollow] = useState(true);
@@ -132,6 +139,8 @@ export function DeliveryMap({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- polyligne Leaflet réelle
   const routeLineRef = useRef<any>(null);
   const routeRequestRef = useRef(0);
+  const routeAbortRef = useRef<AbortController | null>(null);
+  const routeResolvedRef = useRef(false);
   const viewportRef = useRef<Array<{ lat: number; lng: number }>>([]);
   // Évite de rappeler OSRM à chaque sondage (toutes les 6s) si personne n'a
   // vraiment bougé — voir le throttle plus bas.
@@ -181,21 +190,17 @@ export function DeliveryMap({
         courier: { line: L.polyline([], { color: "#16a34a", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
       };
       // Itinéraire routier (OSRM) entre le livreur et le client — but même de
-      // la carte : aider à se retrouver, pas juste montrer deux traces
-      // séparées. Style neutre et pointillé pour ne pas se confondre avec les
-      // deux traces de déplacement passé (pleines, colorées par personne).
-      // Bleu marine sur fond clair, bleu ciel sur fond sombre : le marine
-      // devenait quasi invisible sur la carte sombre du livreur (constaté le
-      // 06/09/2026 — "l'itinéraire ne s'affiche pas" alors qu'il était bien
-      // calculé, juste sans contraste).
+      // la carte : aider à se retrouver. Tracé continu neutre, contrasté
+      // dans chaque thème ; les historiques restent réservés à l'admin.
       routeLineRef.current = L.polyline([], {
-        color: darkMap || isDarkTheme() ? "#38bdf8" : "#1e3a8a",
-        weight: 4,
-        opacity: 0.85,
-        dashArray: "2 10",
+        color: darkMap || isDarkTheme() ? "#f3f6f4" : "#242b28",
+        weight: 5,
+        opacity: 0.95,
         lineCap: "round",
       }).addTo(map);
-    });
+      map.invalidateSize();
+      setMapReady(true);
+    }).catch(() => { if (!cancelled) setMapError(true); });
 
     // Réagit si l'admin bascule clair/sombre (bouton de thème) pendant que
     // le tiroir est ouvert : MapLibre sait changer de style en place (pas
@@ -203,6 +208,7 @@ export function DeliveryMap({
     const observer = new MutationObserver(() => {
       if (darkMap) return; // toujours sombre, indépendant du thème choisi côté client
       glLayerRef.current?.getMaplibreMap()?.setStyle(styleUrlForTheme(isDarkTheme()));
+      routeLineRef.current?.setStyle({ color: isDarkTheme() ? "#f3f6f4" : "#242b28" });
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
@@ -223,6 +229,8 @@ export function DeliveryMap({
 
     return () => {
       cancelled = true;
+      routeRequestRef.current += 1;
+      routeAbortRef.current?.abort();
       observer.disconnect();
       clearTimeout(resizeTimer);
       if (mapRef.current) {
@@ -237,6 +245,20 @@ export function DeliveryMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialisation unique, la mise à jour se fait dans l'effet suivant
   }, []);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const timer = setTimeout(() => {
+      try {
+        mapRef.current?.stop();
+        mapRef.current?.invalidateSize({ animate: false, pan: false });
+        viewportRef.current = [];
+      } catch {
+        // Les commandes de livraison restent utilisables pendant le chargement.
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [mapReady, viewportKey]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -258,7 +280,13 @@ export function DeliveryMap({
       t.line.setLatLngs(latLngs);
 
       const last = track.current || (track.points.length ? track.points[track.points.length - 1] : null);
-      if (!last) continue; // rien partagé pour cette piste — pas de marqueur fantôme
+      if (!last) {
+        t.marker?.remove();
+        t.accuracy?.remove();
+        t.marker = null;
+        t.accuracy = null;
+        continue;
+      }
 
       if (!t.marker) {
         t.marker = L.marker([last.lat, last.lng], {
@@ -289,9 +317,8 @@ export function DeliveryMap({
 
     // Itinéraire livreur → client, tant que les deux partagent une position.
     // Throttlé (30s + 25m de mouvement minimum) pour ne pas saturer
-    // l'instance OSRM publique (gratuite, sans clé, mais pas garantie —
-    // best effort : en cas d'échec, l'ancien itinéraire affiché ne bouge
-    // pas plutôt que de disparaître).
+    // l'instance OSRM publique. Après un échec, réessaie même à l'arrêt ;
+    // n'affiche pas un ancien itinéraire comme s'il venait d'être calculé.
     const issue = customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
     setRouteIssue(issue);
     if (customer.current && courier.current && routeLineRef.current && !issue) {
@@ -300,11 +327,24 @@ export function DeliveryMap({
       const prev = routeStateRef.current;
       const stale = !prev || Date.now() - prev.fetchedAt > 30000;
       const moved = !prev || distanceMeters(prev.from, from) > 25 || distanceMeters(prev.to, to) > 25;
-      if (stale && moved) {
+      if (stale && (moved || !routeResolvedRef.current)) {
         routeStateRef.current = { from, to, fetchedAt: Date.now() };
         const requestId = ++routeRequestRef.current;
-        fetchRoute(from, to).then((result) => {
-          if (!result || requestId !== routeRequestRef.current) return;
+        routeAbortRef.current?.abort();
+        const controller = new AbortController();
+        routeAbortRef.current = controller;
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        setRouteStatus("loading");
+        fetchRoute(from, to, controller.signal).then((result) => {
+          if (requestId !== routeRequestRef.current) return;
+          routeResolvedRef.current = Boolean(result);
+          if (!result) {
+            setRouteStatus("unavailable");
+            setRouteStats(null);
+            routeLineRef.current?.setLatLngs([]);
+            return;
+          }
+          setRouteStatus("ready");
           routeLineRef.current?.setLatLngs(result.coords);
           setRouteStats({
             distanceKm: result.distanceMeters / 1000,
@@ -314,13 +354,16 @@ export function DeliveryMap({
               minute: "2-digit",
             }),
           });
-        });
+        }).finally(() => clearTimeout(timeout));
       }
     } else {
       routeLineRef.current?.setLatLngs([]);
       routeRequestRef.current += 1;
+      routeAbortRef.current?.abort();
+      routeResolvedRef.current = false;
       routeStateRef.current = null;
       setRouteStats(null);
+      setRouteStatus("waiting");
     }
 
     if (lasts.length && autoFollow) {
@@ -360,7 +403,7 @@ export function DeliveryMap({
         // best effort — voir commentaire ci-dessus
       }
     }
-  }, [customer, courier, fullScreen, autoFollow]);
+  }, [customer, courier, fullScreen, autoFollow, mapReady]);
 
   function recenter() {
     const map = mapRef.current;
@@ -380,10 +423,8 @@ export function DeliveryMap({
     }
   }
 
-  const activeCount = (customer.sharing ? 1 : 0) + (courier.sharing ? 1 : 0);
-
   return (
-    <div style={fullScreen ? { position: "relative", flex: "1 1 auto", minHeight: 0 } : { position: "relative" }}>
+    <div className="dlv-map-frame" style={fullScreen ? { position: "relative", flex: "1 1 auto", minHeight: 0 } : { position: "relative" }}>
       <div
         ref={containerRef}
         role="img"
@@ -394,23 +435,23 @@ export function DeliveryMap({
             : { width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }
         }
       />
-      {!autoFollow && (customer.current || courier.current) ? (
-        <button type="button" className="dlv-recenter" onClick={recenter}>
-          Recentrer
+      {(customer.current || courier.current) ? (
+        <button type="button" className="dlv-recenter" onClick={recenter} aria-label="Recentrer la carte sur la livraison" title="Recentrer la carte">
+          <Icon name="location" />
         </button>
       ) : null}
-      {routeIssue ? (
+      {mapError ? <div className="dlv-route-warning" role="status">La carte est indisponible. Les détails de la livraison restent accessibles.</div> : routeIssue ? (
         <div className="dlv-route-warning" role="alert">
           {routeIssue === "positions_trop_eloignees"
             ? "Positions incohérentes : vérifiez la position du client avant de partir."
             : "Itinéraire suspendu : une position est trop ancienne. Relancez le partage GPS."}
         </div>
       ) : null}
-      {showRouteStats && routeStats ? (
+      {showRouteStats && routeStats && !routeIssue && !mapError ? (
         <div className="dlv-route-stats">
           <div>
             <strong>{routeStats.minutes} min</strong>
-            <span>Restant</span>
+            <span>Trajet estimé</span>
           </div>
           <div className="sep" />
           <div>
@@ -420,13 +461,13 @@ export function DeliveryMap({
           <div className="sep" />
           <div>
             <strong>{routeStats.arrival}</strong>
-            <span>Arrivée</span>
+            <span>Arrivée estimée</span>
           </div>
         </div>
-      ) : activeCount > 0 ? (
-        <div className="dlv-live-badge" aria-hidden="true">
-          <span className="rec-dot" />
-          En direct
+      ) : !routeIssue && !mapError ? (
+        <div className="dlv-live-badge" role="status">
+          <Icon name={routeStatus === "unavailable" ? "cloud-off" : "location"} size="sm" />
+          {routeStatus === "loading" ? "Calcul de l’itinéraire…" : routeStatus === "unavailable" ? "Itinéraire indisponible · nouvelle tentative automatique" : !courier.current ? "En attente de la position du livreur" : !customer.current ? "En attente du lieu de livraison" : "Positions reçues"}
         </div>
       ) : null}
     </div>

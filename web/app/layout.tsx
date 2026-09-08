@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./lmi.css";
+import "./ikigai-ui.css";
 import { IconSprite } from "@/components/icons/IconSprite";
 import { ToastHost } from "@/components/Toast";
 
@@ -8,11 +9,11 @@ export const metadata: Metadata = {
   description: "Boutique multisport au Cameroun : maillots, judogi, équipements de combat, basketball et sneakers.",
 };
 
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("lmi_theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`;
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("lmi_theme");document.documentElement.setAttribute("data-theme",t==="dark"?"dark":"light");}catch(e){}})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" data-theme="light" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

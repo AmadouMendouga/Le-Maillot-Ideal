@@ -17,6 +17,7 @@ function links(basePath: string): { href: string; label: string; icon: IconName;
   return [
     { href: basePath, label: "Accueil", icon: "storefront" },
     { href: `${basePath}/boutique`, label: "Boutique", icon: "grid" },
+    { href: `${basePath}/favoris`, label: "Mes favoris", icon: "star" },
     { href: `${basePath}/phototheque`, label: "Photothèque", icon: "photo-library" },
     { href: `${basePath}/#faq`, label: "Aide", icon: "info" },
     { href: `${basePath}/#contact`, label: "Contact", icon: "person" },

@@ -7,6 +7,7 @@ import { StatefulButton } from "@/components/StatefulButton";
 import { NavbarMenu } from "@/components/nav/NavbarMenu";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import { MobileNav } from "@/components/nav/MobileNav";
+import { HeartIcon } from "@/components/products/HeartIcon";
 import { useCart } from "@/components/cart/CartContext";
 import { showToast } from "@/components/Toast";
 import { whatsappNumber } from "@/lib/cart";
@@ -58,6 +59,9 @@ export function Navbar({ basePath, leagues, products, settings }: NavbarProps) {
             <NavbarMenu shellRef={shellRef} basePath={basePath} leagues={leagues} products={products} settings={settings} />
 
             <div className="header-actions">
+              <Link href={`${basePath}/favoris`} className="icon-btn plain" aria-label="Mes favoris">
+                <HeartIcon />
+              </Link>
               <Link href={`${basePath}/compte`} className="icon-btn plain" aria-label="Mon compte">
                 <Icon name="person" />
               </Link>

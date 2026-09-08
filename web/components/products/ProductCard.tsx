@@ -15,11 +15,15 @@ import { showToast } from "@/components/Toast";
 import { flyToCart } from "@/lib/flyToCart";
 import { FCFA, stockInfo } from "@/lib/cart";
 import type { Product, SiteSettings } from "@/lib/types";
+import { useFavorites } from "@/hooks/useFavorites";
+import { HeartIcon } from "@/components/products/HeartIcon";
 
 const ADDED_LABEL_DURATION = 1600;
 const CARD_POP_DURATION = 600;
 
 export function ProductCard({ product, settings }: { product: Product; settings: SiteSettings }) {
+  const { slugs, toggle } = useFavorites();
+  const favorite = slugs.includes(product.slug);
   const { addToCart, barRef } = useCart();
   const dah = useDirectionAwareHover<HTMLAnchorElement>();
   const cardRef = useRef<HTMLElement>(null);
@@ -31,11 +35,11 @@ export function ProductCard({ product, settings }: { product: Product; settings:
   const verified = settings.catalogDataVerified;
   const st = stockInfo(product, verified);
   const href = `/${product.sport}/produits/${product.slug}`;
+  const sizes = [...new Set(product.sizes.map((size) => String(size).trim()).filter(Boolean))];
 
   function handleQuickAdd() {
-    const sizes = product.sizes.map(String);
-    const defaultSize = sizes.includes("M") ? "M" : sizes[0] || "";
-    const result = addToCart(product.slug, defaultSize, 1);
+    if (sizes.length !== 1) return;
+    const result = addToCart(product.slug, sizes[0], 1);
     if (!result.ok) {
       showToast(result.message || "Erreur", "error", true);
       return;
@@ -62,6 +66,11 @@ export function ProductCard({ product, settings }: { product: Product; settings:
 
   return (
     <article className="product-card" ref={cardRef} data-slug={product.slug}>
+      <button type="button" className="ik-favorite-btn" aria-pressed={favorite}
+        aria-label={`${favorite ? "Retirer" : "Ajouter"} ${product.name} ${favorite ? "des" : "aux"} favoris`}
+        onClick={() => toggle(product.slug)}>
+        <HeartIcon filled={favorite} />
+      </button>
       <Link className="product-media dah" href={href} aria-label={`Voir ${product.name}`} {...dah}>
         <div className="product-badges">
           {verified && product.isNew && <span className="badge badge-new">Nouveau</span>}
@@ -111,17 +120,21 @@ export function ProductCard({ product, settings }: { product: Product; settings:
             <span className="price-now">{FCFA(product.price)}</span>
             {verified && product.discountPct > 0 && <span className="price-old">{FCFA(product.priceOriginal)}</span>}
           </div>
-          <button
+          {st.available && sizes.length > 1 ? (
+            <Link className="add-btn" href={href} aria-label={`Choisir la taille de ${product.name}`}>
+              Choisir la taille
+            </Link>
+          ) : <button
             ref={addBtnRef}
             type="button"
             className={"add-btn quick-add" + (added ? " added" : "")}
-            disabled={!st.available}
+            disabled={!st.available || sizes.length === 0}
             aria-label={st.available ? `Ajouter ${product.name} au panier` : `${product.name} indisponible`}
             onClick={handleQuickAdd}
           >
             <AddToCartIcon />
             {added ? "Ajouté" : st.available ? "Ajouter" : "Épuisé"}
-          </button>
+          </button>}
         </div>
       </div>
     </article>

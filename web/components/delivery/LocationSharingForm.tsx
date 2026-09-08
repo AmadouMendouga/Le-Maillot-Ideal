@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import jsQR from "jsqr";
 import { Icon } from "@/components/icons/Icon";
+import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import {
   updateLiveLocationAction,
   stopLocationSharingAction,
@@ -21,7 +22,8 @@ import {
 } from "@/lib/actions/orders";
 import { DeliveryMap } from "@/components/delivery/DeliveryMap";
 import { showToast } from "@/components/Toast";
-import { hasUsableAccuracy, shouldAppendTrackPoint, type GeoSample } from "@/lib/location";
+import { hasUsableAccuracy, routeLocationIssue, shouldAppendTrackPoint, type GeoSample } from "@/lib/location";
+import { ORDER_STATUS_LABELS } from "@/lib/orderWorkflow";
 import type { OrderStatus } from "@/lib/types";
 
 // Le navigateur peut rappeler watchPosition très souvent (chaque seconde en
@@ -101,7 +103,7 @@ function TrackLegend({ view }: { view: { customer: SharedTrack; courier: SharedT
         </span>
         {view.customer.current && view.courier.current ? (
           <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 12, height: 2, background: "#1e3a8a", display: "inline-block" }} />
+            <span style={{ width: 12, height: 2, background: "var(--on-surface)", display: "inline-block" }} />
             Itinéraire suggéré
           </span>
         ) : null}
@@ -149,7 +151,13 @@ export function LocationSharingForm({
   const [scanError, setScanError] = useState("");
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [locationWarning, setLocationWarning] = useState("");
+  const [pollWarning, setPollWarning] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [panel, setPanel] = useState<"tracking" | "details" | "code">("tracking");
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
+  const scanPendingRef = useRef(false);
+  const scanRequestRef = useRef(0);
   const watchIdRef = useRef<number | null>(null);
   const lastSentRef = useRef(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -159,6 +167,8 @@ export function LocationSharingForm({
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
 
   function stopScan() {
+    scanRequestRef.current += 1;
+    scanPendingRef.current = false;
     if (scanRafRef.current !== null) cancelAnimationFrame(scanRafRef.current);
     scanRafRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -167,10 +177,18 @@ export function LocationSharingForm({
   }
 
   async function startScan() {
+    if (scanPendingRef.current || streamRef.current?.getTracks().some((track) => track.readyState === "live")) return;
+    scanPendingRef.current = true;
+    const requestId = ++scanRequestRef.current;
     setScanError("");
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera-unavailable");
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      if (requestId !== scanRequestRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      scanPendingRef.current = false;
       streamRef.current = stream;
       setScanning(true);
       // <video> n'existe qu'une fois scanning=true (rendu conditionnel) —
@@ -205,13 +223,15 @@ export function LocationSharingForm({
         if (/^\d{4}$/.test(value)) {
           stopScan();
           setCodeInput(value);
-          markDelivered(value);
+          setCodeError("");
+          showToast("Code scanné. Confirmez la remise de la commande.");
           return;
         }
         scanRafRef.current = requestAnimationFrame(tick);
       };
       scanRafRef.current = requestAnimationFrame(tick);
     } catch {
+      if (requestId !== scanRequestRef.current) return;
       stopScan();
       setScanError("Caméra refusée ou indisponible. Saisissez le code manuellement.");
     }
@@ -230,27 +250,39 @@ export function LocationSharingForm({
   // position" ici, et inversement.
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
-      const result = await getSharedLocationViewAction(token);
-      if (cancelled || !result.ok) return;
-      setSharedView({ customer: result.customer, courier: result.courier });
-      setOrderStatus(result.status);
-      if (result.delivered) {
-        setDelivered(true);
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
+      try {
+        const result = await getSharedLocationViewAction(token);
+        if (cancelled) return;
+        if (!result.ok) {
+          setPollWarning(result.error);
+          return;
         }
-        wakeLockRef.current?.release().catch(() => {});
-        wakeLockRef.current = null;
+        setPollWarning("");
+        setSharedView({ customer: result.customer, courier: result.courier });
+        setOrderStatus(result.status);
+        if (result.delivered) {
+          setDelivered(true);
+          stopScan();
+          if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+          }
+          wakeLockRef.current?.release().catch(() => {});
+          wakeLockRef.current = null;
+        }
+        if (result.reviewToken) setReviewToken(result.reviewToken);
+      } catch {
+        if (!cancelled) setPollWarning("Actualisation interrompue. Vérifiez votre connexion ; le suivi réessaiera automatiquement.");
+      } finally {
+        if (!cancelled) timer = setTimeout(poll, MAP_POLL_MS);
       }
-      if (result.reviewToken) setReviewToken(result.reviewToken);
     }
     poll();
-    const id = setInterval(poll, MAP_POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      clearTimeout(timer);
     };
   }, [token]);
 
@@ -287,36 +319,51 @@ export function LocationSharingForm({
         }
       })
       .catch(() => {
-        // silencieux — la prochaine position (dans MIN_INTERVAL_MS) réessaiera
+        setLocationWarning("Position non envoyée. Vérifiez votre connexion ; une nouvelle tentative sera faite automatiquement.");
       });
   }
 
   function handleError(err: GeolocationPositionError) {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
     if (err.code === err.PERMISSION_DENIED) setStatus("denied");
     else setStatus("unavailable");
   }
 
   async function startSharing() {
+    if (startingRef.current) return;
     if (!("geolocation" in navigator)) {
       setStatus("unsupported");
       return;
     }
     if (watchIdRef.current !== null) return;
-    if (role === "courier" && orderStatus !== "en_route" && orderStatus !== "arrivee") {
-      const started = await startDeliveryByCourierAction(token);
-      if (!started.ok) {
-        setLocationWarning(started.error);
-        return;
+    startingRef.current = true;
+    setStarting(true);
+    setLocationWarning("");
+    try {
+      if (role === "courier" && orderStatus !== "en_route" && orderStatus !== "arrivee") {
+        const started = await startDeliveryByCourierAction(token);
+        if (!started.ok) {
+          setLocationWarning(started.error);
+          return;
+        }
+        setOrderStatus("en_route");
       }
-      setOrderStatus("en_route");
+      const wakeLockNavigator = navigator as Navigator & { wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> } };
+      wakeLockRef.current = await wakeLockNavigator.wakeLock?.request("screen").catch(() => null) ?? null;
+      watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 20000,
+      });
+    } catch {
+      setLocationWarning("Le partage n'a pas pu démarrer. Vérifiez votre connexion et réessayez.");
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
     }
-    const wakeLockNavigator = navigator as Navigator & { wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> } };
-    wakeLockRef.current = await wakeLockNavigator.wakeLock?.request("screen").catch(() => null) ?? null;
-    watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-      enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 20000,
-    });
   }
 
   async function markDelivered(code: string = codeInput) {
@@ -338,6 +385,7 @@ export function LocationSharingForm({
       }
       await wakeLockRef.current?.release().catch(() => {});
       wakeLockRef.current = null;
+      stopScan();
       setDelivered(true);
     } catch {
       showToast("Échec de l'enregistrement. Vérifiez votre connexion et réessayez.", "error", true);
@@ -352,7 +400,10 @@ export function LocationSharingForm({
       const result = await markCourierArrivedAction(token);
       if (!result.ok) return setCodeError(result.error);
       setOrderStatus("arrivee");
+      setPanel("code");
       showToast("Arrivée signalée au client", "check-circle");
+    } catch {
+      setCodeError("L’arrivée n’a pas été enregistrée. Réessayez lorsque la connexion sera rétablie.");
     } finally {
       setDelivering(false);
     }
@@ -457,9 +508,11 @@ export function LocationSharingForm({
   } else {
     sheet = (
       <>
-        {role === "courier" ? (
+        {role === "courier" && (orderStatus === "en_route" || orderStatus === "arrivee") ? (
+          <><h3>Reprendre le suivi</h3><p>La livraison est en cours. Partagez à nouveau votre position depuis cet appareil.</p></>
+        ) : role === "courier" ? (
           <>
-            <h3>Bonjour 👋</h3>
+            <h3>Prêt pour la livraison</h3>
             <p>
               La commande de {customerName} est prête. Appuyez sur « Démarrer la course » au moment du départ :
               le suivi et la position du client ne seront activés qu&apos;à partir de cet instant.
@@ -467,7 +520,7 @@ export function LocationSharingForm({
           </>
         ) : (
           <>
-            <h3>Bonjour {customerName} 👋</h3>
+            <h3>Votre lieu de livraison</h3>
             <p>
               Partagez votre position pour aider à localiser votre lieu de livraison. Elle n&apos;est visible que par
               IKIGAI Sport, sert uniquement à cette livraison, et vous pouvez arrêter à tout moment.
@@ -477,152 +530,172 @@ export function LocationSharingForm({
         {initialSharing ? (
           <p className="form-note">Un partage était déjà en cours sur un autre onglet — vous pouvez le reprendre ici.</p>
         ) : null}
-        <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startSharing}>
+        <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startSharing} disabled={starting}>
           <Icon name="location" size="sm" />
-          {role === "courier" && orderStatus !== "en_route" && orderStatus !== "arrivee" ? "Démarrer la course" : "Partager ma position"}
+          {starting ? "Démarrage…" : role === "courier" && orderStatus !== "en_route" && orderStatus !== "arrivee" ? "Démarrer la course" : "Partager ma position"}
         </button>
       </>
     );
   }
 
-  return (
-    <div className="dlv-screen">
-      <DeliveryMap
-        customer={customerTrack}
-        courier={courierTrack}
-        fullScreen
-        darkMap={role === "courier"}
-        showRouteStats={role === "courier"}
-      />
-      <div className="dlv-sheet">
-        <DeliveryStepper step={step} />
-        {sheet}
+  const navigating = orderStatus === "en_route" || orderStatus === "arrivee";
+  const canNavigate = navigating && customerTrack.current && courierTrack.current &&
+    !routeLocationIssue(customerTrack.current, courierTrack.current);
 
-        {role === "courier" && delivery && !delivered ? (
-          <div style={{ margin: "16px 0" }}>
-            {/* Carte "infos client" — patron inspiré d'une charte de suivi de
-                colis partagée par le client le 08/09/2026 : avatar + nom en
-                tête, actions en boutons circulaires plutôt qu'en pleine
-                largeur. Vert IKIGAI gardé comme accent (WhatsApp), pas de
-                bascule vers le noir/blanc pur de la référence. */}
-            <div className="dlv-info-card">
-              <div className="dlv-info-row">
-                <span className="dlv-avatar" aria-hidden="true">
-                  <Icon name="person" size="sm" />
-                </span>
-                <div className="dlv-info-text">
-                  <p className="name">{customerName}</p>
-                  {delivery.address ? <p className="sub">{delivery.address}</p> : null}
-                </div>
-                <div className="dlv-info-actions">
-                  <a
-                    className="dlv-icon-circle whatsapp"
-                    aria-label="Écrire sur WhatsApp"
-                    href={`https://wa.me/${delivery.customerPhone}`}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    <Icon name="whatsapp" size="sm" />
-                  </a>
-                  <a className="dlv-icon-circle" aria-label="Appeler" href={`tel:+${delivery.customerPhone}`}>
-                    <Icon name="phone" size="sm" />
-                  </a>
-                </div>
-              </div>
-              {delivery.deliverySlot ? (
-                <p className="dlv-info-summary" style={{ borderTop: "none", paddingTop: 0, marginTop: 8 }}>
-                  <strong>Créneau :</strong> {delivery.deliverySlot}
-                </p>
-              ) : null}
-              <p className="dlv-info-summary">{delivery.orderSummary}</p>
-            </div>
+  function openPanel(next: "tracking" | "details" | "code") {
+    if (next !== "code") stopScan();
+    setPanel(next);
+  }
 
-            {customerTrack.current ? (
-              <a
-                className="btn btn-primary btn-lg btn-block"
-                style={{ marginBottom: 10 }}
-                href={`https://www.google.com/maps/dir/?api=1&destination=${customerTrack.current.lat},${customerTrack.current.lng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Icon name="location" size="sm" />
-                Naviguer vers le client
-              </a>
-            ) : null}
-
-            {orderStatus === "en_route" ? (
-              <button type="button" className="btn btn-primary btn-lg btn-block" style={{ marginBottom: 10 }} disabled={delivering} onClick={markArrived}>
-                <Icon name="location" size="sm" />Je suis arrivé
-              </button>
-            ) : null}
-
-            {orderStatus === "arrivee" && scanning ? (
-              <div className="dlv-scan">
-                <video ref={videoRef} muted playsInline />
-                <button type="button" className="btn btn-tonal btn-sm" onClick={stopScan}>
-                  <Icon name="close" size="sm" />
-                  Annuler le scan
-                </button>
-              </div>
-            ) : orderStatus === "arrivee" ? (
-              <button type="button" className="btn btn-tonal btn-lg btn-block" style={{ marginBottom: 10 }} onClick={startScan}>
-                <Icon name="qr-scanner" size="sm" />
-                Scanner le QR du client
-              </button>
-            ) : null}
-            {scanError ? <p className="form-note" style={{ color: "var(--error)", marginBottom: 10 }}>{scanError}</p> : null}
-
-            {orderStatus === "arrivee" ? <><div className="form-row" style={{ marginBottom: 8 }}>
-              <label htmlFor="dlvCode">Ou saisir le code (4 chiffres)</label>
-              <input
-                id="dlvCode"
-                inputMode="numeric"
-                pattern="[0-9]{4}"
-                maxLength={4}
-                placeholder="0000"
-                value={codeInput}
-                onChange={(e) => {
-                  setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 4));
-                  setCodeError("");
-                }}
-                style={{ fontSize: "1.3rem", letterSpacing: "0.3em", textAlign: "center" }}
-              />
-            </div>
-            {codeError ? (
-              <p className="form-note" style={{ color: "var(--error)" }}>
-                {codeError}
-              </p>
-            ) : null}
-            <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => markDelivered()} disabled={delivering}>
-              <Icon name="check-circle" size="sm" />
-              {delivering ? "Enregistrement…" : "Confirmer la livraison"}
-            </button></> : <p className="form-note">Le code de remise sera demandé après avoir signalé votre arrivée.</p>}
-          </div>
-        ) : null}
-
-        {role === "customer" && deliveryCode && !delivered && status !== "stopped" ? (
-          <div className="dlv-code-box">
-            <p>Votre code de livraison</p>
-            {deliveryCodeQr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={deliveryCodeQr} alt="" width={140} height={140} className="dlv-code-qr" />
-            ) : null}
-            <strong>{deliveryCode}</strong>
-            <p className="sub">
-              Montrez ce QR (ou donnez le code) au livreur à la réception de votre commande.
-            </p>
-            {/* Même consigne que Uber Eats/DoorDash — ce genre de code est
-                justement ce que les faux livreurs demandent par téléphone
-                pour se faire passer pour le vrai (retour client du
-                07/09/2026, recherche sur les pratiques du secteur). */}
-            <p className="sub" style={{ color: "var(--error)", opacity: 1, fontWeight: 600 }}>
-              Ne le communiquez jamais par téléphone — montrez-le uniquement en personne.
-            </p>
-          </div>
-        ) : null}
-
-        <TrackLegend view={sharedView} />
+  const contactCard = role === "courier" && delivery ? (
+    <div className="dlv-info-card">
+      <div className="dlv-info-row">
+        <span className="dlv-avatar" aria-hidden="true"><Icon name="person" /></span>
+        <div className="dlv-info-text">
+          <p className="name">{customerName}</p>
+          <p className="sub">{delivery.address || "Lieu de livraison à préciser avec le client"}</p>
+        </div>
+        <div className="dlv-info-actions">
+          <a className="dlv-icon-circle whatsapp" aria-label="Écrire au client sur WhatsApp"
+            href={`https://wa.me/${delivery.customerPhone}`} target="_blank" rel="noopener noreferrer">
+            <Icon name="whatsapp" />
+          </a>
+          <a className="dlv-icon-circle" aria-label="Appeler le client" href={`tel:+${delivery.customerPhone}`}>
+            <Icon name="phone" />
+          </a>
+        </div>
       </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="ik-app dlv-screen" data-panel={panel}>
+      <header className="ik-tracking-header">
+        <Link href="/" className="ik-round-button" aria-label="Revenir à l’accueil IKIGAI"><Icon name="arrow-back" /></Link>
+        <div><span>IKIGAI SPORT</span><h1>{role === "courier" ? "Votre livraison" : "Suivre ma livraison"}</h1></div>
+        <ThemeToggle />
+      </header>
+      <DeliveryMap customer={customerTrack} courier={courierTrack} fullScreen showRouteStats viewportKey={panel} />
+      <section className={"dlv-sheet" + (panel !== "tracking" ? " dlv-sheet--expanded" : "")} aria-label="Détails de la livraison">
+        <div className="ik-sheet-handle" aria-hidden="true" />
+        <div className="ik-tracking-tabs" role="group" aria-label="Affichage du suivi">
+          <button type="button" aria-pressed={panel === "tracking"} onClick={() => openPanel("tracking")}>Itinéraire</button>
+          <button type="button" aria-pressed={panel === "details"} onClick={() => openPanel("details")}>Détails</button>
+          {!delivered && (role === "customer" ? Boolean(deliveryCode) : orderStatus === "arrivee") && (
+            <button type="button" aria-pressed={panel === "code"} onClick={() => openPanel("code")}>Code de remise</button>
+          )}
+        </div>
+        {status === "sharing" && !delivered ? (
+          <div className="ik-sharing-control"><span>Partage de position actif</span>
+            <button type="button" onClick={stopSharing}>Arrêter</button>
+          </div>
+        ) : navigating && !delivered ? (
+          <div className="ik-sharing-control"><span>Votre position n’est pas partagée</span>
+            <button type="button" onClick={startSharing} disabled={starting}>{starting ? "Démarrage…" : "Activer"}</button>
+          </div>
+        ) : null}
+        <div className="ik-tracking-body">
+          {delivered ? sheet : panel === "tracking" ? (
+            <>
+              <div className="ik-delivery-heading">
+                <div><p className="ik-eyebrow">{role === "courier" ? "Votre course" : "Votre commande"}</p>
+                  <h2>{ORDER_STATUS_LABELS[orderStatus]}</h2></div>
+                <span className="ik-status-icon" aria-hidden="true"><Icon name={navigating ? "shipping" : "inventory"} /></span>
+              </div>
+              <DeliveryStepper step={step} />
+              {contactCard}
+              {role === "customer" ? <p className="ik-muted">{orderStatus === "arrivee"
+                ? "Le livreur est arrivé. Préparez votre code pour la remise en main propre."
+                : navigating ? "Le livreur est en route. Les estimations apparaissent lorsque les deux positions sont disponibles."
+                : "Le suivi commencera au départ du livreur."}</p> : null}
+              {role === "courier" && !navigating ? <p className="ik-muted">Démarrez la course uniquement au moment de partir.</p> : null}
+              {status === "sharing" && lastUpdateAt ? <p className="ik-gps-note"><span />Position envoyée à {lastUpdateAt.toLocaleTimeString("fr-FR")}</p> : null}
+              {(status === "denied" || status === "unavailable" || status === "unsupported") ? <p className="ik-inline-warning">{status === "denied" ? "Localisation refusée. Retrouvez les instructions dans Détails." : "Position indisponible. Réessayez depuis Détails."}</p> : null}
+            </>
+          ) : panel === "details" ? (
+            <>
+              <div className="ik-delivery-heading"><h2>Détails de la livraison</h2><Icon name="shipping" /></div>
+              {contactCard}
+              {delivery ? <dl className="ik-delivery-facts">
+                <div><dt>Commande</dt><dd>{delivery.orderSummary}</dd></div>
+                <div><dt>Créneau</dt><dd>{delivery.deliverySlot || "À confirmer avec IKIGAI Sport"}</dd></div>
+              </dl> : null}
+              <div className="ik-location-settings">{sheet}
+                {status === "stopped" || status === "unavailable" || status === "denied" ? (
+                  <button type="button" className="btn btn-tonal btn-block" disabled={starting} onClick={startSharing}>
+                    <Icon name="refresh" size="sm" />{starting ? "Démarrage…" : "Réessayer le partage"}
+                  </button>
+                ) : null}
+              </div>
+              <TrackLegend view={sharedView} />
+            </>
+          ) : role === "customer" && deliveryCode ? (
+            <div className="ik-delivery-ticket">
+              <p className="ik-eyebrow">IKIGAI SPORT</p><h2>Votre bon de livraison</h2>
+              <p className="ik-muted">À présenter lors de la remise</p>
+              {deliveryCodeQr ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={deliveryCodeQr} alt="QR de votre code de remise" width={200} height={200} className="dlv-code-qr" />
+              ) : null}
+              <div className="ik-ticket-perforation" aria-hidden="true" />
+              <dl className="ik-ticket-facts"><div><dt>Destinataire</dt><dd>{customerName}</dd></div><div><dt>Statut</dt><dd>{ORDER_STATUS_LABELS[orderStatus]}</dd></div></dl>
+              <p className="ik-eyebrow">Code de remise</p><strong className="ik-ticket-code">{deliveryCode}</strong>
+              <p className="ik-ticket-note"><Icon name="shield" size="sm" />Montrez ce code au livreur uniquement lorsque vous recevez la commande. Ne le donnez pas par téléphone.</p>
+            </div>
+          ) : orderStatus === "arrivee" ? (
+            <div className="ik-code-form">
+              <h2>Confirmer la remise</h2><p className="ik-muted">Scannez le QR du client ou saisissez son code.</p>
+              {scanning ? (
+                <div className="dlv-scan"><video ref={videoRef} muted playsInline />
+                  <button type="button" className="btn btn-tonal btn-sm" onClick={stopScan}>Arrêter la caméra</button>
+                </div>
+              ) : (
+                <button type="button" className="btn btn-tonal btn-block" onClick={startScan}><Icon name="qr-scanner" />Scanner le QR du client</button>
+              )}
+              {scanError ? <p className="ik-inline-warning" role="alert">{scanError}</p> : null}
+              <div className="form-row">
+                <label htmlFor="dlvCode">Code à 4 chiffres</label>
+                <input id="dlvCode" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="0000"
+                  aria-invalid={Boolean(codeError)} aria-describedby={codeError ? "dlvCodeError" : undefined}
+                  value={codeInput} onChange={(e) => { setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 4)); setCodeError(""); }} />
+              </div>
+            </div>
+          ) : <p className="ik-muted">Le code sera demandé après l’arrivée du livreur.</p>}
+          {locationWarning ? <p className="ik-inline-warning" role="status">{locationWarning}</p> : null}
+          {pollWarning ? <p className="ik-inline-warning" role="status">{pollWarning}</p> : null}
+          {codeError ? <p id="dlvCodeError" className="ik-inline-warning" role="alert">{codeError}</p> : null}
+        </div>
+        {!delivered && <div className="ik-tracking-action">
+          {panel === "code" ? role === "courier" && orderStatus === "arrivee" ? (
+            <button type="button" className="btn btn-primary btn-block" disabled={delivering || !/^\d{4}$/.test(codeInput)} onClick={() => markDelivered()}>
+              <Icon name="check-circle" />{delivering ? "Enregistrement…" : "Confirmer la livraison"}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary btn-block" onClick={() => openPanel("tracking")}><Icon name="location" />Revenir à l’itinéraire</button>
+          ) : panel === "details" ? (
+            <button type="button" className="btn btn-tonal btn-block" onClick={() => openPanel("tracking")}>Revenir à l’itinéraire</button>
+          ) : role === "courier" ? (
+            <>
+              {canNavigate && customerTrack.current ? (
+                <a className="btn btn-tonal btn-block" href={`https://www.google.com/maps/dir/?api=1&destination=${customerTrack.current.lat},${customerTrack.current.lng}`} target="_blank" rel="noopener noreferrer">
+                  <Icon name="location" />Ouvrir la navigation
+                </a>
+              ) : null}
+              <button type="button" className="btn btn-primary btn-block" disabled={starting || delivering}
+                onClick={() => orderStatus === "arrivee" ? openPanel("code") : orderStatus === "en_route" ? markArrived() : startSharing()}>
+                <Icon name={orderStatus === "arrivee" ? "qr-scanner" : "shipping"} />
+                {starting || delivering ? "Enregistrement…" : orderStatus === "arrivee" ? "Vérifier la remise" : orderStatus === "en_route" ? "Je suis arrivé" : "Démarrer la course"}
+              </button>
+            </>
+          ) : status === "sharing" && deliveryCode ? (
+            <button type="button" className="btn btn-primary btn-block" onClick={() => openPanel("code")}><Icon name="qr-scanner" />Voir mon code de remise</button>
+          ) : (
+            <button type="button" className="btn btn-primary btn-block" onClick={startSharing} disabled={starting}>
+              <Icon name="location" />{starting ? "Démarrage…" : "Partager mon lieu de livraison"}
+            </button>
+          )}
+        </div>}
+      </section>
     </div>
   );
 }
