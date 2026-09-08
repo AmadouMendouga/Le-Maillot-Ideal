@@ -6,7 +6,7 @@
 // c'est app/api/session/route.ts, côté serveur, qui fait réellement autorité).
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
 
@@ -16,6 +16,25 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Message volontairement identique que l'e-mail existe ou non côté Firebase
+  // (auth/user-not-found inclus) — sinon ce formulaire permettrait de deviner
+  // quelles adresses ont un accès admin.
+  async function handleForgotPassword() {
+    if (!email || resetting) return;
+    setResetting(true);
+    setError("");
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch {
+      // best effort — même message dans tous les cas, voir commentaire ci-dessus
+    } finally {
+      setResetting(false);
+      setResetSent(true);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -55,6 +74,12 @@ export default function AdminLoginPage() {
             <span>{error}</span>
           </div>
         ) : null}
+        {resetSent ? (
+          <div className="adm-login-error" style={{ background: "var(--secondary-container)", color: "var(--on-secondary-container)" }}>
+            <Icon name="check-circle" size="sm" />
+            <span>Si un compte admin existe avec cette adresse, un e-mail de réinitialisation vient d&apos;être envoyé.</span>
+          </div>
+        ) : null}
 
         <div className="adm-field">
           <label htmlFor="admEmail">E-mail</label>
@@ -82,6 +107,14 @@ export default function AdminLoginPage() {
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
           <Icon name="verified" size="sm" />
           {loading ? "Connexion…" : "Se connecter"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-text btn-block"
+          disabled={!email || resetting}
+          onClick={handleForgotPassword}
+        >
+          {resetting ? "Envoi…" : "Mot de passe oublié ?"}
         </button>
       </form>
     </div>
