@@ -40,9 +40,10 @@ export default async function ConfidentialitePage() {
 
             <h2>Localisation pendant la livraison</h2>
             <p>
-              Le partage de position est facultatif et limité à la livraison concernée. Vous pouvez l&apos;arrêter à tout
-              moment. Les positions servent à afficher le trajet entre le client et le livreur ; leur suppression est
-              programmée sept jours après la confirmation de la livraison.
+              Aucune position en direct n&apos;est demandée au moment de la commande. Le partage devient disponible
+              uniquement lorsque le livreur démarre la course. Il reste facultatif, peut être arrêté à tout moment et
+              son lien expire automatiquement. Les positions servent à afficher le trajet entre le client et le
+              livreur ; leur suppression est programmée sept jours après la confirmation de la livraison.
             </p>
 
             <h2>Services techniques</h2>

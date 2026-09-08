@@ -15,7 +15,10 @@ import { showToast } from "@/components/Toast";
 import {
   createOrderAction,
   markOrderDeliveredAction,
+  reportDeliveryIncidentAction,
+  updateDeliverySlotAction,
   updateOrderAddressAction,
+  updateOrderStatusAction,
   getOrCreateLocationTokenAction,
   getOrderLocationAction,
   getOrderLocationHistoryAction,
@@ -24,22 +27,19 @@ import {
 } from "@/lib/actions/orders";
 import { assignCourierToOrderAction, setCourierActiveAction } from "@/lib/actions/couriers";
 import type { Courier, Order, OrderItem, Product, SiteSettings } from "@/lib/types";
+import type { DeliveryIncidentType, OrderStatus } from "@/lib/types";
+import { canGenerateTrackingLink, normalizeOrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_OPTIONS } from "@/lib/orderWorkflow";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function statusBadge(order: Order) {
-  if (order.status === "livree") {
-    return (
-      <span className="badge badge-stock-ok">
-        <Icon name="check-circle" size="sm" />
-        Livrée
-      </span>
-    );
-  }
+  const status = normalizeOrderStatus(order.status);
+  if (status === "livree") return <span className="badge badge-stock-ok"><Icon name="check-circle" size="sm" />Livrée</span>;
+  if (status === "annulee" || status === "reportee") return <span className="badge badge-stock-low"><Icon name="error" size="sm" />{ORDER_STATUS_LABELS[status]}</span>;
   return (
     <span className="badge badge-stock-low">
       <Icon name="hourglass" size="sm" />
-      Confirmée
+      {ORDER_STATUS_LABELS[status]}
     </span>
   );
 }
@@ -53,11 +53,29 @@ function reviewRequestLink(order: Order, siteUrl: string, businessName: string):
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
 }
 
+function orderUpdateLink(order: Order, businessName: string): string {
+  const status = normalizeOrderStatus(order.status);
+  const slot = order.deliverySlot ? ` Créneau prévu : ${order.deliverySlot}.` : "";
+  const messages: Partial<Record<OrderStatus, string>> = {
+    recue: "Nous avons bien reçu votre commande. Nous vérifions maintenant la disponibilité et le paiement.",
+    confirmee: "Votre commande est confirmée. Nous vous informerons dès le début de sa préparation.",
+    preparation: "Votre commande est en préparation.",
+    prete: `Votre commande est prête à être livrée.${slot}`,
+    livreur_assigne: `Un livreur a été affecté à votre commande.${slot} Le suivi sera envoyé au moment de son départ.`,
+    en_route: "Votre livreur est en route. Utilisez le lien de suivi envoyé séparément pour partager votre position.",
+    arrivee: "Votre livreur est arrivé au point de rendez-vous. Gardez votre code de remise à portée de main.",
+    reportee: `Votre livraison doit être reprogrammée.${slot} Nous vous contactons pour convenir de la suite.`,
+    annulee: "Votre commande a été annulée. Contactez-nous si vous avez besoin d'aide concernant le paiement.",
+  };
+  const msg = `Bonjour ${order.customerName} 👋\n\n${messages[status] || `Votre commande est maintenant : ${ORDER_STATUS_LABELS[status]}.`}\n\n${businessName}`;
+  return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
+}
+
 function customerLocationRequestLink(order: Order, siteUrl: string, token: string): string {
   const url = `${siteUrl.replace(/\/$/, "")}/livraison/${token}`;
   const msg =
-    `Bonjour ${order.customerName} 👋 pour faciliter votre livraison, pourriez-vous partager votre position ici : ${url}\n\n` +
-    "Ça ne prend que quelques secondes, merci !";
+    `Bonjour ${order.customerName} 👋 votre livreur IKIGAI Sport est maintenant en route. Pour faciliter la remise, partagez votre position ici : ${url}\n\n` +
+    "Le lien est réservé à cette livraison et vous pouvez arrêter le partage à tout moment.";
   return `https://wa.me/${order.customerPhone}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -449,29 +467,16 @@ function LocationCell({ order, settings, couriers }: { order: Order; settings: S
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <RoleLocationRow
-        order={order}
-        settings={settings}
-        role="customer"
-        label="Client"
-        token={customerToken}
-        setToken={setCustomerToken}
-        location={customerLocation}
-        sharing={customerSharing}
-      />
-      <RoleLocationRow
-        order={order}
-        settings={settings}
-        role="courier"
-        label="Livreur"
-        token={courierToken}
-        setToken={setCourierToken}
-        location={courierLocation}
-        sharing={courierSharing}
-        couriers={couriers}
-        assignedCourierId={assignedCourierId}
-        onAssignCourier={setAssignedCourierId}
-      />
+      {canGenerateTrackingLink(normalizeOrderStatus(order.status), "customer") ? (
+        <RoleLocationRow order={order} settings={settings} role="customer" label="Client" token={customerToken} setToken={setCustomerToken} location={customerLocation} sharing={customerSharing} />
+      ) : (
+        <span className="sub">Client · disponible au départ</span>
+      )}
+      {canGenerateTrackingLink(normalizeOrderStatus(order.status), "courier") ? (
+        <RoleLocationRow order={order} settings={settings} role="courier" label="Livreur" token={courierToken} setToken={setCourierToken} location={courierLocation} sharing={courierSharing} couriers={couriers} assignedCourierId={assignedCourierId} onAssignCourier={setAssignedCourierId} />
+      ) : (
+        <span className="sub">Livreur · commande non prête</span>
+      )}
       {order.status === "livree" && assignedCourierId ? <CourierPayoutField order={order} /> : null}
       {customerLocation || courierLocation ? (
         <button
@@ -492,6 +497,109 @@ function LocationCell({ order, settings, couriers }: { order: Order; settings: S
         </button>
       ) : null}
       <LocationMapDrawer order={order} open={mapOpen} onClose={() => setMapOpen(false)} />
+    </div>
+  );
+}
+
+function DeliverySlotCell({ order }: { order: Order }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(order.deliverySlot || "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const result = await updateDeliverySlotAction(order.id, value);
+      if (!result.ok) return alert(result.error);
+      setEditing(false);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", gap: 6 }}>
+        <input autoFocus aria-label="Créneau de livraison" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Ex. Mardi 14 h–17 h" onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }} />
+        <button type="button" className="icon-btn" aria-label="Enregistrer le créneau" disabled={saving} onClick={save}><Icon name="check-circle" size="sm" /></button>
+      </div>
+    );
+  }
+  return <button type="button" className="icon-btn" style={{ width: "auto", padding: "4px 8px" }} onClick={() => setEditing(true)}><Icon name="schedule" size="sm" /><span className="sub">{order.deliverySlot || "À convenir"}</span></button>;
+}
+
+function StatusControl({ order }: { order: Order }) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const status = normalizeOrderStatus(order.status);
+
+  async function change(next: OrderStatus) {
+    if (next === status) return;
+    setSaving(true);
+    try {
+      const result = await updateOrderStatusAction(order.id, next);
+      if (!result.ok) return alert(result.error);
+      showToast(`Commande : ${ORDER_STATUS_LABELS[next]}`, "check-circle");
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {statusBadge(order)}
+      {status !== "livree" ? (
+        <select aria-label="Modifier l'état de la commande" value={status} disabled={saving} onChange={(e) => change(e.target.value as OrderStatus)} style={{ fontSize: ".76rem", padding: "4px 6px" }}>
+          {ORDER_STATUS_OPTIONS.filter((option) => option.value !== "livree").map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      ) : null}
+    </div>
+  );
+}
+
+const INCIDENT_LABELS: Record<DeliveryIncidentType, string> = {
+  client_injoignable: "Client injoignable",
+  adresse_incorrecte: "Adresse incorrecte",
+  livreur_indisponible: "Livreur indisponible",
+  report_client: "Report demandé par le client",
+  autre: "Autre incident",
+};
+
+function IncidentControl({ order }: { order: Order }) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  async function report(type: DeliveryIncidentType) {
+    const note = window.prompt("Ajoutez une précision utile (facultatif) :", order.deliveryIncidentNote || "") ?? "";
+    setSaving(true);
+    try {
+      const result = await reportDeliveryIncidentAction(order.id, type, note);
+      if (!result.ok) return alert(result.error);
+      showToast("Incident enregistré — livraison reportée", "error");
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function clear() {
+    setSaving(true);
+    try {
+      const result = await reportDeliveryIncidentAction(order.id, null);
+      if (!result.ok) return alert(result.error);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div>
+      <select aria-label="Signaler un incident" defaultValue="" disabled={saving || order.status === "livree" || order.status === "annulee"} onChange={(e) => { if (e.target.value) report(e.target.value as DeliveryIncidentType); e.currentTarget.value = ""; }} style={{ fontSize: ".76rem", padding: "4px 6px" }}>
+        <option value="">Signaler un incident…</option>
+        {Object.entries(INCIDENT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
+      {order.deliveryIncidentType ? <div className="sub" style={{ marginTop: 5, color: "var(--error)" }}>{INCIDENT_LABELS[order.deliveryIncidentType]}{order.deliveryIncidentNote ? ` · ${order.deliveryIncidentNote}` : ""} <button type="button" className="icon-btn" style={{ width: "auto", minHeight: 0, padding: "2px 5px" }} disabled={saving} onClick={clear}>Effacer</button></div> : null}
     </div>
   );
 }
@@ -561,6 +669,7 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderSummary, setOrderSummary] = useState("");
   const [address, setAddress] = useState("");
+  const [deliverySlot, setDeliverySlot] = useState("");
   const [items, setItems] = useState<OrderItem[]>([]);
   const [pickSlug, setPickSlug] = useState("");
   const [pickSize, setPickSize] = useState("");
@@ -587,7 +696,7 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
     setSaving(true);
     setError("");
     try {
-      const result = await createOrderAction({ customerName, customerPhone, orderSummary, address, items });
+      const result = await createOrderAction({ customerName, customerPhone, orderSummary, address, deliverySlot, items });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -720,6 +829,13 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
         />
         <p className="hint" style={{ fontSize: ".78rem", color: "var(--on-surface-variant)", margin: "4px 0 0" }}>
           Pas encore connue ? Laissez vide, vous pourrez la renseigner plus tard depuis le tableau.
+        </p>
+      </div>
+      <div className="adm-field">
+        <label>Créneau de livraison</label>
+        <input value={deliverySlot} onChange={(e) => setDeliverySlot(e.target.value)} placeholder="Ex. Mardi, entre 14 h et 17 h" />
+        <p className="hint" style={{ fontSize: ".78rem", color: "var(--on-surface-variant)", margin: "4px 0 0" }}>
+          Indiquez le créneau convenu avec le client. Il pourra être modifié plus tard.
         </p>
       </div>
       <button type="button" className="btn btn-primary btn-block" onClick={handleSave} disabled={saving}>
@@ -863,9 +979,9 @@ export function OrdersAdmin({
       <div className="adm-warn">
         <Icon name="info" />
         <div>
-          Enregistrez ici une commande une fois confirmée sur WhatsApp. Une fois marquée « Livrée », un lien de dépôt
-          d&apos;avis à usage unique est généré — envoyez-le au client pour recueillir un vrai retour, jamais inventé
-          (CLAUDE.md §2).
+          Faites avancer chaque commande selon la réalité : reçue, confirmée, préparée, prête, affectée puis en route.
+          Le lien de position du client n&apos;est disponible qu&apos;après le départ du livreur. Une fois livrée, un lien
+          d&apos;avis à usage unique est généré.
         </div>
       </div>
       <div className="adm-toolbar">
@@ -889,15 +1005,16 @@ export function OrdersAdmin({
               <th>Client</th>
               <th>Commande</th>
               <th style={{ width: 180 }}>Adresse / zone</th>
+              <th style={{ width: 150 }}>Créneau</th>
               <th style={{ width: 170 }}>Position en direct</th>
-              <th style={{ width: 120 }}>État</th>
+              <th style={{ width: 150 }}>État</th>
               <th style={{ width: 260 }}></th>
             </tr>
           </thead>
           <tbody>
             {initialOrders.length === 0 ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={7}>
                   <div className="adm-empty">
                     <Icon name="shipping" />
                     <div>Aucune commande enregistrée pour le moment.</div>
@@ -926,13 +1043,14 @@ export function OrdersAdmin({
                   <td>
                     <AddressCell order={order} />
                   </td>
+                  <td><DeliverySlotCell order={order} /></td>
                   <td>
                     <LocationCell order={order} settings={settings} couriers={couriers} />
                   </td>
-                  <td>{statusBadge(order)}</td>
+                  <td><StatusControl order={order} /></td>
                   <td>
                     <div className="adm-row-actions">
-                      {order.status === "confirmee" ? (
+                      {normalizeOrderStatus(order.status) === "arrivee" ? (
                         <button
                           type="button"
                           className="btn btn-tonal btn-sm"
@@ -959,6 +1077,12 @@ export function OrdersAdmin({
                           Demander un avis
                         </StatefulButton>
                       ) : null}
+                      {order.status !== "livree" ? (
+                        <StatefulButton className="btn btn-whatsapp btn-sm" href={orderUpdateLink(order, settings.businessName)} target="_blank" rel="noopener" onRun={() => wait(400)}>
+                          <Icon name="whatsapp" size="sm" />Informer le client
+                        </StatefulButton>
+                      ) : null}
+                      <IncidentControl order={order} />
                     </div>
                   </td>
                 </tr>

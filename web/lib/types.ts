@@ -109,7 +109,18 @@ export interface Courier {
   createdAt: string;
 }
 
-export type OrderStatus = "confirmee" | "livree";
+export type OrderStatus =
+  | "recue"
+  | "confirmee"
+  | "preparation"
+  | "prete"
+  | "livreur_assigne"
+  | "en_route"
+  | "arrivee"
+  | "livree"
+  | "reportee"
+  | "annulee";
+export type DeliveryIncidentType = "client_injoignable" | "adresse_incorrecte" | "livreur_indisponible" | "report_client" | "autre";
 export type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "review";
 export type OrderStockState = "reserved" | "committed" | "released" | "needs_review";
 
@@ -136,11 +147,13 @@ export interface Order {
   address: string | null;
   // Position partagée par le client, pour aider à localiser l'adresse de livraison.
   locationToken: string | null;
+  locationTokenExpiresAt?: string | null;
   locationSharing: boolean;
   liveLocation: LiveLocation;
   // Position partagée par qui livre effectivement (Djimi ou une aide ponctuelle
   // — variable, voir CLAUDE.md) — canal séparé du client, même mécanique.
   courierLocationToken: string | null;
+  courierLocationTokenExpiresAt?: string | null;
   courierLocationSharing: boolean;
   courierLiveLocation: LiveLocation;
   /** Date à partir de laquelle l'historique GPS peut être supprimé automatiquement. */
@@ -148,6 +161,17 @@ export interface Order {
   locationHistoryPurgedAt?: string | null;
   /** Livreur enregistré assigné à cette livraison (Courier.id) — absent/null si lien ponctuel (voir Courier). */
   assignedCourierId?: string | null;
+  /** Créneau convenu en texte libre (ex. « Mardi, 14 h–17 h »). */
+  deliverySlot?: string | null;
+  /** Horodatages métier : permettent de mesurer préparation, attente et livraison. */
+  statusUpdatedAt?: string | null;
+  trackingRequestedAt?: string | null;
+  trackingStartedAt?: string | null;
+  courierArrivedAt?: string | null;
+  /** Dernier incident opérationnel, visible par l'équipe et réversible. */
+  deliveryIncidentType?: DeliveryIncidentType | null;
+  deliveryIncidentNote?: string | null;
+  deliveryIncidentAt?: string | null;
   /** Montant payé au livreur pour cette course, décidé au cas par cas par l'admin — saisi une fois livrée, absent tant que non défini. */
   courierPayout?: number | null;
   /** Code à 4 chiffres montré au client, demandé par le livreur pour clôturer la livraison —

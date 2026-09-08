@@ -3,9 +3,11 @@
 import { Icon } from "@/components/icons/Icon";
 import { FCFA } from "@/lib/cart";
 import type { Order } from "@/lib/types";
+import { normalizeOrderStatus, ORDER_STATUS_LABELS } from "@/lib/orderWorkflow";
 
 function statusBadge(order: Order) {
-  if (order.status === "livree") {
+  const status = normalizeOrderStatus(order.status);
+  if (status === "livree") {
     return (
       <span className="badge badge-stock-ok">
         <Icon name="check-circle" size="sm" />
@@ -15,8 +17,8 @@ function statusBadge(order: Order) {
   }
   return (
     <span className="badge badge-stock-low">
-      <Icon name="hourglass" size="sm" />
-      Confirmée
+      <Icon name={status === "annulee" || status === "reportee" ? "error" : "hourglass"} size="sm" />
+      {ORDER_STATUS_LABELS[status]}
     </span>
   );
 }
@@ -48,6 +50,10 @@ export function OrderHistory({ orders }: { orders: Order[] }) {
           </div>
           {typeof order.total === "number" ? (
             <p style={{ margin: "10px 0 0", fontWeight: 700 }}>{FCFA(order.total)}</p>
+          ) : null}
+          {order.deliverySlot ? <p className="sub" style={{ margin: "8px 0 0" }}><strong>Créneau :</strong> {order.deliverySlot}</p> : null}
+          {order.status !== "en_route" && order.status !== "arrivee" && order.status !== "livree" ? (
+            <p className="sub" style={{ margin: "8px 0 0" }}>Le suivi en direct sera disponible lorsque le livreur prendra la route.</p>
           ) : null}
         </div>
       ))}
