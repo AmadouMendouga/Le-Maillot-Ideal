@@ -133,7 +133,11 @@ html[data-theme="dark"] .ik-app {
 .ik-app .cart-bar-text strong, .ik-app .cart-bar-text span { display: block; overflow: hidden; text-overflow: ellipsis; }
 .ik-app .cart-bar-go { color: inherit; }
 
-/* Portal: static, readable product photography, no dark overlay. */
+/* Portal : nav/logo clairs, mais la bannière garde une vraie photo plein
+   cadre (retour client du 08/09/2026, après un premier essai "carte blanche +
+   photo confinée à un coin" jugé trop vide sur un vrai téléphone). La photo
+   reste discrète (opacité basse) et un filtre de couleur (.portal-hero-scrim,
+   déjà prévu par le patron de base pour la lisibilité du texte) domine par-dessus. */
 .ik-portal { padding-top: 128px; }
 .ik-portal .portal-topbar, .ik-portal .portal-header { color: var(--on-surface); background: var(--surface); }
 .ik-portal .portal-topbar { border-color: var(--outline-variant); }
@@ -142,23 +146,13 @@ html[data-theme="dark"] .ik-app {
 .ik-portal .portal-header .logo, .ik-portal .portal-header .theme-toggle { color: var(--on-surface); }
 .ik-portal .portal-header-row { padding-block: 14px; }
 .ik-portal .portal-hamburger .line { background: var(--on-surface); animation: none; }
-.ik-portal .portal-hero { width: min(1180px, calc(100% - 40px)); margin: 16px auto; min-height: 420px; border: 1px solid var(--outline-variant); border-radius: 24px; background: var(--surface); color: var(--on-surface); overflow: hidden; }
+.ik-portal .portal-hero { width: min(1180px, calc(100% - 40px)); margin: 16px auto; min-height: 420px; border: 1px solid var(--outline-variant); border-radius: 24px; overflow: hidden; }
 .ik-portal .portal-hero-slides { display: grid; }
 .ik-portal .portal-hero-slide { position: relative; inset: auto; grid-area: 1 / 1; padding: 0; isolation: isolate; }
-.ik-portal .portal-hero-bg { left: 55%; transform: none; opacity: 1; }
 .ik-portal .portal-hero-slide.active .portal-hero-bg { transform: none; animation: none; }
-.ik-portal .portal-hero-bg img { object-fit: contain; padding: 36px; background: var(--surface-container); }
-.ik-portal .portal-hero-scrim { display: none; }
-.ik-portal .portal-hero-content { width: 100%; max-width: none; margin: 0; padding: 40px 49% 68px 36px; }
-.ik-portal .portal-hero-content h1, .ik-portal .portal-hero-content h2, .ik-portal .portal-hero-content p { text-shadow: none; text-transform: none; }
-.ik-portal .portal-hero-content h1, .ik-portal .portal-hero-content h2 { font-size: clamp(1.8rem, 3vw, 2.7rem); letter-spacing: -1px; }
-.ik-portal .portal-hero-content p { font-weight: 400; font-size: .94rem; color: var(--on-surface-variant); }
-.ik-portal .hero-badge { border: 0; background: var(--primary-container); color: var(--on-primary-container); padding: 6px 12px; font-size: .72rem; }
+.ik-portal .portal-hero-bg img { opacity: .35; }
+.ik-portal .portal-hero-scrim { opacity: .55; }
 .ik-portal .portal-hero-reveal { transform: none; opacity: 1; animation: none !important; }
-.ik-portal .portal-hero-nav { left: 36px; right: auto; bottom: 20px; }
-.ik-portal .portal-hero-nav > button { border-color: var(--outline-variant); color: var(--on-surface); background: var(--surface); }
-.ik-portal .portal-hero-dot { background: var(--outline-variant); }
-.ik-portal .portal-hero-dot.on { background: var(--primary); }
 .ik-portal .portal-spotlight-card { box-shadow: var(--e2); }
 .ik-app .hero { background: var(--surface); color: var(--on-surface); padding-block: 48px; }
 .ik-app .hero::before { display: none; }
@@ -284,13 +278,10 @@ body:has(.ik-app.dlv-screen) .toast { top: calc(84px + env(safe-area-inset-top))
   .ik-portal { padding-top: 76px; }
   .ik-portal .portal-topbar { display: none; }
   .ik-portal .portal-header { top: 0; }
-  .ik-portal .portal-hero { width: calc(100% - 32px); min-height: 470px; margin-top: 8px; }
-  .ik-portal .portal-hero-bg { left: 57%; top: auto; height: 160px; bottom: 0; }
-  .ik-portal .portal-hero-bg img { padding: 10px; }
-  .ik-portal .portal-hero-content { padding: 26px 22px 178px; }
+  .ik-portal .portal-hero { width: calc(100% - 32px); min-height: 480px; margin-top: 8px; }
   .ik-portal .portal-hero-content h1, .ik-portal .portal-hero-content h2 { font-size: 1.9rem; }
   .ik-portal .portal-hero-content p { font-size: .87rem; margin-bottom: 18px; }
-  .ik-portal .portal-hero-nav { left: 20px; bottom: 30px; gap: 8px; }
+  .ik-portal .portal-hero-nav { left: 20px; right: auto; bottom: 20px; gap: 8px; }
   .ik-app .dlv-sheet { padding-inline: 14px; max-height: 43dvh; }
   .ik-app .dlv-sheet--expanded { max-height: 74dvh; }
 }
