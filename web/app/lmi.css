@@ -2290,13 +2290,20 @@ body.portal-drawer-open { overflow: hidden; }
   position: absolute; bottom: 26px; right: 26px; z-index: 2;
   display: flex; align-items: center; gap: 12px;
 }
+/* Verre dépoli (retour client du 08/09/2026 : la version précédente, un
+   simple fond blanc à 10%, étaient trop pâles pour se voir comme des boutons
+   sur une photo claire) — flou du fond + liseré clair en haut façon reflet +
+   ombre portée pour détacher le cercle de la photo, quelle que soit sa
+   luminosité. */
 .portal-hero-nav > button {
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.1); color: #fff;
-  transition: background-color .2s ease;
+  border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.22); color: #fff;
+  backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: 0 4px 18px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.4);
+  transition: background-color .2s ease, transform .2s ease;
 }
-.portal-hero-nav > button:hover { background: rgba(255,255,255,.22); }
+.portal-hero-nav > button:hover { background: rgba(255,255,255,.34); transform: translateY(-1px); }
 .portal-hero-dots { display: flex; gap: 8px; }
 .portal-hero-dot {
   width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4);
