@@ -11,6 +11,7 @@ import { BackToTop } from "@/components/layout/BackToTop";
 import { CartProvider } from "@/components/cart/CartContext";
 import { CartBar } from "@/components/cart/CartBar";
 import { CartPanel } from "@/components/cart/CartPanel";
+import { BottomNav } from "@/components/nav/BottomNav";
 
 // Layout d'un site-sport (ex. /football, /judo — voir le plan "portail
 // multi-sports"). Chaque sport a son propre site, avec la même structure —
@@ -57,16 +58,19 @@ export default async function SportLayout({ children, params }: LayoutProps<"/[s
     // d'un système organisé". La navbar/le footer, eux, restent scopés à ce
     // sport (compteurs par championnat propres au site courant).
     <CartProvider products={products} settings={settings}>
-      <a href="#main" className="skip-link">
-        Aller au contenu principal
-      </a>
-      <Navbar basePath={basePath} leagues={sportLeagues} products={sportProducts} settings={settings} />
-      {children}
-      <Footer basePath={basePath} sports={sports} settings={settings} />
-      <WhatsAppFloat settings={settings} />
-      <BackToTop />
-      <CartBar />
-      <CartPanel settings={settings} />
+      <div className="ik-app ik-storefront">
+        <a href="#main" className="skip-link">
+          Aller au contenu principal
+        </a>
+        <Navbar basePath={basePath} leagues={sportLeagues} products={sportProducts} settings={settings} />
+        {children}
+        <Footer basePath={basePath} sports={sports} settings={settings} />
+        <WhatsAppFloat settings={settings} />
+        <BackToTop />
+        <CartBar />
+        <CartPanel settings={settings} />
+        <BottomNav basePath={basePath} />
+      </div>
     </CartProvider>
   );
 }

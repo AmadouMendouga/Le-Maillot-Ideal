@@ -1,0 +1,314 @@
+/* IKIGAI mobile — white cards, a single green accent and clear next actions.
+   Scoped to public screens so the administration keeps its own layout. */
+.ik-app {
+  --primary: #118447;
+  --on-primary: #fff;
+  --primary-container: #e8f6ed;
+  --on-primary-container: #17643b;
+  --secondary: #159957;
+  --secondary-container: #e8f6ed;
+  --on-secondary-container: #17643b;
+  --background: #f6f8f7;
+  --surface: #fff;
+  --surface-container-lowest: #fff;
+  --surface-container-low: #fafbfa;
+  --surface-container: #f4f6f4;
+  --surface-container-high: #edf1ee;
+  --surface-container-highest: #e2e8e3;
+  --on-surface: #202824;
+  --on-surface-variant: #626e66;
+  --outline: #8b958e;
+  --outline-variant: #e2e8e3;
+  --tertiary: #35493c;
+  --tertiary-container: #edf1ee;
+  --on-tertiary-container: #35493c;
+  --whatsapp: #118447;
+  --whatsapp-hover: #0d6b39;
+  --r-card: 18px;
+  --r-item: 14px;
+  --r-btn: 999px;
+  --r-btn-lg: 999px;
+  --r-field: 14px;
+  --e1: 0 1px 3px rgb(21 48 31 / 4%);
+  --e2: 0 3px 12px rgb(21 48 31 / 4%);
+  --e4: 0 8px 24px rgb(21 48 31 / 6%);
+  --e8: 0 8px 24px rgb(21 48 31 / 8%);
+  color: var(--on-surface);
+  background: var(--background);
+  font-weight: 400;
+  min-height: 100dvh;
+}
+html[data-theme="dark"] .ik-app {
+  --primary: #65d695;
+  --on-primary: #123821;
+  --primary-container: #203e2c;
+  --on-primary-container: #a3e9bd;
+  --secondary: #65d695;
+  --background: #141b17;
+  --surface: #1c2520;
+  --surface-container-low: #19221c;
+  --surface-container: #253128;
+  --surface-container-high: #2b382e;
+  --surface-container-highest: #38483c;
+  --on-surface: #f0f5f1;
+  --on-surface-variant: #b0bdb4;
+  --outline-variant: #34453a;
+  --tertiary: #c8d9ce;
+}
+.ik-app button, .ik-app input, .ik-app select { font-family: inherit; }
+.ik-app .btn, .ik-app .add-btn { min-height: 44px; font-weight: 600; }
+.ik-app .btn-primary, .ik-app .btn-whatsapp { box-shadow: none; }
+.ik-app .btn-primary:hover, .ik-app .btn-whatsapp:hover { box-shadow: var(--e2); }
+.ik-app .btn[disabled] { opacity: 1; background: var(--surface-container-high); color: var(--on-surface-variant); }
+.ik-app .form-row input, .ik-app .form-row select { min-height: 48px; font-size: 16px; }
+.ik-app .section { padding-block: 40px; }
+.ik-app .section-alt { background: var(--surface); }
+.ik-app .section-head h2 { font-size: clamp(1.35rem, 2.6vw, 2rem); letter-spacing: -.5px; }
+.ik-app .topbar { background: var(--surface); color: var(--on-surface-variant); border-bottom: 1px solid var(--outline-variant); }
+.ik-app .am-wrap { margin-bottom: 0; padding-block: 10px; background: var(--surface); }
+.ik-app .am-nav { box-shadow: none; border: 0; border-radius: 0; }
+.ik-app .logo-mark { border-radius: 12px; background: var(--primary-container); color: var(--primary); box-shadow: none; }
+.ik-app .page-hero { background: var(--surface); color: var(--on-surface); padding: 28px 0; }
+.ik-app .page-hero h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); }
+.ik-app .page-hero p { color: var(--on-surface-variant); text-shadow: none; }
+.ik-app .hero-badge { background: var(--primary-container); color: var(--on-primary-container); }
+.ik-app .breadcrumb { margin-block: 16px 0; }
+.ik-app .contact-card, .ik-app .filters { border: 1px solid var(--outline-variant); box-shadow: var(--e2); }
+.ik-app .category-pill { min-height: 44px; border: 1px solid var(--outline-variant); background: var(--surface); }
+.ik-app .category-pill.active { color: var(--on-primary); background: var(--primary); border-color: var(--primary); }
+.ik-app .catalog-note { border: 0; background: var(--surface-container); font-size: .8rem; }
+.ik-app .search-input, .ik-app .sort-select { min-height: 46px; background: var(--surface); border-color: var(--outline-variant); }
+.ik-muted { color: var(--on-surface-variant); font-size: .88rem; line-height: 1.6; }
+.ik-eyebrow { color: var(--on-surface-variant); font-size: .65rem; letter-spacing: .1em; font-weight: 600; text-transform: uppercase; margin: 0 0 5px; }
+
+/* Product cards and real device-local favorites. */
+.ik-app .product-card { position: relative; border: 1px solid var(--outline-variant); box-shadow: var(--e2); background: var(--surface); }
+.ik-app .product-card:hover { box-shadow: var(--e4); transform: translateY(-2px); }
+.ik-app .product-body { padding: 14px; gap: 8px; }
+.ik-app .product-title { font-size: .95rem; font-weight: 600; line-height: 1.4; }
+.ik-app .product-league { font-size: .66rem; color: var(--primary); letter-spacing: .01em; }
+.ik-app .price-now { color: var(--primary); font-size: 1rem; }
+.ik-app .product-rating { display: flex; }
+.ik-app .product-media { background: var(--surface-container); }
+.ik-app .product-badges { max-width: calc(100% - 56px); }
+.ik-app .product-card .dah-overlay, .ik-app .product-card .dah-caption { display: none; }
+.ik-app .badge { font-size: .65rem; font-weight: 600; box-shadow: none; }
+.ik-app .ik-favorite-btn {
+  position: absolute; z-index: 45; right: 10px; top: 10px; width: 44px; height: 44px;
+  border: 1px solid var(--outline-variant); background: var(--surface); color: var(--on-surface-variant);
+  border-radius: 50%; display: grid; place-items: center; cursor: pointer; box-shadow: var(--e1);
+}
+.ik-app .ik-favorite-btn[aria-pressed="true"] { color: var(--primary); border-color: var(--primary-container); }
+.ik-favorites-page { padding-block: 28px 40px; min-height: 65dvh; }
+.ik-page-heading { margin-bottom: 24px; }
+.ik-page-heading h1 { font-size: 1.8rem; }
+.ik-favorites-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.ik-favorites-list .product-card { display: grid; grid-template-columns: 124px minmax(0, 1fr); padding: 12px; align-items: stretch; }
+.ik-favorites-list .product-media { aspect-ratio: 1; align-self: start; border-radius: 12px; }
+.ik-favorites-list .product-body { padding: 2px 0 0 14px; }
+.ik-favorites-list .product-title { padding-right: 42px; }
+.ik-favorites-list .product-foot { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.ik-favorites-list .product-foot .add-btn { width: auto; }
+.ik-favorites-list .ik-favorite-btn { top: 8px; right: 8px; }
+.ik-empty-card { display: grid; justify-items: center; gap: 12px; padding: 48px 24px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--outline-variant); border-radius: 20px; text-align: center; }
+.ik-empty-card > svg { color: var(--primary); width: 32px; height: 32px; }
+.ik-empty-card h2 { font-size: 1.25rem; margin: 0; }
+.ik-empty-card p { color: var(--on-surface-variant); margin: 0 0 8px; }
+.ik-bottom-nav { display: none; }
+
+/* A white checkout panel; price and next action carry the emphasis. */
+.ik-app .cart-panel { color: var(--on-surface); background: var(--surface); border: 1px solid var(--outline-variant); box-shadow: 0 12px 36px rgb(20 39 28 / 14%); max-height: 85dvh; overflow-y: auto; }
+.ik-app .cart-panel-head { padding: 18px; }
+.ik-app .cart-panel-head .close, .ik-app .cart-panel-head .count-chip { background: var(--surface-container); color: var(--on-surface); }
+.ik-app .cart-panel-head .close { width: 44px; height: 44px; }
+.ik-app .cp-item { background: var(--surface-container-low); border: 1px solid var(--outline-variant); gap: 8px; }
+.ik-app .cp-item img { width: 48px; height: 48px; }
+.ik-app .cp-qty button { width: 32px; height: 44px; background: var(--surface-container-high); color: var(--on-surface); }
+.ik-app .cp-delivery, .ik-app .cp-delivery.eligible { background: var(--primary-container); color: var(--on-primary-container); }
+.ik-app .cp-subtotal .amount { color: var(--primary); }
+.ik-app .cp-checkout { background: var(--primary); color: var(--on-primary); border-radius: 999px; }
+.ik-app .cart-panel .cart-empty { color: var(--on-surface-variant); }
+.ik-app .cart-bar { background: var(--primary); color: var(--on-primary); box-shadow: var(--e4); }
+.ik-app .cart-bar-text { flex: 1; min-width: 0; }
+.ik-app .cart-bar-text strong, .ik-app .cart-bar-text span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.ik-app .cart-bar-go { color: inherit; }
+
+/* Portal: static, readable product photography, no dark overlay. */
+.ik-portal { padding-top: 128px; }
+.ik-portal .portal-topbar, .ik-portal .portal-header { color: var(--on-surface); background: var(--surface); }
+.ik-portal .portal-topbar { border-color: var(--outline-variant); }
+.ik-portal .portal-header::before { display: none; }
+.ik-portal .portal-header.hide { transform: none; }
+.ik-portal .portal-header .logo, .ik-portal .portal-header .theme-toggle { color: var(--on-surface); }
+.ik-portal .portal-header-row { padding-block: 14px; }
+.ik-portal .portal-hamburger .line { background: var(--on-surface); animation: none; }
+.ik-portal .portal-hero { width: min(1180px, calc(100% - 40px)); margin: 16px auto; min-height: 420px; border: 1px solid var(--outline-variant); border-radius: 24px; background: var(--surface); color: var(--on-surface); overflow: hidden; }
+.ik-portal .portal-hero-slides { display: grid; }
+.ik-portal .portal-hero-slide { position: relative; inset: auto; grid-area: 1 / 1; padding: 0; isolation: isolate; }
+.ik-portal .portal-hero-bg { left: 55%; transform: none; opacity: 1; }
+.ik-portal .portal-hero-slide.active .portal-hero-bg { transform: none; animation: none; }
+.ik-portal .portal-hero-bg img { object-fit: contain; padding: 36px; background: var(--surface-container); }
+.ik-portal .portal-hero-scrim { display: none; }
+.ik-portal .portal-hero-content { width: 100%; max-width: none; margin: 0; padding: 40px 49% 68px 36px; }
+.ik-portal .portal-hero-content h1, .ik-portal .portal-hero-content h2, .ik-portal .portal-hero-content p { text-shadow: none; text-transform: none; }
+.ik-portal .portal-hero-content h1, .ik-portal .portal-hero-content h2 { font-size: clamp(1.8rem, 3vw, 2.7rem); letter-spacing: -1px; }
+.ik-portal .portal-hero-content p { font-weight: 400; font-size: .94rem; color: var(--on-surface-variant); }
+.ik-portal .hero-badge { border: 0; background: var(--primary-container); color: var(--on-primary-container); padding: 6px 12px; font-size: .72rem; }
+.ik-portal .portal-hero-reveal { transform: none; opacity: 1; animation: none !important; }
+.ik-portal .portal-hero-nav { left: 36px; right: auto; bottom: 20px; }
+.ik-portal .portal-hero-nav > button { border-color: var(--outline-variant); color: var(--on-surface); background: var(--surface); }
+.ik-portal .portal-hero-dot { background: var(--outline-variant); }
+.ik-portal .portal-hero-dot.on { background: var(--primary); }
+.ik-portal .portal-spotlight-card { box-shadow: var(--e2); }
+.ik-app .hero { background: var(--surface); color: var(--on-surface); padding-block: 48px; }
+.ik-app .hero::before { display: none; }
+.ik-app .hero h1 { text-transform: none; letter-spacing: -.8px; }
+.ik-app .hero p.lead { text-shadow: none; color: var(--on-surface-variant); font-weight: 400; }
+.ik-app .hero .btn-outline { color: var(--primary); box-shadow: inset 0 0 0 1px var(--outline-variant); }
+
+/* Delivery screen: map and panel are separate flex regions, never overlapping. */
+.ik-app.dlv-screen { height: 100dvh; min-height: 0; background: var(--surface-container); }
+.ik-tracking-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 18px 10px; background: var(--surface); z-index: 20; border-bottom: 1px solid var(--outline-variant); }
+.ik-tracking-header > div { text-align: center; }
+.ik-tracking-header h1 { font-size: .98rem; font-weight: 600; margin: 2px 0 0; }
+.ik-tracking-header > div > span { font-size: .55rem; letter-spacing: .14em; color: var(--primary); font-weight: 700; }
+.ik-round-button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--outline-variant); background: var(--surface); border-radius: 50%; }
+.ik-app .dlv-sheet { display: flex; flex-direction: column; width: min(100%, 620px); margin-inline: auto; max-height: 42dvh; padding: 0 18px calc(12px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--surface); border: 1px solid var(--outline-variant); border-bottom: 0; overflow: hidden; box-shadow: 0 -3px 18px rgb(24 39 29 / 6%); }
+.ik-app .dlv-sheet--expanded { max-height: 72dvh; }
+.ik-sheet-handle { flex-shrink: 0; width: 34px; height: 4px; border-radius: 99px; background: var(--outline-variant); margin: 9px auto 4px; }
+.ik-tracking-tabs { flex-shrink: 0; display: flex; gap: 4px; padding-bottom: 8px; }
+.ik-tracking-tabs button { flex: 1; background: none; border: 0; border-radius: 999px; min-height: 44px; color: var(--on-surface-variant); font: inherit; font-size: .76rem; font-weight: 500; cursor: pointer; }
+.ik-tracking-tabs button[aria-pressed="true"] { color: var(--primary); background: var(--primary-container); }
+.ik-sharing-control { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; font-size: .72rem; color: var(--on-surface-variant); }
+.ik-sharing-control button { min-height: 44px; padding: 8px 12px; background: none; border: 0; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+.ik-tracking-body { overflow-y: auto; min-height: 0; overscroll-behavior: contain; scrollbar-width: thin; padding: 4px 2px; }
+.ik-delivery-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.ik-delivery-heading h2 { font-size: 1.17rem; margin: 0; font-weight: 600; }
+.ik-status-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--primary); background: var(--primary-container); }
+.ik-tracking-action { flex-shrink: 0; display: flex; gap: 8px; padding-top: 10px; background: var(--surface); }
+.ik-tracking-action > .btn { flex: 1; width: auto; padding: 12px 14px; min-height: 48px; font-size: .85rem; }
+.ik-app .dlv-stepper { margin: 4px 6px 14px; }
+.ik-app .dlv-stepper-item:last-child { flex: 0; }
+.ik-app .dlv-step .label { font-size: .66rem; }
+.ik-app .dlv-step .dot { width: 10px; height: 10px; }
+.ik-app .dlv-step-line { margin-top: 4px; margin-inline: 8px; }
+.ik-app .dlv-info-card { padding: 12px; margin-bottom: 12px; box-shadow: none; background: var(--surface-container-low); border: 1px solid var(--outline-variant); }
+.ik-app .dlv-avatar { width: 36px; height: 36px; background: var(--primary-container); color: var(--primary); }
+.ik-app .dlv-info-text .name { font-size: .86rem; font-weight: 600; overflow-wrap: anywhere; }
+.ik-app .dlv-info-text .sub { white-space: normal; font-size: .73rem; }
+.ik-app .dlv-info-actions { gap: 6px; }
+.ik-app .dlv-icon-circle { width: 44px; height: 44px; background: var(--surface); border: 1px solid var(--outline-variant); }
+.ik-app .dlv-icon-circle.whatsapp { color: var(--primary); background: var(--primary-container); border-color: transparent; }
+.ik-gps-note { font-size: .73rem; color: var(--on-surface-variant); display: flex; align-items: center; gap: 6px; }
+.ik-gps-note > span { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+.ik-inline-warning { padding: 10px 12px; margin: 10px 0; background: var(--error-container); color: var(--on-error-container); border-radius: 10px; font-size: .8rem; line-height: 1.45; }
+.ik-location-settings { padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--outline-variant); }
+.ik-location-settings h3 { font-size: 1rem; }
+.ik-location-settings p { font-size: .85rem; line-height: 1.6; }
+.ik-delivery-facts { margin: 14px 0; display: grid; gap: 12px; }
+.ik-delivery-facts dt, .ik-ticket-facts dt { font-size: .7rem; color: var(--on-surface-variant); margin-bottom: 4px; }
+.ik-delivery-facts dd, .ik-ticket-facts dd { margin: 0; font-size: .84rem; font-weight: 500; overflow-wrap: anywhere; }
+.ik-app .dlv-live-badge { background: var(--surface); color: var(--on-surface-variant); border: 1px solid var(--outline-variant); box-shadow: var(--e2); font-size: .74rem; font-weight: 500; padding: 10px 14px; max-width: calc(100% - 24px); }
+.ik-app .dlv-route-stats { width: min(420px, calc(100% - 32px)); left: 50%; right: auto; transform: translateX(-50%); top: 14px; background: var(--surface); color: var(--on-surface); box-shadow: var(--e2); border: 1px solid var(--outline-variant); padding: 14px 8px; backdrop-filter: none; }
+.ik-app .dlv-route-stats strong { color: var(--primary); font-weight: 600; }
+.ik-app .dlv-route-stats span { text-transform: none; opacity: 1; color: var(--on-surface-variant); font-weight: 400; margin-top: 5px; font-size: .65rem; }
+.ik-app .dlv-route-stats .sep { background: var(--outline-variant); }
+.ik-app .dlv-route-warning { z-index: 1000; color: var(--on-error-container); background: var(--error-container); box-shadow: var(--e2); font-weight: 500; }
+.ik-app .dlv-recenter { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; bottom: 30px; color: var(--primary); border: 1px solid var(--outline-variant); box-shadow: var(--e2); }
+.ik-app .dlv-marker .badge { padding: 0; }
+.ik-app .dlv-marker .badge svg { width: 15px; height: 15px; flex: 0 0 15px; }
+.ik-app .dlv-marker--courier .badge, .ik-app .dlv-marker--courier .tail, .ik-app .dlv-marker--courier .ring { background: #159957; }
+.ik-app .dlv-marker--customer .badge, .ik-app .dlv-marker--customer .tail, .ik-app .dlv-marker--customer .ring { background: #242b28; }
+.ik-delivery-ticket { max-width: 380px; margin: 4px auto 12px; padding: 22px; border-radius: 16px; border: 1px solid var(--outline-variant); background: var(--surface); text-align: center; }
+.ik-delivery-ticket h2 { font-size: 1.2rem; font-weight: 600; }
+.ik-delivery-ticket .dlv-code-qr { width: min(200px, 100%); height: auto; border-radius: 0; padding: 12px; margin: 12px auto 20px; }
+.ik-ticket-perforation { position: relative; border-top: 1px dashed var(--outline); margin: 4px -22px 20px; }
+.ik-ticket-perforation::before, .ik-ticket-perforation::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 1px solid var(--outline-variant); top: -9px; }
+.ik-ticket-perforation::before { left: -9px; border-left-color: transparent; }
+.ik-ticket-perforation::after { right: -9px; border-right-color: transparent; }
+.ik-ticket-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: left; margin-bottom: 20px; }
+.ik-ticket-code { display: block; font-size: 2rem; letter-spacing: .26em; padding-left: .26em; color: var(--on-surface); font-weight: 600; }
+.ik-ticket-note { display: flex; gap: 8px; text-align: left; font-size: .72rem; color: var(--on-surface-variant); margin: 18px 0 0; }
+.ik-ticket-note .icon { flex-shrink: 0; margin-top: 2px; }
+.ik-code-form h2 { font-size: 1.2rem; }
+.ik-code-form .form-row { margin-top: 20px; }
+.ik-code-form #dlvCode { font-size: 1.5rem; letter-spacing: .3em; text-align: center; min-height: 60px; }
+body:has(.ik-app.dlv-screen) .toast { top: calc(84px + env(safe-area-inset-top)); bottom: auto; width: min(420px, calc(100% - 32px)); font-size: .85rem; box-shadow: 0 4px 18px rgb(0 0 0 / 10%); }
+
+@media (max-width: 899px) {
+  .ik-storefront { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+  .ik-bottom-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 92; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--outline-variant); box-shadow: 0 -2px 12px rgb(20 39 28 / 3%); }
+  .ik-bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 48px; font-size: .62rem; font-weight: 500; color: var(--on-surface-variant); }
+  .ik-nav-icon { display: grid; place-items: center; width: 42px; height: 28px; border-radius: 999px; }
+  .ik-bottom-nav a[aria-current="page"] { color: var(--primary); }
+  .ik-bottom-nav a[aria-current="page"] .ik-nav-icon { background: var(--primary-container); }
+  .ik-storefront .cart-bar, .ik-storefront .cart-panel { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .ik-storefront .cart-bar { max-width: calc(100vw - 32px); }
+  .ik-storefront .cart-panel { max-height: calc(100dvh - 104px - env(safe-area-inset-bottom)); }
+  .ik-storefront .wa-float { bottom: calc(88px + env(safe-area-inset-bottom)); right: 12px; width: 44px; height: 44px; }
+  .ik-storefront .back-top-btn { bottom: calc(145px + env(safe-area-inset-bottom)); }
+  .ik-storefront:has(.cart-bar.show) .wa-float { bottom: calc(150px + env(safe-area-inset-bottom)); }
+  .ik-storefront:has(.cart-bar.show) .back-top-btn { bottom: calc(207px + env(safe-area-inset-bottom)); }
+  .ik-storefront .pd-ctas { bottom: calc(68px + env(safe-area-inset-bottom)); }
+  body:has(.ik-storefront .pd-ctas) .cart-bar { bottom: calc(202px + env(safe-area-inset-bottom)); }
+  body:has(.ik-storefront .pd-ctas) .ik-storefront { padding-bottom: calc(220px + env(safe-area-inset-bottom)); }
+  body:has(.ik-storefront .pd-ctas) .wa-float { bottom: calc(200px + env(safe-area-inset-bottom)); }
+  body:has(.ik-storefront .pd-ctas) .back-top-btn { bottom: calc(254px + env(safe-area-inset-bottom)); }
+  body:has(.ik-storefront .pd-ctas) .ik-storefront:has(.cart-bar.show) .wa-float { bottom: calc(270px + env(safe-area-inset-bottom)); }
+  body:has(.ik-storefront .pd-ctas) .ik-storefront:has(.cart-bar.show) .back-top-btn { bottom: calc(327px + env(safe-area-inset-bottom)); }
+  body:has(.ik-bottom-nav) .toast { top: 16px; bottom: auto; }
+  .ik-app .header-actions > .btn-whatsapp, .ik-app .header-actions > a[aria-label="Mon compte"], .ik-app .header-actions > a[aria-label="Mes favoris"] { display: none; }
+  .ik-app .topbar .container { font-size: .7rem; }
+  .ik-favorites-list { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .ik-app .container { padding-inline: 16px; }
+  .ik-app .section { padding-block: 28px; }
+  .ik-app .hero { padding-block: 30px; }
+  .ik-app .hero-ctas { margin-top: 18px; }
+  .ik-app .page-hero { padding-block: 20px; }
+  .ik-app .page-hero h1 .icon { width: 26px; height: 26px; }
+  .ik-app .toolbar { align-items: stretch; gap: 12px; }
+  .ik-app .toolbar-controls { width: 100%; }
+  .ik-app .category-pills { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+  .ik-app .category-pill { flex-shrink: 0; }
+  .ik-app .product-grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ik-app .product-body { padding: 10px; }
+  .ik-app .product-title { font-size: .84rem; }
+  .ik-app .product-card .form-note { font-size: .68rem; }
+  .ik-app .product-card .price-now { font-size: .9rem; }
+  .ik-app .product-foot .add-btn { white-space: normal; font-size: .74rem; }
+  .ik-favorites-list .product-card { grid-template-columns: 96px minmax(0, 1fr); padding: 10px; }
+  .ik-favorites-list .product-body { padding: 2px 0 0 12px; }
+  .ik-favorites-list .product-title { font-size: .9rem; }
+  .ik-portal { padding-top: 76px; }
+  .ik-portal .portal-topbar { display: none; }
+  .ik-portal .portal-header { top: 0; }
+  .ik-portal .portal-hero { width: calc(100% - 32px); min-height: 470px; margin-top: 8px; }
+  .ik-portal .portal-hero-bg { left: 57%; top: auto; height: 160px; bottom: 0; }
+  .ik-portal .portal-hero-bg img { padding: 10px; }
+  .ik-portal .portal-hero-content { padding: 26px 22px 178px; }
+  .ik-portal .portal-hero-content h1, .ik-portal .portal-hero-content h2 { font-size: 1.9rem; }
+  .ik-portal .portal-hero-content p { font-size: .87rem; margin-bottom: 18px; }
+  .ik-portal .portal-hero-nav { left: 20px; bottom: 30px; gap: 8px; }
+  .ik-app .dlv-sheet { padding-inline: 14px; max-height: 43dvh; }
+  .ik-app .dlv-sheet--expanded { max-height: 74dvh; }
+}
+@media (max-width: 360px) {
+  .ik-app .logo { font-size: .9rem; gap: 6px; }
+  .ik-app .logo-mark { display: none; }
+  .ik-app .header-actions { gap: 4px; }
+  .ik-favorites-list .product-card { grid-template-columns: 78px minmax(0, 1fr); }
+  .ik-app .dlv-info-row { flex-wrap: wrap; }
+  .ik-app .dlv-info-actions { margin-left: auto; }
+  .ik-tracking-action > .btn { font-size: .75rem; padding-inline: 9px; }
+  .ik-tracking-action > .btn .icon { display: none; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .ik-app .dlv-sheet { max-height: 48dvh; }
+  .ik-app .dlv-sheet--expanded { max-height: 70dvh; }
+  .ik-tracking-header { padding-block: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ik-app *, .ik-app *::before, .ik-app *::after { scroll-behavior: auto; }
+}

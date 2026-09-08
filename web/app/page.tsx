@@ -4,7 +4,6 @@ import { getAllProducts } from "@/lib/data/products";
 import { getSiteSettings } from "@/lib/data/settings";
 import { getTestimonials } from "@/lib/data/testimonials";
 import { Icon } from "@/components/icons/Icon";
-import { PortalPreloader } from "@/components/portal/PortalPreloader";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { PortalHero, type PortalHeroSlide } from "@/components/portal/PortalHero";
 import { PortalSpotlight, type PortalSpotlightItem } from "@/components/portal/PortalSpotlight";
@@ -85,8 +84,8 @@ export default async function PortalPage() {
       eyebrow: "Nouveautés",
       title: recentSports.map((s) => s.label).join(" & ") + ".",
       lead: `${recentCount} articles au catalogue — les dernières arrivées IKIGAI Sport.`,
-      ctaLabel: "Découvrir",
-      ctaHref: `/${recentSports[0].key}`,
+      ctaLabel: "Choisir un univers",
+      ctaHref: "#sports",
       color: safeColor(recentSports[0].color),
       image: image(recentProducts[0]),
     });
@@ -110,16 +109,11 @@ export default async function PortalPage() {
     });
   }
   if (combatSports.length > 0 && combatCount > 0) {
-    const combatCounts = combatSports.map((s) => ({
-      sport: s,
-      count: products.filter((p) => p.sport === s.key).length,
-    }));
-    const combatLead = combatCounts.reduce((a, b) => (b.count > a.count ? b : a));
     spotlight.push({
       key: "arts-martiaux",
       title: "Arts martiaux",
       count: combatCount,
-      href: `/${combatLead.sport.key}`,
+      href: "#sports",
       // Photo fournie par le client (judoka en kimono), pas une photo produit du catalogue.
       image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788582494/le-maillot-ideal/portal/spotlight/arts-martiaux-judoka.jpg",
       gradientColor: spotlightGradients["arts-martiaux"],
@@ -130,7 +124,7 @@ export default async function PortalPage() {
       key: "recent-sports",
       title: recentSports.map((s) => s.label).join(" & "),
       count: recentCount,
-      href: `/${recentSports[0].key}`,
+      href: "#sports",
       image: image(recentProducts[1] || recentProducts[0]),
       gradientColor: spotlightGradients["recent-sports"],
     });
@@ -172,8 +166,7 @@ export default async function PortalPage() {
   const aboutAccentImage = image(footballProducts[4] || combatProducts[0]);
 
   return (
-    <>
-      <PortalPreloader />
+    <div className="ik-app ik-portal">
       <a href="#main" className="skip-link">
         Aller au contenu principal
       </a>
@@ -307,6 +300,6 @@ export default async function PortalPage() {
       <PortalFooter sports={sports} settings={settings} products={products} />
       <WhatsAppFloat settings={settings} />
       <BackToTop />
-    </>
+    </div>
   );
 }

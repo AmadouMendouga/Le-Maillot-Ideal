@@ -30,6 +30,24 @@ import { aggregateItemQuantities, quoteOrderItems, validateOrderItems } from "..
 import { cleanTrackPoints, distanceMeters, hasUsableAccuracy, routeLocationIssue, shouldAppendTrackPoint } from "../lib/location.ts";
 import { publicProductDescription } from "../lib/product.ts";
 import { canGenerateTrackingLink, publicProgressStep } from "../lib/orderWorkflow.ts";
+import { normalizeFavoriteSlugs, toggleFavoriteSlug } from "../lib/favorites.ts";
+
+test("les favoris ignorent une sauvegarde invalide et dédupliquent les produits", () => {
+  assert.deepEqual(normalizeFavoriteSlugs({ slug: "maillot" }), []);
+  assert.deepEqual(normalizeFavoriteSlugs(["maillot", "maillot", 42, null, "", "a/b", " ", "judogi"]), ["maillot", "judogi"]);
+});
+
+test("retirer un favori préserve les produits des autres univers", () => {
+  const saved = ["maillot-football", "judogi", "sneaker"];
+  assert.deepEqual(toggleFavoriteSlug(saved, "judogi"), ["maillot-football", "sneaker"]);
+  assert.deepEqual(toggleFavoriteSlug(saved, "basketball"), [...saved, "basketball"]);
+  assert.deepEqual(saved, ["maillot-football", "judogi", "sneaker"]);
+});
+
+test("une sauvegarde de favoris trop volumineuse reste bornée", () => {
+  assert.equal(normalizeFavoriteSlugs(Array.from({ length: 1000 }, (_, i) => `produit-${i}`)).length, 500);
+  assert.deepEqual(toggleFavoriteSlug(["maillot"], "x".repeat(181)), ["maillot"]);
+});
 
 function sampleProduct(overrides = {}) {
   return {
