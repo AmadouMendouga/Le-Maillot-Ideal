@@ -59,6 +59,9 @@ export function ProductsAdmin({
   const [managingSports, setManagingSports] = useState(false);
 
   useEffect(() => {
+    const stock = new URLSearchParams(window.location.search).get("stock");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- filtre initial provenant du tableau de bord
+    if (stock === "low") setFilters((f) => ({ ...f, status: "attention" }));
     const unsub = onSnapshot(collection(db, "products"), (snap) => {
       setProducts(snap.docs.map((d) => ({ slug: d.id, ...(d.data() as Omit<Product, "slug">) })));
     });
@@ -77,6 +80,7 @@ export function ProductsAdmin({
         const matchesBarcode = !!p.barcode && p.barcode.toLowerCase() === q;
         if (!matchesBarcode && !p.name.toLowerCase().includes(q) && !p.team.toLowerCase().includes(q)) return false;
       }
+      if (filters.status === "attention" && p.stock > 5) return false;
       if (filters.status === "out" && p.stock !== 0) return false;
       if (filters.status === "low" && !(p.stock > 0 && p.stock <= 5)) return false;
       if (filters.status === "promo" && !(p.discountPct > 0)) return false;
@@ -97,10 +101,11 @@ export function ProductsAdmin({
 
   return (
     <section>
+      <div className="adm-page-heading"><div><p className="ik-eyebrow">Catalogue</p><h1>Vos produits</h1><p>Gérez les articles, leurs photos, leurs tailles et le stock.</p></div></div>
       <div className="adm-toolbar">
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
           <Icon name="add" size="sm" />
-          Ajouter un maillot
+          Ajouter un produit
         </button>
         <button type="button" className="btn btn-tonal btn-sm" onClick={() => setManagingSports(true)}>
           <Icon name="storefront" size="sm" />
@@ -115,8 +120,8 @@ export function ProductsAdmin({
           <input
             type="search"
             className="search-input"
-            aria-label="Rechercher un maillot ou scanner un code-barres"
-            placeholder="Équipe, maillot, ou scannez un code-barres…"
+            aria-label="Rechercher un produit ou scanner un code-barres"
+            placeholder="Nom, équipe, ou scannez un code-barres…"
             style={{ width: "100%" }}
             value={filters.q}
             onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
@@ -155,21 +160,22 @@ export function ProductsAdmin({
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
         >
           <option value="">Tous les états</option>
+          <option value="attention">Stock à surveiller (≤ 5)</option>
           <option value="out">En rupture</option>
           <option value="low">Stock bas</option>
           <option value="promo">En promotion</option>
         </select>
         <span className="adm-count">
-          {filtered.length} maillot{filtered.length > 1 ? "s" : ""}
+          {filtered.length} produit{filtered.length > 1 ? "s" : ""}
         </span>
       </div>
 
       <div className="adm-table-wrap">
-        <table className="adm-table">
+        <table className="adm-table adm-products-table">
           <thead>
             <tr>
               <th style={{ width: 66 }}>Photo</th>
-              <th>Maillot</th>
+              <th>Produit</th>
               <th style={{ width: 130 }}>Prix</th>
               <th style={{ width: 110 }}>Stock</th>
               <th style={{ width: 110 }}>État</th>
@@ -183,7 +189,7 @@ export function ProductsAdmin({
                 <td colSpan={7}>
                   <div className="adm-empty">
                     <Icon name="search" />
-                    <div>Aucun maillot ne correspond à ce filtre.</div>
+                    <div>Aucun produit ne correspond à ce filtre.</div>
                   </div>
                 </td>
               </tr>
@@ -225,7 +231,7 @@ export function ProductsAdmin({
                   </td>
                   <td>
                     <div className="adm-row-actions">
-                      <button type="button" className="icon-btn" aria-label="Modifier" onClick={() => openEditor(p.slug)}>
+                      <button type="button" className="icon-btn" aria-label={`Modifier ${p.name}`} onClick={() => openEditor(p.slug)}>
                         <Icon name="edit" size="sm" />
                       </button>
                     </div>

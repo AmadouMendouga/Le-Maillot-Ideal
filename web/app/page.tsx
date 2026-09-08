@@ -4,6 +4,7 @@ import { getAllProducts } from "@/lib/data/products";
 import { getSiteSettings } from "@/lib/data/settings";
 import { getTestimonials } from "@/lib/data/testimonials";
 import { Icon } from "@/components/icons/Icon";
+import { StorefrontWelcome } from "@/components/account/StorefrontWelcome";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { PortalHero, type PortalHeroSlide } from "@/components/portal/PortalHero";
 import { PortalSpotlight, type PortalSpotlightItem } from "@/components/portal/PortalSpotlight";
@@ -176,6 +177,7 @@ export default async function PortalPage() {
       <PortalHeader settings={settings} sports={sports} />
 
       <main id="main">
+        {sports[0] ? <StorefrontWelcome sport={sports[0].key} /> : null}
         <PortalHero slides={slides} />
 
         <SportMarquee sports={sports} products={products} />

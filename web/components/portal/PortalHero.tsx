@@ -1,12 +1,6 @@
 "use client";
 
-// Hero à diapositives du portail — patron emprunté à
-// Site reussi/restrowebsite (#HERO + script.js "HERO SLIDER") : fondu-croisé
-// 1s, zoom lent du fond sur la durée exacte de l'auto-défilement (7s, pour
-// que le zoom se termine pile quand la diapositive suivante arrive), et
-// révélation du texte en cascade (badge, titre, texte, CTA décalés de 300ms
-// chacun). Contenu des diapositives dérivé de données réelles du catalogue
-// (app/page.tsx) — pas de texte marketing inventé.
+// Photos du portail conservées, affichées en plein cadre avec commandes accessibles.
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons/Icon";
@@ -19,8 +13,7 @@ export interface PortalHeroSlide {
   ctaLabel: string;
   ctaHref: string;
   color: string;
-  /** Photo de fond — un vrai produit du catalogue en attendant de vraies
-   * photos de mise en scène (voir app/page.tsx). */
+  /** Photo de présentation du portail. */
   image: string;
 }
 
@@ -46,27 +39,29 @@ export function PortalHero({ slides }: { slides: PortalHeroSlide[] }) {
   }
 
   return (
-    <section className="portal-hero" aria-label="Présentation IKIGAI Sport">
+    <section className="portal-hero" aria-label="Présentation IKIGAI Sport"
+      onMouseEnter={() => { pausedRef.current = true; }}
+      onMouseLeave={() => { pausedRef.current = false; }}
+      onFocusCapture={() => { pausedRef.current = true; }}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) pausedRef.current = false; }}>
+
       <ul className="portal-hero-slides">
         {slides.map((slide, i) => (
-          <li key={i} className={"portal-hero-slide" + (i === active ? " active" : "")} aria-hidden={i !== active}>
+          <li key={i} className={"portal-hero-slide" + (i === active ? " active" : "")} aria-hidden={i !== active} inert={i !== active}>
             <div className="portal-hero-bg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={slide.image} alt="" loading={i === 0 ? "eager" : "lazy"} />
-              <div
-                className="portal-hero-scrim"
-                style={{ background: `linear-gradient(135deg, ${slide.color} 0%, var(--hero-bg) 100%)` }}
-              />
+              <img src={slide.image} alt="" loading={i === 0 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : "auto"} />
+              <div className="portal-hero-scrim" style={{ background: "linear-gradient(135deg, #22C55E 0%, var(--hero-bg) 100%)" }} />
             </div>
             <div className="container portal-hero-content">
-              <span className="hero-badge portal-hero-reveal">{slide.eyebrow}</span>
+              <span className="hero-badge">{slide.eyebrow}</span>
               {i === 0 ? (
-                <h1 className="portal-hero-reveal">{slide.title}</h1>
+                <h1>{slide.title}</h1>
               ) : (
-                <h2 className="portal-hero-reveal">{slide.title}</h2>
+                <h2>{slide.title}</h2>
               )}
-              <p className="portal-hero-reveal">{slide.lead}</p>
-              <Link href={slide.ctaHref} className="btn btn-primary btn-lg portal-hero-reveal">
+              <p>{slide.lead}</p>
+              <Link href={slide.ctaHref} className="btn btn-primary">
                 {slide.ctaLabel}
                 <Icon name="arrow-forward" size="sm" />
               </Link>
@@ -76,15 +71,7 @@ export function PortalHero({ slides }: { slides: PortalHeroSlide[] }) {
       </ul>
 
       {slides.length > 1 && (
-        <div
-          className="portal-hero-nav"
-          onMouseEnter={() => {
-            pausedRef.current = true;
-          }}
-          onMouseLeave={() => {
-            pausedRef.current = false;
-          }}
-        >
+        <div className="portal-hero-nav">
           <button type="button" aria-label="Diapositive précédente" onClick={() => go(-1)}>
             <Icon name="chevron-left" />
           </button>

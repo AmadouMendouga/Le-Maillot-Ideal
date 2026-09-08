@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  return <div className="adm-body">{children}</div>;
+  return <div className="ik-app ik-admin adm-body">{children}</div>;
 }

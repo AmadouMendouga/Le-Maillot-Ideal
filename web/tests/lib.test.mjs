@@ -497,3 +497,73 @@ test("le lien client n'est disponible qu'au départ, le lien livreur dès que la
   assert.equal(canGenerateTrackingLink("en_route", "customer"), true);
   assert.equal(publicProgressStep("arrivee"), 3);
 });
+
+// Navigation computed from actual OSRM geometry, never from a straight-line ETA.
+const { parseNavigationRoute, navigationProgress, navigationSpeed, navigationHeading } = await import("../lib/navigation.ts");
+const navigationNow = Date.parse("2026-09-08T12:00:00Z");
+const navigationFix = (extra = {}) => ({ lat: 4, lng: 9, updatedAt: new Date(navigationNow).toISOString(), accuracy: 5, ...extra });
+const routePayload = () => ({ code: "Ok", routes: [{ distance: 2200, duration: 400, geometry: { coordinates: [[9, 4], [9.01, 4], [9.01, 4.01]] }, legs: [{ steps: [
+  { name: "Rue du départ", maneuver: { type: "depart", modifier: "straight", location: [9, 4] } },
+  { name: "Rue du client", maneuver: { type: "turn", modifier: "left", location: [9.01, 4] } },
+  { name: "Rue du client", maneuver: { type: "arrive", location: [9.01, 4.01] } },
+] }] }] });
+
+test("navigation : convertit les coordonnées OSRM et calcule le prochain virage à partir du GPS", () => {
+  const route = parseNavigationRoute(routePayload());
+  assert.deepEqual(route.coords[0], [4, 9]);
+  const first = navigationProgress(route, navigationFix(), navigationNow);
+  assert.equal(first.kind, "ready");
+  assert.equal(first.next.instruction, "Tournez à gauche");
+  assert.equal(first.next.road, "Rue du client");
+  assert.ok(first.next.distanceMeters > 1100 && first.next.distanceMeters < 1120);
+  const afterTurn = navigationProgress(route, navigationFix({ lat: 4.001, lng: 9.01 }), navigationNow);
+  assert.equal(afterTurn.next.modifier, "arrive");
+  assert.ok(afterTurn.remainingMeters < first.remainingMeters);
+  assert.ok(afterTurn.remainingSeconds < first.remainingSeconds);
+});
+
+test("navigation : refuse les réponses invalides sans dessiner un faux itinéraire", () => {
+  assert.equal(parseNavigationRoute({ code: "NoRoute" }), null);
+  for (const invalid of [Infinity, -1, "2200"]) {
+    const payload = routePayload(); payload.routes[0].distance = invalid;
+    assert.equal(parseNavigationRoute(payload), null);
+  }
+  for (const coordinates of [[], [[9, 4]], [[9, 4], [NaN, 5]], [[9, 4], [9, 100]]]) {
+    const payload = routePayload(); payload.routes[0].geometry.coordinates = coordinates;
+    assert.equal(parseNavigationRoute(payload), null);
+  }
+});
+
+test("navigation : masque le guidage hors trajet, avec un GPS ancien ou imprécis", () => {
+  const route = parseNavigationRoute(routePayload());
+  assert.equal(navigationProgress(route, navigationFix({ lat: 5 }), navigationNow).kind, "off-route");
+  assert.equal(navigationProgress(route, navigationFix(), navigationNow + 31_000).kind, "waiting");
+  assert.equal(navigationProgress(route, navigationFix({ accuracy: 90 }), navigationNow).kind, "waiting");
+  assert.equal(navigationProgress(route, null, navigationNow).kind, "waiting");
+  assert.equal(navigationProgress(route, navigationFix({ updatedAt: "invalid" }), navigationNow).kind, "waiting");
+});
+
+test("navigation : n'invente ni vitesse ni orientation et conserve une vraie vitesse nulle", () => {
+  assert.equal(navigationSpeed(navigationFix(), navigationNow), null);
+  assert.equal(navigationSpeed(navigationFix({ speed: 0 }), navigationNow), 0);
+  assert.equal(navigationSpeed(navigationFix({ speed: 10 }), navigationNow), 36);
+  assert.equal(navigationSpeed(navigationFix({ speed: -1 }), navigationNow), null);
+  assert.equal(navigationSpeed(navigationFix({ speed: 20 }), navigationNow + 31_000), null);
+  assert.equal(navigationHeading(navigationFix({ heading: 90 }), navigationNow), 90);
+  assert.equal(navigationHeading(navigationFix({ heading: 360 }), navigationNow), null);
+  assert.equal(navigationHeading(navigationFix(), navigationNow), null);
+});
+
+test("navigation : une intersection ambiguë ne déclenche pas de consigne erronée", () => {
+  const payload = routePayload();
+  payload.routes[0].geometry.coordinates = [[9, 4], [9.01, 4], [9.01, 4.01], [9, 4.01], [9, 4]];
+  const route = parseNavigationRoute(payload);
+  assert.equal(navigationProgress(route, navigationFix(), navigationNow).kind, "uncertain");
+});
+
+test("navigation : une route sans étapes reste affichable sans inventer de virages", () => {
+  const payload = routePayload(); delete payload.routes[0].legs;
+  const progress = navigationProgress(parseNavigationRoute(payload), navigationFix(), navigationNow);
+  assert.equal(progress.kind, "ready");
+  assert.equal(progress.next, null);
+});

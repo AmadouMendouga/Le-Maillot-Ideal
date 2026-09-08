@@ -289,3 +289,44 @@ test("livraison : le code de remise n'est accepté qu'après l'arrivée", async 
   assert.equal((await actions.markOrderDeliveredByCourierAction("courier-handover", "4321")).ok, true);
   assert.equal(f.db.rows.get("orders/handover").status, "livree");
 });
+
+test("profil d'accueil : ne lit que le client authentifié et ne renvoie aucun champ privé supplémentaire", async () => {
+  const { load, state } = fixture({
+    "customers/client-test": { name: "  Client IKIGAI  ", phone: "12345678", admin: true, internalNote: "private" },
+    "customers/other-client": { name: "Autre client" },
+  });
+  const { getCustomerProfile } = load("lib/data/customer.ts");
+  const profile = await getCustomerProfile();
+  assert.equal(state.customerChecks, 1);
+  assert.equal(profile.name, "Client IKIGAI");
+  assert.deepEqual(Object.keys(profile).sort(), ["email", "name"]);
+});
+
+test("profil d'accueil : refuse une session absente avant toute lecture des clients", async () => {
+  const { load, mocks, db } = fixture();
+  mocks["@/lib/auth/dal"].verifyCustomerSession = async () => { throw new Error("Session absente"); };
+  db.collection = () => { throw new Error("Lecture interdite"); };
+  const { getCustomerProfile } = load("lib/data/customer.ts");
+  await assert.rejects(getCustomerProfile(), /Session absente/);
+});
+
+test("accueil connecté : la réponse privée n'est jamais mise en cache et ne contient pas l'e-mail", async () => {
+  const { load, mocks } = fixture();
+  mocks["@/lib/auth/dal"].AuthError = class AuthError extends Error {};
+  const { GET } = load("app/api/customer-session/route.ts");
+  const response = await GET();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  assert.equal(response.headers.get("Vary"), "Cookie");
+  assert.deepEqual(await response.json(), { profile: { name: "Client test" } });
+});
+
+test("accueil public : une session invalide ne révèle aucun profil", async () => {
+  const { load, mocks } = fixture();
+  class AuthError extends Error {}
+  mocks["@/lib/auth/dal"].AuthError = AuthError;
+  mocks["@/lib/auth/dal"].verifyCustomerSession = async () => { throw new AuthError("Expirée"); };
+  const response = await load("app/api/customer-session/route.ts").GET();
+  assert.deepEqual(await response.json(), { profile: null });
+  assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+});

@@ -21,6 +21,7 @@ import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { LocationPoint } from "@/lib/actions/orders";
 import { cleanTrackPoints, distanceMeters, routeLocationIssue, type RouteLocationIssue } from "@/lib/location";
+import { parseNavigationRoute, navigationProgress, navigationSpeed, navigationHeading, navigationDistance, type NavigationRoute, type NavigationPosition } from "@/lib/navigation";
 import { Icon } from "@/components/icons/Icon";
 
 // OpenFreeMap : tuiles vectorielles gratuites, sans clé API, sans limite —
@@ -35,7 +36,7 @@ function styleUrlForTheme(dark: boolean): string {
 
 export interface DeliveryTrack {
   points: LocationPoint[];
-  current: { lat: number; lng: number; accuracy?: number; updatedAt?: string } | null;
+  current: NavigationPosition | null;
   sharing: boolean;
 }
 
@@ -71,26 +72,12 @@ const MARKER_ICON_ANCHOR: [number, number] = [16, 38];
 // justement d'aider le livreur à retrouver le client : les deux positions
 // seules (ou leurs traces de déplacement passé) ne suffisent pas, il faut le
 // chemin réel entre les deux, en suivant les rues.
-interface RouteResult {
-  coords: [number, number][];
-  distanceMeters: number;
-  durationSeconds: number;
-}
-
-async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }, signal: AbortSignal): Promise<RouteResult | null> {
+async function fetchRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }, signal: AbortSignal): Promise<NavigationRoute | null> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`;
     const res = await fetch(url, { signal });
     if (!res.ok) return null;
-    const data = await res.json();
-    const route = data?.routes?.[0];
-    const coords = route?.geometry?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 2) return null;
-    return {
-      coords: coords.map(([lng, lat]: [number, number]) => [lat, lng]),
-      distanceMeters: route.distance,
-      durationSeconds: route.duration,
-    };
+    return parseNavigationRoute(await res.json());
   } catch {
     return null; // best effort — une carte sans itinéraire routé reste utilisable (marqueurs + traces)
   }
@@ -103,6 +90,8 @@ export function DeliveryMap({
   darkMap = false,
   showRouteStats = false,
   viewportKey,
+  navigationMode = false,
+  routingEnabled = true,
 }: {
   customer: DeliveryTrack;
   courier: DeliveryTrack;
@@ -119,6 +108,8 @@ export function DeliveryMap({
   showRouteStats?: boolean;
   /** Recalcule la taille de la carte lorsque le panneau change. */
   viewportKey?: string;
+  navigationMode?: boolean;
+  routingEnabled?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -127,6 +118,14 @@ export function DeliveryMap({
   const [routeStats, setRouteStats] = useState<{ distanceKm: number; minutes: number; arrival: string } | null>(null);
   const [routeIssue, setRouteIssue] = useState<RouteLocationIssue>(null);
   const [autoFollow, setAutoFollow] = useState(true);
+  const [route, setRoute] = useState<NavigationRoute | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+  const progress = route ? navigationProgress(route, courier.current, clock) : null;
+  const speed = navigationSpeed(courier.current, clock);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type Leaflet réel, importé dynamiquement (pas de dépendance de type au niveau module)
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +137,8 @@ export function DeliveryMap({
   const tracksRef = useRef<{ customer: TrackLayers; courier: TrackLayers } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- polyligne Leaflet réelle
   const routeLineRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- halo Leaflet sous le tracé
+  const routeHaloRef = useRef<any>(null);
   const routeRequestRef = useRef(0);
   const routeAbortRef = useRef<AbortController | null>(null);
   const routeResolvedRef = useRef(false);
@@ -187,14 +188,14 @@ export function DeliveryMap({
       map.on("dragstart", () => setAutoFollow(false));
       tracksRef.current = {
         customer: { line: L.polyline([], { color: "#1e2440", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
-        courier: { line: L.polyline([], { color: "#16a34a", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
+        courier: { line: L.polyline([], { color: "#22C55E", weight: 4, opacity: 0.85 }).addTo(map), marker: null, accuracy: null },
       };
-      // Itinéraire routier (OSRM) entre le livreur et le client — but même de
-      // la carte : aider à se retrouver. Tracé continu neutre, contrasté
-      // dans chaque thème ; les historiques restent réservés à l'admin.
+      // Itinéraire routier vert avec un halo contrasté. Les historiques
+      // restent réservés à l'administration.
+      routeHaloRef.current = L.polyline([], { color: darkMap || isDarkTheme() ? "#092715" : "#ffffff", weight: 11, opacity: .9, lineCap: "round" }).addTo(map);
       routeLineRef.current = L.polyline([], {
-        color: darkMap || isDarkTheme() ? "#f3f6f4" : "#242b28",
-        weight: 5,
+        color: "#22C55E",
+        weight: navigationMode ? 6 : 5,
         opacity: 0.95,
         lineCap: "round",
       }).addTo(map);
@@ -208,7 +209,7 @@ export function DeliveryMap({
     const observer = new MutationObserver(() => {
       if (darkMap) return; // toujours sombre, indépendant du thème choisi côté client
       glLayerRef.current?.getMaplibreMap()?.setStyle(styleUrlForTheme(isDarkTheme()));
-      routeLineRef.current?.setStyle({ color: isDarkTheme() ? "#f3f6f4" : "#242b28" });
+      routeHaloRef.current?.setStyle({ color: isDarkTheme() ? "#092715" : "#ffffff" });
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
@@ -239,6 +240,7 @@ export function DeliveryMap({
         glLayerRef.current = null;
         tracksRef.current = null;
         routeLineRef.current = null;
+        routeHaloRef.current = null;
         routeStateRef.current = null;
         viewportRef.current = [];
       }
@@ -288,19 +290,24 @@ export function DeliveryMap({
         continue;
       }
 
+      const heading = role === "courier" ? navigationHeading(track.current, clock) : null;
+      const isNavigationMarker = navigationMode && role === "courier";
+      const html = isNavigationMarker
+        ? `<div class="dlv-navigation-marker${track.sharing ? "" : " idle"}">${heading === null
+          ? '<span class="dlv-navigation-dot"></span>'
+          : `<svg viewBox="0 0 32 32" aria-hidden="true" style="transform:rotate(${heading}deg)"><path d="M16 3 27 28 16 22 5 28Z" fill="#22C55E" stroke="#fff" stroke-width="2" stroke-linejoin="round" /></svg>`}</div>`
+        : markerHtml(role, track.sharing);
+      const icon = L.divIcon({ className: "", html, iconSize: isNavigationMarker ? [44, 44] : MARKER_ICON_SIZE, iconAnchor: isNavigationMarker ? [22, 22] : MARKER_ICON_ANCHOR });
       if (!t.marker) {
-        t.marker = L.marker([last.lat, last.lng], {
-          icon: L.divIcon({ className: "", html: markerHtml(role, track.sharing), iconSize: MARKER_ICON_SIZE, iconAnchor: MARKER_ICON_ANCHOR }),
-        }).addTo(map);
+        t.marker = L.marker([last.lat, last.lng], { icon, title: role === "courier" ? "Position du livreur" : "Point de livraison", alt: role === "courier" ? "Livreur" : "Client" }).addTo(map);
       } else {
-        t.marker.setLatLng([last.lat, last.lng]);
-        t.marker.getElement()?.querySelector(".dlv-marker")?.classList.toggle("idle", !track.sharing);
+        t.marker.setLatLng([last.lat, last.lng]).setIcon(icon);
       }
       if (last.accuracy && last.accuracy > 8) {
         if (!t.accuracy) {
           t.accuracy = L.circle([last.lat, last.lng], {
             radius: last.accuracy,
-            color: role === "customer" ? "#1e2440" : "#16a34a",
+            color: role === "customer" ? "#1e2440" : "#22C55E",
             fillOpacity: 0.08,
             opacity: 0.3,
             weight: 1,
@@ -319,15 +326,15 @@ export function DeliveryMap({
     // Throttlé (30s + 25m de mouvement minimum) pour ne pas saturer
     // l'instance OSRM publique. Après un échec, réessaie même à l'arrêt ;
     // n'affiche pas un ancien itinéraire comme s'il venait d'être calculé.
-    const issue = customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
+    const issue = routingEnabled && customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
     setRouteIssue(issue);
-    if (customer.current && courier.current && routeLineRef.current && !issue) {
+    if (routingEnabled && customer.current && courier.current && routeLineRef.current && !issue) {
       const from = courier.current;
       const to = customer.current;
       const prev = routeStateRef.current;
       const stale = !prev || Date.now() - prev.fetchedAt > 30000;
       const moved = !prev || distanceMeters(prev.from, from) > 25 || distanceMeters(prev.to, to) > 25;
-      if (stale && (moved || !routeResolvedRef.current)) {
+      if (stale && (moved || !routeResolvedRef.current || (route && navigationProgress(route, from, clock).kind === "off-route"))) {
         routeStateRef.current = { from, to, fetchedAt: Date.now() };
         const requestId = ++routeRequestRef.current;
         routeAbortRef.current?.abort();
@@ -341,10 +348,14 @@ export function DeliveryMap({
           if (!result) {
             setRouteStatus("unavailable");
             setRouteStats(null);
+            setRoute(null);
+            routeHaloRef.current?.setLatLngs([]);
             routeLineRef.current?.setLatLngs([]);
             return;
           }
           setRouteStatus("ready");
+          setRoute(result);
+          routeHaloRef.current?.setLatLngs(result.coords);
           routeLineRef.current?.setLatLngs(result.coords);
           setRouteStats({
             distanceKm: result.distanceMeters / 1000,
@@ -357,6 +368,8 @@ export function DeliveryMap({
         }).finally(() => clearTimeout(timeout));
       }
     } else {
+      setRoute(null);
+      routeHaloRef.current?.setLatLngs([]);
       routeLineRef.current?.setLatLngs([]);
       routeRequestRef.current += 1;
       routeAbortRef.current?.abort();
@@ -393,7 +406,9 @@ export function DeliveryMap({
       // élégant mais fiable. Protégé par try/catch : mieux vaut une carte
       // qui ne recentre pas cette fois qu'une page qui plante.
       try {
-        if (lasts.length > 1 && !issue) {
+        if (navigationMode && courier.current) {
+          map.setView([courier.current.lat, courier.current.lng], 16, { animate: false });
+        } else if (lasts.length > 1 && !issue) {
           map.fitBounds(lasts, { padding: [40, 40], animate: false, maxZoom: 16 });
         } else {
           const focus = courier.current || customer.current;
@@ -403,7 +418,7 @@ export function DeliveryMap({
         // best effort — voir commentaire ci-dessus
       }
     }
-  }, [customer, courier, fullScreen, autoFollow, mapReady]);
+  }, [customer, courier, fullScreen, autoFollow, mapReady, navigationMode, routingEnabled, route, clock]);
 
   function recenter() {
     const map = mapRef.current;
@@ -412,8 +427,9 @@ export function DeliveryMap({
     setAutoFollow(true);
     viewportRef.current = positions;
     try {
-      const issue = customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
-      if (positions.length > 1 && !issue) map.fitBounds(positions.map((p) => [p.lat, p.lng]), { padding: [40, 40], animate: false, maxZoom: 16 });
+      const issue = routingEnabled && customer.current && courier.current ? routeLocationIssue(customer.current, courier.current) : null;
+      if (navigationMode && courier.current) map.setView([courier.current.lat, courier.current.lng], 16, { animate: false });
+      else if (positions.length > 1 && !issue) map.fitBounds(positions.map((p) => [p.lat, p.lng]), { padding: [40, 40], animate: false, maxZoom: 16 });
       else {
         const focus = courier.current || customer.current || positions[0];
         map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 15), { animate: false });
@@ -423,8 +439,19 @@ export function DeliveryMap({
     }
   }
 
+  function overview() {
+    const map = mapRef.current;
+    if (!map || !route) return;
+    setAutoFollow(false);
+    try { map.fitBounds(route.coords, { paddingTopLeft: [30, 170], paddingBottomRight: [60, 36], maxZoom: 16, animate: false }); } catch { /* no camera animation during a tile refresh */ }
+  }
+  const next = progress?.kind === "ready" ? progress.next : null;
+  const navSeconds = progress?.kind === "ready" ? progress.remainingSeconds : null;
+  const navMeters = progress?.kind === "ready" ? progress.remainingMeters : null;
+  const waitingLabel = routeStatus === "loading" ? "Calcul de l’itinéraire…" : progress?.kind === "off-route" ? "Vous avez quitté l’itinéraire" : progress?.kind === "uncertain" ? "Vérification de votre position" : "En attente d’un GPS précis";
+
   return (
-    <div className="dlv-map-frame" style={fullScreen ? { position: "relative", flex: "1 1 auto", minHeight: 0 } : { position: "relative" }}>
+    <div className="dlv-map-frame" data-navigation={navigationMode} style={fullScreen ? { position: "relative", flex: "1 1 auto", minHeight: 0 } : { position: "relative" }}>
       <div
         ref={containerRef}
         role="img"
@@ -435,8 +462,13 @@ export function DeliveryMap({
             : { width: "100%", height: 400, borderRadius: "var(--r-card)", overflow: "hidden" }
         }
       />
+      {navigationMode && mapReady ? <div className="dlv-map-tools" aria-label="Commandes de la carte">
+        <button type="button" onClick={() => { setAutoFollow(false); mapRef.current?.zoomIn(1, { animate: false }); }} aria-label="Zoomer"><Icon name="add" /></button>
+        <button type="button" onClick={() => { setAutoFollow(false); mapRef.current?.zoomOut(1, { animate: false }); }} aria-label="Dézoomer"><Icon name="remove" /></button>
+        {route ? <button type="button" onClick={overview} aria-label="Voir tout l’itinéraire"><Icon name="expand" /></button> : null}
+      </div> : null}
       {(customer.current || courier.current) ? (
-        <button type="button" className="dlv-recenter" onClick={recenter} aria-label="Recentrer la carte sur la livraison" title="Recentrer la carte">
+        <button type="button" className="dlv-recenter" onClick={recenter} aria-label={navigationMode ? "Suivre ma position" : "Recentrer la carte sur la livraison"} aria-pressed={autoFollow} title="Recentrer la carte">
           <Icon name="location" />
         </button>
       ) : null}
@@ -447,7 +479,22 @@ export function DeliveryMap({
             : "Itinéraire suspendu : une position est trop ancienne. Relancez le partage GPS."}
         </div>
       ) : null}
-      {showRouteStats && routeStats && !routeIssue && !mapError ? (
+      {navigationMode && route && !routeIssue && !mapError ? (
+        <div className="dlv-navigation-hud">
+          <div className="dlv-next-turn">
+            <span className="dlv-turn-icon" aria-hidden="true"><TurnArrow modifier={next?.modifier || "straight"} /></span>
+            <div><strong>{next && routeStatus === "ready" ? navigationDistance(next.distanceMeters) : "Itinéraire"}</strong>
+              <p>{routeStatus !== "ready" || progress?.kind !== "ready" ? waitingLabel : next?.instruction || "Suivez l’itinéraire"}</p>
+              {next?.road && routeStatus === "ready" ? <small>{next.road}</small> : null}
+            </div>
+          </div>
+          <div className="dlv-navigation-metrics">
+            <div><strong>{navSeconds === null ? "—" : navSeconds < 60 ? "< 1" : Math.ceil(navSeconds / 60)}<small> min</small></strong><span>Estimation hors trafic</span></div>
+            <div><strong>{speed === null ? "—" : speed}<small> km/h</small></strong><span>Vitesse GPS</span></div>
+            <div><strong>{navMeters === null ? "—" : navigationDistance(navMeters)}</strong><span>Restants</span></div>
+          </div>
+        </div>
+      ) : showRouteStats && routeStats && !routeIssue && !mapError ? (
         <div className="dlv-route-stats">
           <div>
             <strong>{routeStats.minutes} min</strong>
@@ -467,9 +514,18 @@ export function DeliveryMap({
       ) : !routeIssue && !mapError ? (
         <div className="dlv-live-badge" role="status">
           <Icon name={routeStatus === "unavailable" ? "cloud-off" : "location"} size="sm" />
-          {routeStatus === "loading" ? "Calcul de l’itinéraire…" : routeStatus === "unavailable" ? "Itinéraire indisponible · nouvelle tentative automatique" : !courier.current ? "En attente de la position du livreur" : !customer.current ? "En attente du lieu de livraison" : "Positions reçues"}
+          {!routingEnabled ? "Suivi GPS inactif" : routeStatus === "loading" ? "Calcul de l’itinéraire…" : routeStatus === "unavailable" ? "Itinéraire indisponible · nouvelle tentative automatique" : !courier.current ? "En attente de la position du livreur" : !customer.current ? "En attente du lieu de livraison" : "Positions reçues"}
         </div>
       ) : null}
     </div>
   );
+}
+
+function TurnArrow({ modifier }: { modifier: string }) {
+  if (modifier === "arrive") return <Icon name="location" />;
+  const left = modifier.includes("left");
+  const right = modifier.includes("right");
+  return <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
+    {modifier === "roundabout" ? <path d="M24 43V34a12 12 0 1 1 12-12V7m-7 7 7-7 7 7" /> : modifier === "uturn" ? <path d="M36 40V18a12 12 0 0 0-24 0v12m-7-7 7 7 7-7" /> : left || right ? <g transform={left ? "translate(48 0) scale(-1 1)" : undefined}><path d="M12 40V25a10 10 0 0 1 10-10h18m-10-9 10 9-10 9" /></g> : <path d="M24 40V8m-12 12L24 8l12 12" />}
+  </svg>;
 }
