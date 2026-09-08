@@ -460,9 +460,20 @@ export function LocationSharingForm({
         {role === "courier" ? (
           <>
             <h3>Bonjour 👋</h3>
+            {/* Le texte doit suivre la même condition que le bouton juste en
+                dessous (orderStatus) — sinon un livreur qui a déjà démarré la
+                course (ex. reprise après fermeture de l'onglet) se voit
+                réinvité à "démarrer" alors que le bouton dit déjà "Partager
+                ma position" (constaté le 08/09/2026). */}
             <p>
-              La commande de {customerName} est prête. Appuyez sur « Démarrer la course » au moment du départ :
-              le suivi et la position du client ne seront activés qu&apos;à partir de cet instant.
+              {orderStatus !== "en_route" && orderStatus !== "arrivee" ? (
+                <>
+                  La commande de {customerName} est prête. Appuyez sur « Démarrer la course » au moment du départ :
+                  le suivi et la position du client ne seront activés qu&apos;à partir de cet instant.
+                </>
+              ) : (
+                <>Reprenez le partage de votre position pour que {customerName} puisse continuer à vous suivre.</>
+              )}
             </p>
           </>
         ) : (
