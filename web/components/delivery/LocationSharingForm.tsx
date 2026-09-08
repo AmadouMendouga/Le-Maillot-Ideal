@@ -98,7 +98,7 @@ function TrackLegend({ view }: { view: { customer: SharedTrack; courier: SharedT
           Client
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
           Livreur
         </span>
         {view.customer.current && view.courier.current ? (
@@ -305,7 +305,7 @@ export function LocationSharingForm({
       heading: pos.coords.heading,
     };
     const append = shouldAppendTrackPoint(lastAcceptedRef.current, sample);
-    const heartbeat = now - lastSentRef.current >= 60000;
+    const heartbeat = now - lastSentRef.current >= (role === "courier" ? 20000 : 60000);
     if (!append && !heartbeat) return;
     lastSentRef.current = now;
     updateLiveLocationAction(token, sample.lat, sample.lng, accuracy, sample.speed, sample.heading)
@@ -569,13 +569,13 @@ export function LocationSharingForm({
   ) : null;
 
   return (
-    <div className="ik-app dlv-screen" data-panel={panel}>
+    <div className={"ik-app dlv-screen" + (role === "courier" ? " ik-courier-screen" : "")} data-panel={panel}>
       <header className="ik-tracking-header">
         <Link href="/" className="ik-round-button" aria-label="Revenir à l’accueil IKIGAI"><Icon name="arrow-back" /></Link>
         <div><span>IKIGAI SPORT</span><h1>{role === "courier" ? "Votre livraison" : "Suivre ma livraison"}</h1></div>
-        <ThemeToggle />
+        {role === "courier" ? <button type="button" className="ik-round-button" aria-label="Détails de la livraison" onClick={() => openPanel("details")}><Icon name="info" /></button> : <ThemeToggle />}
       </header>
-      <DeliveryMap customer={customerTrack} courier={courierTrack} fullScreen showRouteStats viewportKey={panel} />
+      <DeliveryMap customer={customerTrack} courier={courierTrack} fullScreen darkMap={role === "courier"} navigationMode={role === "courier" && navigating && !delivered && panel === "tracking"} routingEnabled={navigating && !delivered} showRouteStats={panel === "tracking"} viewportKey={panel} />
       <section className={"dlv-sheet" + (panel !== "tracking" ? " dlv-sheet--expanded" : "")} aria-label="Détails de la livraison">
         <div className="ik-sheet-handle" aria-hidden="true" />
         <div className="ik-tracking-tabs" role="group" aria-label="Affichage du suivi">
@@ -602,7 +602,7 @@ export function LocationSharingForm({
                   <h2>{ORDER_STATUS_LABELS[orderStatus]}</h2></div>
                 <span className="ik-status-icon" aria-hidden="true"><Icon name={navigating ? "shipping" : "inventory"} /></span>
               </div>
-              <DeliveryStepper step={step} />
+              {role === "customer" ? <DeliveryStepper step={step} /> : null}
               {contactCard}
               {role === "customer" ? <p className="ik-muted">{orderStatus === "arrivee"
                 ? "Le livreur est arrivé. Préparez votre code pour la remise en main propre."

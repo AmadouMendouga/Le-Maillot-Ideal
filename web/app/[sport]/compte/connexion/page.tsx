@@ -35,15 +35,21 @@ export default function ComptConnexionPage() {
   // forcer une reconnexion manuelle — sans ça, la page de connexion demande
   // un mot de passe à quelqu'un que le navigateur reconnaît déjà.
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
+    let cancelled = false;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
-      const idToken = await user.getIdToken();
-      const ok = await establishServerSession(idToken);
-      if (ok) {
-        router.push(`/${sport}/compte/commandes`);
-        router.refresh();
+      try {
+        const idToken = await user.getIdToken();
+        const ok = await establishServerSession(idToken);
+        if (ok && !cancelled) {
+          router.push(`/${sport}/compte`);
+          router.refresh();
+        }
+      } catch {
+        // La connexion manuelle reste disponible si la synchronisation échoue.
       }
     });
+    return () => { cancelled = true; unsubscribe(); };
   }, [router, sport]);
 
   async function handleSubmit(e: FormEvent) {
@@ -56,7 +62,7 @@ export default function ComptConnexionPage() {
       const idToken = await credential.user.getIdToken();
       const ok = await establishServerSession(idToken);
       if (!ok) throw new Error();
-      router.push(`/${sport}/compte/commandes`);
+      router.push(`/${sport}/compte`);
       router.refresh();
     } catch {
       setError("Adresse e-mail ou mot de passe incorrect.");

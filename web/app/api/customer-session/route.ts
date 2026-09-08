@@ -1,4 +1,6 @@
 import { cookies } from "next/headers";
+import { AuthError } from "@/lib/auth/dal";
+import { getCustomerProfile } from "@/lib/data/customer";
 import { adminAuth } from "@/lib/firebase/admin";
 
 // Miroir de app/api/session/route.ts (admin) pour les comptes clients — cookie
@@ -37,4 +39,16 @@ export async function POST(request: Request) {
 export async function DELETE() {
   (await cookies()).delete("customer_session");
   return Response.json({ ok: true });
+}
+
+/** The public header can personalize itself without exposing the session cookie. */
+export async function GET() {
+  const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
+  try {
+    const profile = await getCustomerProfile();
+    return Response.json({ profile: { name: profile.name } }, { headers });
+  } catch (error) {
+    if (error instanceof AuthError) return Response.json({ profile: null }, { headers });
+    return Response.json({ profile: null }, { status: 503, headers });
+  }
 }

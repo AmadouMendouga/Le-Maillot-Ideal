@@ -16,24 +16,25 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { href: "/admin", label: "Produits", icon: "inventory", countKey: "products" },
-  { href: "/admin/galerie", label: "Photothèque", icon: "photo-library", countKey: "gallery" },
-  { href: "/admin/avis", label: "Avis", icon: "star", countKey: "testimonials" },
+  { href: "/admin/apercu", label: "Vue d’ensemble", icon: "grid" },
   { href: "/admin/commandes", label: "Commandes", icon: "shipping", countKey: "orders" },
+  { href: "/admin", label: "Produits", icon: "inventory", countKey: "products" },
+  { href: "/admin/galerie", label: "Photos", icon: "photo-library", countKey: "gallery" },
+  { href: "/admin/avis", label: "Avis clients", icon: "star", countKey: "testimonials" },
   { href: "/admin/textes", label: "Textes du site", icon: "edit" },
 ];
 
 export function AdminTabs({ counts }: { counts: Record<string, number> }) {
   const pathname = usePathname();
   return (
-    <div className="adm-tabs">
+    <nav className="adm-tabs" aria-label="Administration">
       {TABS.map((tab) => (
-        <Link key={tab.href} href={tab.href} className={"adm-tab" + (pathname === tab.href ? " active" : "")}>
+        <Link key={tab.href} href={tab.href} aria-current={pathname === tab.href ? "page" : undefined} className={"adm-tab" + (pathname === tab.href ? " active" : "")}>
           <Icon name={tab.icon} size="sm" />
-          {tab.label}
+          <span>{tab.label}</span>
           {tab.countKey ? <span className="cnt">{counts[tab.countKey]}</span> : null}
         </Link>
       ))}
-    </div>
+    </nav>
   );
 }

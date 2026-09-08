@@ -27,7 +27,7 @@ export function AdminHeader({ email }: { email: string | null }) {
   return (
     <header className="adm-header">
       <div className="container">
-        <Link href="/" className="logo">
+        <Link href="/admin/apercu" className="logo">
           <span className="logo-mark">
             <Icon name="storefront" size="lg" />
           </span>
@@ -36,7 +36,7 @@ export function AdminHeader({ email }: { email: string | null }) {
             <small>ADMINISTRATION</small>
           </span>
         </Link>
-        <span className="adm-badge">{email || "Connecté"}</span>
+        <span className="adm-badge" title={email || undefined}><Icon name="shield" size="sm" />{email || "Administrateur"}</span>
 
         <div className="adm-actions">
           <ThemeToggle />

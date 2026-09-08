@@ -1,3 +1,4 @@
+import { StorefrontWelcome } from "@/components/account/StorefrontWelcome";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllProducts } from "@/lib/data/products";
@@ -61,6 +62,7 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
 
   return (
     <main id="main">
+      <StorefrontWelcome sport={sportKey} />
       <section className="hero">
         <div className="container hero-text-only">
           <div>

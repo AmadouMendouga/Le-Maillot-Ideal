@@ -46,7 +46,7 @@ export default function CompteInscriptionPage() {
         body: JSON.stringify({ idToken }),
       });
       if (!res.ok) throw new Error();
-      router.push(`/${sport}/compte/commandes`);
+      router.push(`/${sport}/compte`);
       router.refresh();
     } catch (err) {
       const code = (err as { code?: string })?.code;

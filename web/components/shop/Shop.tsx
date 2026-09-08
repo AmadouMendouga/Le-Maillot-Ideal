@@ -92,7 +92,7 @@ export function Shop({
 
   return (
     <div className="shop-layout">
-      <aside className="filters" aria-label="Filtres du catalogue">
+      <aside id="catalogFilters" className="filters" aria-label="Filtres du catalogue">
         <details className="filters-panel" open>
           <summary>
             <Icon name="tune" size="sm" />

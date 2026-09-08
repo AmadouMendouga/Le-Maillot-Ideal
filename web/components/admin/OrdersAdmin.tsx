@@ -160,7 +160,7 @@ function LocationMapDrawer({
           Client
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
           Livreur
         </span>
         {customerTrack.current && courierTrack.current ? (
@@ -953,6 +953,21 @@ export function OrdersAdmin({
   const [couriers, setCouriers] = useState(initialCouriers);
   const [formNonce, setFormNonce] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("");
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get("view");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- filtre initial provenant du tableau de bord
+    if (initial && ["pending", "delivery", "review"].includes(initial)) setView(initial);
+  }, []);
+  const filteredOrders = initialOrders.filter((order) => {
+    const status = normalizeOrderStatus(order.status);
+    if (view === "pending" && !["recue", "confirmee", "preparation", "prete"].includes(status)) return false;
+    if (view === "delivery" && !["livreur_assigne", "en_route", "arrivee"].includes(status)) return false;
+    if (view === "review" && order.paymentStatus !== "review" && !order.inventoryIssue) return false;
+    if (view && !["pending", "delivery", "review"].includes(view) && status !== view) return false;
+    return [order.customerName, order.customerPhone, order.orderSummary, order.address, order.id].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(query.trim().toLocaleLowerCase("fr"));
+  });
 
   function openNewOrder() {
     setFormNonce((n) => n + 1);
@@ -976,7 +991,8 @@ export function OrdersAdmin({
 
   return (
     <section>
-      <div className="adm-warn">
+      <div className="adm-page-heading"><div><p className="ik-eyebrow">Opérations</p><h1>Commandes et livraisons</h1><p>Retrouvez un client, préparez sa commande et suivez sa livraison.</p></div></div>
+      <div className="adm-info">
         <Icon name="info" />
         <div>
           Faites avancer chaque commande selon la réalité : reçue, confirmée, préparée, prête, affectée puis en route.
@@ -985,7 +1001,7 @@ export function OrdersAdmin({
         </div>
       </div>
       <div className="adm-toolbar">
-        <button type="button" className="btn btn-tonal btn-sm" onClick={openNewOrder}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={openNewOrder}>
           <Icon name="add" size="sm" />
           Nouvelle commande
         </button>
@@ -993,13 +1009,18 @@ export function OrdersAdmin({
           <Icon name="shipping" size="sm" />
           Livreurs ({couriers.filter((c) => c.active).length})
         </button>
-        <span className="adm-count">
-          {initialOrders.length} commande{initialOrders.length > 1 ? "s" : ""}
+        <label className="field-wrap grow"><Icon name="search" /><input className="search-input" type="search" aria-label="Rechercher une commande" placeholder="Client, téléphone, article…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <select className="sort-select" aria-label="Filtrer les commandes" value={view} onChange={(event) => setView(event.target.value)}>
+          <option value="">Toutes les commandes</option><option value="pending">À préparer</option><option value="delivery">Livraisons en cours</option><option value="review">Paiements à vérifier</option>
+          {ORDER_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+        <span className="adm-count" aria-live="polite">
+          {filteredOrders.length} commande{filteredOrders.length > 1 ? "s" : ""}
         </span>
       </div>
 
       <div className="adm-table-wrap">
-        <table className="adm-table">
+        <table className="adm-table adm-orders-table">
           <thead>
             <tr>
               <th>Client</th>
@@ -1012,18 +1033,18 @@ export function OrdersAdmin({
             </tr>
           </thead>
           <tbody>
-            {initialOrders.length === 0 ? (
+            {filteredOrders.length === 0 ? (
               <tr>
                 <td colSpan={7}>
                   <div className="adm-empty">
                     <Icon name="shipping" />
-                    <div>Aucune commande enregistrée pour le moment.</div>
+                    <div>Aucune commande ne correspond à ces critères.</div>
                   </div>
                 </td>
               </tr>
             ) : (
-              initialOrders.map((order) => (
-                <tr key={order.id}>
+              filteredOrders.map((order) => (
+                <tr key={order.id} id={`order-${order.id}`}>
                   <td>
                     <div className="name">{order.customerName}</div>
                     <div className="sub">{order.customerPhone}</div>
@@ -1040,14 +1061,14 @@ export function OrdersAdmin({
                       </div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Adresse / zone">
                     <AddressCell order={order} />
                   </td>
-                  <td><DeliverySlotCell order={order} /></td>
-                  <td>
+                  <td data-label="Créneau"><DeliverySlotCell order={order} /></td>
+                  <td data-label="Suivi GPS">
                     <LocationCell order={order} settings={settings} couriers={couriers} />
                   </td>
-                  <td><StatusControl order={order} /></td>
+                  <td data-label="État"><StatusControl order={order} /></td>
                   <td>
                     <div className="adm-row-actions">
                       {normalizeOrderStatus(order.status) === "arrivee" ? (

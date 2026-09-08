@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Connexion refusée.");
-      router.push("/admin");
+      router.push("/admin/apercu");
       router.refresh();
     } catch {
       setError("Adresse e-mail ou mot de passe incorrect.");

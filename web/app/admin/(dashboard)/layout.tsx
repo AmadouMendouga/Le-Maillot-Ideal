@@ -19,12 +19,14 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
 
   return (
     <>
+      <a href="#adminMain" className="skip-link">Aller au contenu</a>
       <AdminHeader email={admin.email} />
+      <div className="adm-workspace">
       <AdminTabs counts={counts} />
-      <main className="container">
-        <h1 className="sr-only">Administration du site IKIGAI Sport</h1>
+      <main id="adminMain" className="adm-main">
         {children}
       </main>
+      </div>
     </>
   );
 }

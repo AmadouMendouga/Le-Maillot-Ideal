@@ -124,6 +124,7 @@ export function PortalHeader({ settings, sports }: { settings: SiteSettings; spo
           </Link>
 
           <div className="portal-header-actions">
+            {sports[0] ? <Link href={`/${sports[0].key}/compte`} className="ik-round-button" aria-label="Mon espace"><Icon name="person" /></Link> : null}
             <ThemeToggle />
             <button
               ref={hamburgerRef}
