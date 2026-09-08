@@ -423,31 +423,37 @@ export function LocationSharingForm({
         {sheet}
 
         {role === "courier" && delivery && !delivered ? (
-          <div style={{ margin: "16px 0", paddingTop: 16, borderTop: "1px solid var(--outline-variant)" }}>
-            <p style={{ fontWeight: 700, marginBottom: 2 }}>{customerName}</p>
-            {delivery.address ? (
-              <p className="sub" style={{ margin: 0 }}>
-                {delivery.address}
-              </p>
-            ) : null}
-            <p className="sub" style={{ margin: "6px 0 14px" }}>
-              {delivery.orderSummary}
-            </p>
-            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-              <a
-                className="btn btn-whatsapp"
-                style={{ flex: 1 }}
-                href={`https://wa.me/${delivery.customerPhone}`}
-                target="_blank"
-                rel="noopener"
-              >
-                <Icon name="whatsapp" size="sm" />
-                WhatsApp
-              </a>
-              <a className="btn btn-tonal" style={{ flex: 1 }} href={`tel:+${delivery.customerPhone}`}>
-                <Icon name="phone" size="sm" />
-                Appeler
-              </a>
+          <div style={{ margin: "16px 0" }}>
+            {/* Carte "infos client" — patron inspiré d'une charte de suivi de
+                colis partagée par le client le 08/09/2026 : avatar + nom en
+                tête, actions en boutons circulaires plutôt qu'en pleine
+                largeur. Vert IKIGAI gardé comme accent (WhatsApp), pas de
+                bascule vers le noir/blanc pur de la référence. */}
+            <div className="dlv-info-card">
+              <div className="dlv-info-row">
+                <span className="dlv-avatar" aria-hidden="true">
+                  <Icon name="person" size="sm" />
+                </span>
+                <div className="dlv-info-text">
+                  <p className="name">{customerName}</p>
+                  {delivery.address ? <p className="sub">{delivery.address}</p> : null}
+                </div>
+                <div className="dlv-info-actions">
+                  <a
+                    className="dlv-icon-circle whatsapp"
+                    aria-label="Écrire sur WhatsApp"
+                    href={`https://wa.me/${delivery.customerPhone}`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <Icon name="whatsapp" size="sm" />
+                  </a>
+                  <a className="dlv-icon-circle" aria-label="Appeler" href={`tel:+${delivery.customerPhone}`}>
+                    <Icon name="phone" size="sm" />
+                  </a>
+                </div>
+              </div>
+              <p className="dlv-info-summary">{delivery.orderSummary}</p>
             </div>
 
             {scanning ? (
@@ -459,7 +465,12 @@ export function LocationSharingForm({
                 </button>
               </div>
             ) : (
-              <button type="button" className="btn btn-tonal btn-lg btn-block" style={{ marginBottom: 10 }} onClick={startScan}>
+              <button
+                type="button"
+                className="btn btn-tonal btn-lg btn-block"
+                style={{ marginTop: 16, marginBottom: 10 }}
+                onClick={startScan}
+              >
                 <Icon name="qr-scanner" size="sm" />
                 Scanner le QR du client
               </button>
