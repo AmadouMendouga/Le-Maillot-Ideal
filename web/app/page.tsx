@@ -76,7 +76,10 @@ export default async function PortalPage() {
       ctaLabel: "Voir la boutique Football",
       ctaHref: "/football",
       color: safeColor(football.color),
-      image: image(footballProducts[1] || footballProducts[0]),
+      // Photo fournie par le client (recadrée pour retirer le filigrane d'un
+      // tiers), pas une photo produit du catalogue — même logique que
+      // arts-martiaux-judoka plus bas.
+      image: "https://res.cloudinary.com/ijazcmgk/image/upload/v1788887586/le-maillot-ideal/portal/spotlight/football-real-madrid.png",
     });
   }
   if (recentSports.length > 0 && recentCount > 0) {
