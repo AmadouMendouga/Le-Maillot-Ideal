@@ -119,7 +119,7 @@ export default function CompteInscriptionPage() {
                 <Icon name="add" size="sm" />
                 {loading ? "Création…" : "Créer mon compte"}
               </button>
-              <p className="form-note">
+              <p className="form-note" style={{ textAlign: "center" }}>
                 Déjà un compte ? <Link href={`/${sport}/compte/connexion`}>Se connecter</Link>
               </p>
             </form>

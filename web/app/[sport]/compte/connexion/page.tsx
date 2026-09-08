@@ -136,14 +136,14 @@ export default function ComptConnexionPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+              <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>
+                {resetting ? "Envoi…" : "Mot de passe oublié ?"}
+              </button>
               <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
                 <Icon name="verified" size="sm" />
                 {loading ? "Connexion…" : "Se connecter"}
               </button>
-              <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>
-                {resetting ? "Envoi…" : "Mot de passe oublié ?"}
-              </button>
-              <p className="form-note">
+              <p className="form-note" style={{ textAlign: "center" }}>
                 Pas encore de compte ? <Link href={`/${sport}/compte/inscription`}>Créer un compte</Link>
               </p>
             </form>

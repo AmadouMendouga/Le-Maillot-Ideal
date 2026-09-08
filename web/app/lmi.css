@@ -225,12 +225,14 @@ p { margin: 0 0 1em; }
 .btn-text:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
 /* Simple texte cliquable, pas un bouton — pour une action secondaire (ex.
    "mot de passe oublié ?") qui ne doit pas rivaliser visuellement avec le
-   CTA principal du formulaire. Pas de fond, pas de pilule, juste le texte. */
+   CTA principal du formulaire. Pas de fond, pas de pilule, juste le texte
+   souligné (repère client du 09/09/2026 : entre le champ mot de passe et le
+   bouton de connexion, jamais en dessous). */
 .link-btn {
-  display: block; width: 100%; margin-top: 14px; padding: 4px; background: none; border: 0;
-  color: var(--primary); font: inherit; font-size: .84rem; font-weight: 600; text-align: center; cursor: pointer;
+  display: block; width: 100%; margin: -4px 0 14px; padding: 4px; background: none; border: 0;
+  color: var(--primary); font: inherit; font-size: .82rem; font-weight: 600; text-align: center; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
 }
-.link-btn:hover { text-decoration: underline; }
 .link-btn:disabled { color: var(--on-surface-variant); cursor: not-allowed; text-decoration: none; }
 .btn-lg { border-radius: var(--r-btn-lg); min-height: 50px; }
 .btn-sm { padding: 10px 16px; font-size: .82rem; }
