@@ -108,12 +108,7 @@ export default function AdminLoginPage() {
           <Icon name="verified" size="sm" />
           {loading ? "Connexion…" : "Se connecter"}
         </button>
-        <button
-          type="button"
-          className="btn btn-text btn-block"
-          disabled={!email || resetting}
-          onClick={handleForgotPassword}
-        >
+        <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>
           {resetting ? "Envoi…" : "Mot de passe oublié ?"}
         </button>
       </form>

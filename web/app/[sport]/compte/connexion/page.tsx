@@ -7,7 +7,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
 
@@ -27,6 +27,24 @@ export default function ComptConnexionPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Message identique que l'e-mail corresponde à un compte ou non — voir
+  // app/admin/connexion/page.tsx pour le même choix.
+  async function handleForgotPassword() {
+    if (!email || resetting) return;
+    setResetting(true);
+    setError("");
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch {
+      // best effort — même message dans tous les cas, voir commentaire ci-dessus
+    } finally {
+      setResetting(false);
+      setResetSent(true);
+    }
+  }
 
   // Le SDK Firebase (côté client) et notre cookie de session serveur sont
   // deux mécanismes distincts. Si le cookie a expiré ou a été effacé par le
@@ -91,6 +109,11 @@ export default function ComptConnexionPage() {
                   {error}
                 </p>
               ) : null}
+              {resetSent ? (
+                <p className="form-note" style={{ color: "var(--secondary)" }}>
+                  Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d&apos;être envoyé.
+                </p>
+              ) : null}
               <div className="form-row">
                 <label htmlFor="ccEmail">E-mail</label>
                 <input
@@ -116,6 +139,9 @@ export default function ComptConnexionPage() {
               <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
                 <Icon name="verified" size="sm" />
                 {loading ? "Connexion…" : "Se connecter"}
+              </button>
+              <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>
+                {resetting ? "Envoi…" : "Mot de passe oublié ?"}
               </button>
               <p className="form-note">
                 Pas encore de compte ? <Link href={`/${sport}/compte/inscription`}>Créer un compte</Link>
