@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 33167)
-Total output lines: 2510
-
 /* ===========================================================
    IKIGAI Sport — Design system aligné sur le site de référence
    du client (vert/marine/orange) · IBM Plex Sans · Tabler Icons
@@ -1044,7 +1041,251 @@ html[data-theme="dark"] .size-opt { background: var(--surface-container-high); }
 }
 .accordion-mini summary::-webkit-details-marker { display: none; }
 .accordion-mini summary .icon { color: var(--primary); }
-.accordion-mini p { color: var(--on-surface-variant…3167 tokens truncated…,255,255,.24); color: #fff; display: flex; align-items: center; justify-content: center;
+.accordion-mini p { color: var(--on-surface-variant); font-size: .86rem; padding: 0 0 14px 29px; font-weight: 400; margin: 0; }
+
+/* ---------- Galerie photo ---------- */
+.photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 940px) { .photo-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
+.photo-item {
+  position: relative; overflow: hidden; border-radius: var(--r-card); aspect-ratio: 1/1;
+  background: var(--surface-container-high); cursor: zoom-in; box-shadow: var(--e2); border: none; padding: 0;
+}
+.photo-item img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
+.photo-item:hover img { transform: scale(1.06); }
+.photo-item .zoom-badge {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(28, 27, 34, .42); color: #fff; opacity: 0; transition: opacity .2s ease;
+}
+.photo-item:hover .zoom-badge { opacity: 1; }
+.photo-item .zoom-badge .icon { width: 28px; height: 28px; }
+
+.lightbox {
+  position: fixed; inset: 0; background: rgba(10, 10, 14, .93); z-index: 200;
+  display: none; align-items: center; justify-content: center; padding: 30px;
+}
+.lightbox.open { display: flex; }
+.lightbox img, .lightbox video { max-width: 92vw; max-height: 86vh; border-radius: var(--r-card); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.lightbox button {
+  position: absolute; background: rgba(255,255,255,.16); color: #fff; border: none; cursor: pointer;
+  width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.lightbox button:hover { background: rgba(255,255,255,.3); }
+.lb-close { top: 22px; right: 22px; }
+.lb-prev { left: 22px; top: 50%; transform: translateY(-50%); }
+.lb-next { right: 22px; top: 50%; transform: translateY(-50%); }
+
+/* ---------- Encart d'information (SnackBar / banner style) ---------- */
+.demo-note {
+  background: var(--tertiary-container); color: var(--on-tertiary-container);
+  border-radius: var(--r-item); padding: 14px 16px; font-size: .84rem; margin-bottom: 22px;
+  display: flex; gap: 12px; align-items: flex-start; font-weight: 400;
+}
+.demo-note .icon { flex-shrink: 0; margin-top: 1px; }
+.demo-note strong { font-weight: 700; }
+
+.catalog-note {
+  background: var(--primary-container); color: var(--on-primary-container);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: var(--r-item); padding: 14px 16px; font-size: .84rem; margin-bottom: 22px;
+  display: flex; gap: 12px; align-items: flex-start; font-weight: 400; max-width: 68ch;
+}
+.catalog-note .icon { flex-shrink: 0; margin-top: 1px; }
+.catalog-note strong { font-weight: 700; }
+
+/* ---------- Bascule thème clair/sombre (settings_page.dart) ---------- */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: var(--r-pill); border: none; cursor: pointer;
+  background: transparent; color: var(--on-surface); transition: background-color .15s ease;
+}
+.theme-toggle:hover { background: var(--surface-container-high); }
+html[data-theme="dark"] .theme-toggle .i-sun { display: block; }
+html[data-theme="dark"] .theme-toggle .i-moon { display: none; }
+.theme-toggle .i-sun { display: none; }
+.theme-toggle .i-moon { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ===========================================================
+   Animations panier — reproduites d'après la vidéo de référence
+   =========================================================== */
+
+/* ---------- Carte produit : pied avec note + bouton Add ---------- */
+.product-rating {
+  display: none; align-items: center; gap: 6px;
+  font-size: .74rem; color: var(--on-surface-variant); font-weight: 500;
+}
+.product-rating .rstars { display: inline-flex; color: var(--tertiary); }
+.product-rating .rstars .icon { width: 13px; height: 13px; }
+.product-rating .rstars .off { color: var(--outline-variant); }
+
+.product-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-top: auto; padding-top: 4px;
+}
+.product-foot .price-row { margin-top: 0; flex-direction: column; align-items: flex-start; gap: 0; }
+
+/* bouton Add pilule : rose au repos, vert une fois ajouté (comme la vidéo) */
+.add-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  border: none; cursor: pointer; font-family: inherit;
+  font-size: .76rem; font-weight: 700; white-space: nowrap;
+  padding: 8px 13px; border-radius: var(--r-pill);
+  background: var(--primary-container); color: var(--on-primary-container);
+  transition: background-color .25s ease, color .25s ease, transform .18s cubic-bezier(.34,1.56,.64,1);
+}
+.add-btn:hover { filter: brightness(.95); }
+.add-btn:active { transform: scale(.92); }
+.add-btn .icon { width: 14px; height: 14px; }
+.add-btn.added {
+  background: var(--whatsapp); color: #fff;
+  animation: addedPop .42s cubic-bezier(.34,1.56,.64,1);
+}
+/* Couleurs dédiées plutôt qu'opacity: réduire l'opacité affaiblit aussi le
+   texte "Épuisé" en dessous du contraste WCAG (~1.4:1 mesuré), alors que ces
+   tokens neutres restent lisibles tout en lisant clairement comme désactivé. */
+.add-btn[disabled] { background: var(--surface-container-high); color: var(--on-surface-variant); cursor: not-allowed; }
+@keyframes addedPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Carte : soulèvement au moment de l'ajout ---------- */
+.product-card { transform-origin: center; }
+.product-card.pop {
+  animation: cardPop .55s cubic-bezier(.34,1.3,.5,1);
+  z-index: 5; position: relative;
+}
+@keyframes cardPop {
+  0%   { transform: translateY(0) scale(1);        box-shadow: var(--e4); }
+  35%  { transform: translateY(-8px) scale(1.045); box-shadow: 0 18px 38px rgba(0,0,0,.20); }
+  100% { transform: translateY(0) scale(1);        box-shadow: var(--e4); }
+}
+
+/* l'image quitte la carte puis y revient */
+.product-media img { transition: opacity .18s ease, transform .35s cubic-bezier(.34,1.4,.6,1); }
+.product-media.emptied img { opacity: 0; transform: scale(.6); }
+.product-media.returning img { animation: imgReturn .5s cubic-bezier(.34,1.5,.6,1); }
+@keyframes imgReturn {
+  0%   { opacity: 0; transform: scale(.55); }
+  60%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- Vignette qui vole vers le panier ---------- */
+.fly-item {
+  position: fixed; z-index: 300; pointer-events: none;
+  border-radius: 50%; object-fit: cover;
+  box-shadow: 0 8px 22px rgba(0,0,0,.28);
+  will-change: transform, opacity;
+}
+
+/* ---------- Barre flottante « Voir le panier » ---------- */
+.cart-bar {
+  position: fixed; left: 50%; bottom: 22px; z-index: 90;
+  transform: translateX(-50%) translateY(120%) scale(.85);
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 10px 9px 12px; border-radius: var(--r-pill);
+  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 72%, #000) 100%);
+  color: #fff; border: none; cursor: pointer; font-family: inherit;
+  box-shadow: 0 10px 30px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.2);
+  opacity: 0; visibility: hidden;
+  transition: transform .5s cubic-bezier(.34,1.4,.5,1), opacity .3s ease, visibility .3s;
+  max-width: calc(100vw - 32px);
+}
+.cart-bar.show { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; visibility: visible; }
+.cart-bar.bump { animation: barBump .45s cubic-bezier(.34,1.5,.6,1); }
+@keyframes barBump {
+  0%   { transform: translateX(-50%) translateY(0) scale(1); }
+  40%  { transform: translateX(-50%) translateY(-4px) scale(1.05); }
+  100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+/* piles de vignettes rondes à gauche — flex-shrink: 0 partout : depuis que
+   .cart-bar-text est en nowrap (plus haut), son min-content = sa largeur
+   pleine, donc tout le rétrécissement flex retombait sur les vignettes
+   (écrasées à quelques pixels, quasi invisibles) dès que le panier avait
+   plus d'un article. Avec flex-shrink: 0 ici, les vignettes gardent leur
+   taille et c'est la barre elle-même qui s'élargit (largement sous
+   max-width dans tous les cas réels). */
+.cart-bar-thumbs { display: flex; align-items: center; padding-left: 2px; flex-shrink: 0; }
+.cart-bar-thumbs img {
+  width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.9); background: #fff;
+  margin-left: -12px; animation: thumbIn .4s cubic-bezier(.34,1.6,.6,1);
+}
+.cart-bar-thumbs img:first-child { margin-left: 0; }
+.cart-bar-thumbs .more {
+  width: 30px; height: 30px; border-radius: 50%; margin-left: -12px; flex-shrink: 0;
+  background: rgba(255,255,255,.22); border: 2px solid rgba(255,255,255,.9);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .66rem; font-weight: 700; color: #fff;
+}
+@keyframes thumbIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* white-space: nowrap indispensable ici : .cart-bar est en display:flex sans
+   largeur fixe (position: fixed, largeur "shrink-to-fit"). Sans nowrap, le
+   texte peut s'enrouler et son MIN-CONTENT (juste le mot le plus long) sert
+   de base au calcul de largeur du bouton entier — la barre se retrouve alors
+   trop étroite et le texte s'affiche sur 2-3 lignes par-dessus les vignettes.
+   Passait inaperçu avec une seule vignette (48px de moins à caser), repéré
+   avec deux articles distincts dans le panier. */
+.cart-bar-text { text-align: left; line-height: 1.15; white-space: nowrap; }
+.cart-bar-text strong { display: block; font-size: .88rem; font-weight: 700; }
+.cart-bar-text span { font-size: .72rem; opacity: .82; }
+.cart-bar-go {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center;
+  transition: background-color .15s ease;
+}
+.cart-bar:hover .cart-bar-go { background: rgba(255,255,255,.34); }
+
+/* ---------- Panneau panier (la barre s'ouvre en panneau) ---------- */
+.cart-panel {
+  position: fixed; left: 50%; bottom: 22px; z-index: 95;
+  width: min(390px, calc(100vw - 32px));
+  transform: translateX(-50%) translateY(16px) scale(.9);
+  transform-origin: bottom center;
+  background: linear-gradient(160deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 70%, #000) 100%);
+  color: #fff; border-radius: var(--r-sheet);
+  box-shadow: 0 20px 50px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.28);
+  opacity: 0; visibility: hidden; overflow: hidden;
+  transition: transform .42s cubic-bezier(.34,1.35,.5,1), opacity .26s ease, visibility .26s;
+}
+.cart-panel.open { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; visibility: visible; }
+.cart-panel-head {
+  display: flex; align-items: center; gap: 9px; padding: 15px 16px 11px;
+  font-weight: 700; font-size: .96rem;
+}
+.cart-panel-head .count-chip {
+  background: rgba(255,255,255,.24); border-radius: var(--r-pill);
+  font-size: .68rem; padding: 2px 8px; font-weight: 700;
+}
+.cart-panel-head .close {
+  margin-left: auto; width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(255,255,255,.18); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.cart-panel-head .close:hover { background: rgba(255,255,255,.32); }
+.cart-panel-items { padding: 0 12px; max-height: 42vh; overflow-y: auto; }
+.cp-item {
+  display: flex; align-items: center; gap: 11px; padding: 9px 10px; margin-bottom: 8px;
+  background: rgba(255,255,255,.14); border-radius: var(--r-item);
+  animation: cpItemIn .35s cubic-bezier(.34,1.4,.6,1);
+}
+@keyframes cpItemIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.cp-item img { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; background: #fff; flex-shrink: 0; }
+.cp-item .cp-info { flex: 1; min-width: 0; }
+.cp-item .cp-cat { font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; opacity: .75; }
+.cp-item .cp-name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-item .cp-price { font-size: .85rem; font-weight: 700; white-space: nowrap; }
+.cp-qty { display: flex; align-items: center; gap: 4px; }
+.cp-qty button {
+  width: 22px; height: 22px; border-radius: 6px; border: none; cursor: pointer;
+  background: rgba(255,255,255,.24); color: #fff; display: flex; align-items: center; justify-content: center;
 }
 .cp-qty button:hover { background: rgba(255,255,255,.4); }
 .cp-qty span { min-width: 16px; text-align: center; font-size: .78rem; font-weight: 700; }
