@@ -26,8 +26,13 @@ export function normalizeOrderStatus(status: string | undefined): OrderStatus {
   return status && status in ORDER_STATUS_LABELS ? (status as OrderStatus) : "confirmee";
 }
 
+// "livree" reste accessible côté client (pas côté livreur, qui n'a plus rien
+// à y faire) : sans ça, le lien envoyé pendant la livraison affichait "lien
+// indisponible" dès la clôture, alors que getSharedLocationViewAction gère
+// déjà très bien cet état (écran de remerciement + proposition d'avis, voir
+// LocationSharingForm.tsx) — seul ce chargement initial le refusait.
 export function canGenerateTrackingLink(status: OrderStatus, role: "customer" | "courier"): boolean {
-  return role === "customer" ? TRACKING_ORDER_STATUSES.has(status) : COURIER_ACCESS_STATUSES.has(status);
+  return role === "customer" ? TRACKING_ORDER_STATUSES.has(status) || status === "livree" : COURIER_ACCESS_STATUSES.has(status);
 }
 
 export function canUpdateLiveLocation(status: OrderStatus): boolean {

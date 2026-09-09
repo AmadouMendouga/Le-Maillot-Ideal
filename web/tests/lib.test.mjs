@@ -498,6 +498,11 @@ test("le lien client n'est disponible qu'au départ, le lien livreur dès que la
   assert.equal(publicProgressStep("arrivee"), 3);
 });
 
+test("le lien client reste valide une fois la commande livrée, pas celui du livreur", () => {
+  assert.equal(canGenerateTrackingLink("livree", "customer"), true);
+  assert.equal(canGenerateTrackingLink("livree", "courier"), false);
+});
+
 // Navigation computed from actual OSRM geometry, never from a straight-line ETA.
 const { parseNavigationRoute, navigationProgress, navigationSpeed, navigationHeading } = await import("../lib/navigation.ts");
 const navigationNow = Date.parse("2026-09-08T12:00:00Z");
