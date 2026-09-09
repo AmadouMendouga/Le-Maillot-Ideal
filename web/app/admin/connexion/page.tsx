@@ -14,6 +14,7 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -65,7 +66,7 @@ export default function AdminLoginPage() {
         <span className="logo-mark">
           <Icon name="storefront" size="lg" />
         </span>
-        <h1>Administration</h1>
+        <h1 className="auth-heading" style={{ marginBottom: 2 }}>Administration</h1>
         <p className="sub">IKIGAI Sport</p>
 
         {error ? (
@@ -81,27 +82,39 @@ export default function AdminLoginPage() {
           </div>
         ) : null}
 
-        <div className="adm-field">
-          <label htmlFor="admEmail">E-mail</label>
+        <div className="auth-field">
+          <Icon name="mail" size="sm" className="icon-lead" />
           <input
             id="admEmail"
             type="email"
+            placeholder="E-mail"
+            aria-label="E-mail"
             autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-        <div className="adm-field">
-          <label htmlFor="admPassword">Mot de passe</label>
+        <div className="auth-field has-trail">
+          <Icon name="lock" size="sm" className="icon-lead" />
           <input
             id="admPassword"
-            type="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Mot de passe"
+            aria-label="Mot de passe"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          <button
+            type="button"
+            className="icon-trail"
+            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            onClick={() => setShowPassword((v) => !v)}
+          >
+            <Icon name={showPassword ? "visibility-off" : "visibility"} size="sm" />
+          </button>
         </div>
 
         <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>

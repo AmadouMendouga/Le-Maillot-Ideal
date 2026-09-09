@@ -2,14 +2,25 @@
 
 // Connexion client (addendum 2) — même schéma que app/admin/connexion/page.tsx
 // (Firebase Auth côté client puis cookie de session httpOnly côté serveur),
-// juste posé sur /api/customer-session plutôt que /api/session, et avec un
-// style public (contact-card/form-row) plutôt que le style admin.
+// juste posé sur /api/customer-session plutôt que /api/session.
+// Champs en pilule + connexion Google + "continuer sans compte" : repère
+// visuel fourni par le client le 09/09/2026. Le panier/la commande ne
+// demandent déjà pas de compte (voir createOrderAction) — "continuer sans
+// compte" renvoie donc simplement vers la boutique plutôt que de créer un
+// mécanisme d'identité anonyme redondant.
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
+import { GoogleGlyph } from "@/components/icons/GoogleGlyph";
 
 async function establishServerSession(idToken: string): Promise<boolean> {
   const res = await fetch("/api/customer-session", {
@@ -25,8 +36,10 @@ export default function ComptConnexionPage() {
   const { sport } = useParams<{ sport: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetting, setResetting] = useState(false);
 
@@ -88,6 +101,26 @@ export default function ComptConnexionPage() {
     }
   }
 
+  // Nécessite que "Google" soit activé comme fournisseur dans Firebase
+  // Console → Authentication → Sign-in method (case à cocher, pas de code
+  // côté serveur à écrire) — sinon Firebase répond auth/operation-not-allowed.
+  async function handleGoogleSignIn() {
+    if (googleLoading) return;
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const credential = await signInWithPopup(auth, new GoogleAuthProvider());
+      const idToken = await credential.user.getIdToken();
+      const ok = await establishServerSession(idToken);
+      if (!ok) throw new Error();
+      router.push(`/${sport}/compte`);
+      router.refresh();
+    } catch {
+      setError("Connexion Google impossible pour le moment. Réessayez ou utilisez votre e-mail.");
+      setGoogleLoading(false);
+    }
+  }
+
   return (
     <main>
       <div className="page-hero">
@@ -100,9 +133,9 @@ export default function ComptConnexionPage() {
         </div>
       </div>
       <div className="section">
-        <div className="container" style={{ maxWidth: 480 }}>
+        <div className="container" style={{ maxWidth: 440 }}>
           <div className="contact-card">
-            <h3>Se connecter</h3>
+            <h2 className="auth-heading">Se connecter</h2>
             <form onSubmit={handleSubmit}>
               {error ? (
                 <p className="form-note" style={{ color: "var(--error)" }}>
@@ -114,27 +147,39 @@ export default function ComptConnexionPage() {
                   Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d&apos;être envoyé.
                 </p>
               ) : null}
-              <div className="form-row">
-                <label htmlFor="ccEmail">E-mail</label>
+              <div className="auth-field">
+                <Icon name="mail" size="sm" className="icon-lead" />
                 <input
                   id="ccEmail"
                   type="email"
+                  placeholder="E-mail"
+                  aria-label="E-mail"
                   autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div className="form-row">
-                <label htmlFor="ccPassword">Mot de passe</label>
+              <div className="auth-field has-trail">
+                <Icon name="lock" size="sm" className="icon-lead" />
                 <input
                   id="ccPassword"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Mot de passe"
+                  aria-label="Mot de passe"
                   autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <button
+                  type="button"
+                  className="icon-trail"
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  <Icon name={showPassword ? "visibility-off" : "visibility"} size="sm" />
+                </button>
               </div>
               <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>
                 {resetting ? "Envoi…" : "Mot de passe oublié ?"}
@@ -143,6 +188,18 @@ export default function ComptConnexionPage() {
                 <Icon name="verified" size="sm" />
                 {loading ? "Connexion…" : "Se connecter"}
               </button>
+
+              <div className="auth-divider">ou</div>
+
+              <button type="button" className="auth-social-btn" disabled={googleLoading} onClick={handleGoogleSignIn}>
+                <GoogleGlyph />
+                {googleLoading ? "Connexion…" : "Continuer avec Google"}
+              </button>
+              <Link href={`/${sport}/boutique`} className="auth-social-btn" style={{ textDecoration: "none" }}>
+                <Icon name="person" size="sm" />
+                Continuer sans compte
+              </Link>
+
               <p className="form-note" style={{ textAlign: "center" }}>
                 Pas encore de compte ? <Link href={`/${sport}/compte/inscription`}>Créer un compte</Link>
               </p>
