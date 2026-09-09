@@ -5,7 +5,7 @@ import { getOrdersForCustomer } from "@/lib/data/orders";
 import { getAllProducts } from "@/lib/data/products";
 import { getAllSports } from "@/lib/data/sports";
 import { getSiteSettings } from "@/lib/data/settings";
-import { canGenerateTrackingLink, normalizeOrderStatus, ORDER_STATUS_LABELS, TERMINAL_ORDER_STATUSES } from "@/lib/orderWorkflow";
+import { normalizeOrderStatus, ORDER_STATUS_LABELS, TERMINAL_ORDER_STATUSES } from "@/lib/orderWorkflow";
 import { AccountHeader } from "@/components/account/AccountHeader";
 import { AccountSearch } from "@/components/account/AccountSearch";
 import { ProductCard } from "@/components/products/ProductCard";
@@ -23,10 +23,6 @@ export default async function ComptePage({ params }: PageProps<"/[sport]/compte"
   const activeOrders = orders.filter((order) => !TERMINAL_ORDER_STATUSES.has(normalizeOrderStatus(order.status)));
   const currentOrder = activeOrders[0];
   const highlights = products.filter((product) => product.sport === sport).slice(0, 4);
-  // eslint-disable-next-line react-hooks/purity -- horodatage vérifié dans un Server Component dynamique authentifié
-  const now = Date.now();
-  const canTrack = currentOrder && currentOrder.locationToken && canGenerateTrackingLink(normalizeOrderStatus(currentOrder.status), "customer")
-    && (!currentOrder.locationTokenExpiresAt || Date.parse(currentOrder.locationTokenExpiresAt) > now);
   return <main id="main" className="container ik-account-home">
     <AccountHeader email={profile.email} name={profile.name} />
     <h1>Votre univers sportif.</h1><p className="ik-muted">Vos envies, vos commandes et votre prochaine séance.</p>
@@ -40,13 +36,14 @@ export default async function ComptePage({ params }: PageProps<"/[sport]/compte"
         <h2>{currentOrder ? ORDER_STATUS_LABELS[normalizeOrderStatus(currentOrder.status)] : "Prêt pour votre prochain sport ?"}</h2>
         <p>{currentOrder ? currentOrder.orderSummary : "Retrouvez les équipements de votre discipline et gardez vos coups de cœur."}</p>
         {currentOrder?.deliverySlot ? <p className="ik-account-slot"><Icon name="schedule" size="sm" />{currentOrder.deliverySlot}</p> : null}
-        <Link href={canTrack ? `/livraison/${currentOrder.locationToken}` : currentOrder ? `/${sport}/compte/commandes` : `/${sport}/boutique`} className="btn btn-primary">
-          {canTrack ? "Suivre la livraison" : currentOrder ? "Voir ma commande" : "Explorer les articles"}<Icon name="arrow-forward" size="sm" />
+        <Link href={currentOrder ? `/${sport}/compte/commandes/${encodeURIComponent(currentOrder.id)}` : `/${sport}/boutique`} className="btn btn-primary">
+          {currentOrder ? "Voir le détail et l’avancement" : "Explorer les articles"}<Icon name="arrow-forward" size="sm" />
         </Link>
       </div>
       <span className="ik-account-banner-icon" aria-hidden="true"><Icon name={currentOrder ? "shipping" : "soccer"} /></span>
     </div>
     <nav className="ik-account-shortcuts" aria-label="Accès rapides">
+      <Link href={`/${sport}/compte/profil`}><Icon name="person" /><span><strong>Mon compte</strong><small>Profil, sécurité et préférences</small></span><Icon name="chevron-right" size="sm" /></Link>
       <Link href={`/${sport}/compte/commandes`}><Icon name="inventory" /><span><strong>Mes commandes</strong><small>{activeOrders.length ? `${activeOrders.length} en cours` : "Consulter mon historique"}</small></span><Icon name="chevron-right" size="sm" /></Link>
       <Link href={`/${sport}/favoris`}><HeartIcon /><span><strong>Mes favoris</strong><small>Enregistrés sur cet appareil</small></span><Icon name="chevron-right" size="sm" /></Link>
     </nav>

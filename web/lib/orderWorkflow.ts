@@ -23,7 +23,7 @@ export const TRACKING_ORDER_STATUSES = new Set<OrderStatus>(["en_route", "arrive
 export const COURIER_ACCESS_STATUSES = new Set<OrderStatus>(["prete", "livreur_assigne", "en_route", "arrivee"]);
 
 export function normalizeOrderStatus(status: string | undefined): OrderStatus {
-  return status && status in ORDER_STATUS_LABELS ? (status as OrderStatus) : "confirmee";
+  return typeof status === "string" && Object.hasOwn(ORDER_STATUS_LABELS, status) ? (status as OrderStatus) : "confirmee";
 }
 
 // "livree" reste accessible côté client (pas côté livreur, qui n'a plus rien

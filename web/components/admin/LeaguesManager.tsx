@@ -5,7 +5,6 @@
 // de l'onglet Produits : ajouter un championnat (ex. « Ligue 1 Cameroun ») et
 // renommer les existants à volonté.
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Drawer } from "@/components/admin/Drawer";
 import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import { Icon } from "@/components/icons/Icon";
@@ -126,7 +125,6 @@ function LeagueRow({ league, onSaved, onDeleted }: { league: League; onSaved: ()
 }
 
 export function LeaguesManager({ leagues, open, onClose }: { leagues: League[]; open: boolean; onClose: () => void }) {
-  const router = useRouter();
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState("#22c55e");
   const [creating, setCreating] = useState(false);
@@ -144,7 +142,6 @@ export function LeaguesManager({ leagues, open, onClose }: { leagues: League[]; 
       }
       showToast(`« ${newLabel} » créé`, "check-circle");
       setNewLabel("");
-      router.refresh();
     } finally {
       setCreating(false);
     }
@@ -159,7 +156,7 @@ export function LeaguesManager({ leagues, open, onClose }: { leagues: League[]; 
 
       <div className="adm-testi">
         {leagues.map((l) => (
-          <LeagueRow key={l.key} league={l} onSaved={() => router.refresh()} onDeleted={() => router.refresh()} />
+          <LeagueRow key={l.key} league={l} onSaved={() => {}} onDeleted={() => {}} />
         ))}
       </div>
 

@@ -21,7 +21,7 @@ function links(basePath: string): { href: string; label: string; icon: IconName;
     { href: `${basePath}/phototheque`, label: "Photothèque", icon: "photo-library" },
     { href: `${basePath}/#faq`, label: "Aide", icon: "info" },
     { href: `${basePath}/#contact`, label: "Contact", icon: "person" },
-    { href: `${basePath}/compte`, label: "Mon compte", icon: "verified" },
+    { href: `${basePath}/compte/profil`, label: "Mon compte", icon: "verified" },
     // en tête de liste + style distinct (voir .nav-portal-link) : "Autres
     // sports" en dernière position, texte neutre, se perdait dans la liste —
     // un client a signalé ne plus retrouver le chemin vers le portail.

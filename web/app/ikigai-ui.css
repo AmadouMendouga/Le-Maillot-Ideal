@@ -458,3 +458,151 @@ body:has(.ik-app.dlv-screen) .toast { top: calc(84px + env(safe-area-inset-top))
   .dlv-navigation-metrics { display: none; }
   .dlv-next-turn { padding: 8px 12px; }
 }
+
+/* Customer orders and account: compact hierarchy, green accents, real status. */
+.ik-orders-page, .ik-order-page, .ik-profile-page { max-width: 960px; padding-block: 32px 64px; }
+.ik-profile-page { max-width: 700px; }
+.ik-account-page-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.ik-account-page-title h1 { margin: 4px 0 8px; font-size: clamp(1.8rem, 5vw, 2.5rem); letter-spacing: -.055em; }
+.ik-account-page-title p { margin-block: 0; }
+.ik-orders-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.ik-order-tabs { display: flex; flex: 1; padding: 5px; gap: 4px; background: var(--surface-container); border: 1px solid var(--outline-variant); border-radius: 100px; }
+.ik-order-tabs button { flex: 1; min-height: 44px; padding: 8px 12px; border: 0; background: none; border-radius: inherit; color: var(--on-surface-variant); font-size: .86rem; font-weight: 600; cursor: pointer; transition: background .2s, color .2s; white-space: nowrap; }
+.ik-order-tabs button[aria-pressed="true"] { background: var(--brand-green); color: var(--on-primary); }
+.ik-order-tabs button span { margin-left: 6px; font-size: .75rem; opacity: .8; }
+.ik-order-list { display: grid; gap: 18px; }
+.ik-order-card { padding: 24px; border-radius: 22px; background: var(--surface); border: 1px solid var(--outline-variant); box-shadow: 0 5px 20px rgb(0 0 0 / 2%); overflow-wrap: anywhere; }
+.ik-order-card-head { display: flex; align-items: center; gap: 12px; }
+.ik-order-parcel { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 16px; background: var(--primary-container); color: var(--on-primary-container); }
+.ik-order-card-head > div { flex: 1; }
+.ik-order-card-head p { font-size: .73rem; color: var(--on-surface-variant); margin: 3px 0 0; }
+.ik-order-badge { background: var(--primary-container); color: var(--on-primary-container); padding: 7px 11px; border-radius: 100px; font-weight: 600; font-size: .73rem; white-space: nowrap; }
+.ik-order-badge--reportee, .ik-order-badge--annulee { background: var(--surface-container-high); color: var(--on-surface); }
+.ik-order-badge--livree { background: var(--brand-green); color: var(--on-primary); }
+.ik-order-summary { display: flex; justify-content: space-between; gap: 20px; margin-top: 24px; }
+.ik-order-summary h2 { font-size: 1rem; line-height: 1.5; font-weight: 600; margin: 0; }
+.ik-order-summary > strong { flex-shrink: 0; font-size: .95rem; padding-top: 3px; }
+.ik-order-card > .ik-muted { font-size: .86rem; line-height: 1.7; }
+.ik-order-slot { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface-container); font-size: .86rem; line-height: 1.5; }
+.ik-order-slot .icon { flex-shrink: 0; }
+.ik-order-detail-link { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 48px; padding-top: 14px; border-top: 1px solid var(--outline-variant); margin-top: 18px; font-weight: 650; font-size: .88rem; color: var(--on-surface); text-decoration: none; }
+.ik-order-detail-link .icon { color: var(--brand-green); }
+.ik-account-empty { text-align: center; padding: 64px 24px; border: 1px dashed var(--outline-variant); border-radius: 22px; }
+.ik-account-empty > .icon { color: var(--on-primary-container); margin-bottom: 12px; }
+.ik-account-empty h2 { font-size: 1.25rem; }
+.ik-account-empty p { max-width: 360px; margin: 12px auto 24px; }
+.ik-order-detail-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.ik-order-detail-top > div { flex: 1; text-align: center; }
+.ik-order-detail-top h1 { font-size: 1.4rem; margin: 4px 0 0; }
+.ik-order-detail-top p { margin: 0; }
+.ik-order-sync { text-align: center; color: var(--on-surface-variant); font-size: .73rem; min-height: 1.5em; margin: 18px 0 24px; }
+.ik-order-state { display: flex; align-items: flex-start; gap: 18px; padding: 24px; background: var(--surface); border: 1px solid var(--outline-variant); border-radius: 22px; margin-bottom: 16px; }
+.ik-order-state h2 { margin: 4px 0 8px; font-size: 1.6rem; letter-spacing: -.04em; }
+.ik-order-state p { margin: 0; line-height: 1.65; color: var(--on-surface-variant); }
+.ik-order-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; align-items: start; }
+.ik-order-detail-aside { display: grid; gap: 18px; }
+.ik-section-label { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 26px; }
+.ik-section-label h2 { margin: 0; font-size: 1rem; }
+.ik-section-label > .icon { color: var(--on-surface-variant); }
+.ik-order-timeline { margin: 0; padding: 0; list-style: none; }
+.ik-order-timeline li { position: relative; display: flex; gap: 16px; padding-bottom: 28px; padding-left: 0; color: var(--on-surface-variant); }
+.ik-order-timeline li:not(:last-child)::before { content: ""; position: absolute; top: 23px; bottom: 4px; left: 10px; width: 2px; background: var(--outline-variant); }
+.ik-order-timeline li.is-complete::before { background: var(--brand-green); }
+.ik-timeline-dot { position: relative; display: grid; place-items: center; width: 22px; height: 22px; flex: 0 0 22px; border: 2px solid var(--outline-variant); border-radius: 50%; margin-top: 2px; background: var(--surface-container-high); }
+.is-complete .ik-timeline-dot { background: var(--brand-green); border-color: var(--brand-green); color: var(--on-primary); }
+.is-current .ik-timeline-dot { background: var(--brand-green); border-color: var(--brand-green); box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-green) 16%, transparent); }
+.ik-order-timeline li.is-current, .ik-order-timeline li.is-complete { color: var(--on-surface); }
+.ik-order-timeline strong { font-weight: 600; font-size: .9rem; }
+.ik-order-timeline p { font-size: .78rem; line-height: 1.55; color: var(--on-surface-variant); margin: 4px 0; }
+.ik-order-timeline time { font-size: .71rem; color: var(--on-surface-variant); }
+.ik-order-timeline .is-current strong { color: var(--on-primary-container); }
+.ik-order-footnote { padding: 14px; margin: 0; font-size: .78rem; line-height: 1.65; background: var(--surface-container); border-radius: 12px; color: var(--on-surface-variant); }
+.ik-order-items { font-weight: 550; line-height: 1.65; margin-block: 0 20px; }
+.ik-order-facts { margin: 0; font-size: .83rem; }
+.ik-order-facts > div { display: grid; grid-template-columns: 1fr 1.3fr; gap: 14px; margin-top: 14px; }
+.ik-order-facts dt { color: var(--on-surface-variant); }
+.ik-order-facts dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.ik-order-facts .ik-order-total { border-top: 1px solid var(--outline-variant); padding-top: 18px; margin-top: 20px; font-weight: 700; font-size: 1rem; }
+.ik-help-card { display: flex; align-items: center; gap: 14px; padding: 20px; border-radius: 18px; border: 1px solid var(--outline-variant); color: var(--on-surface); background: var(--surface); text-decoration: none; }
+.ik-help-card span { flex: 1; }
+.ik-help-card strong, .ik-help-card small { display: block; }
+.ik-help-card strong { font-size: .85rem; }
+.ik-help-card small { font-size: .73rem; color: var(--on-surface-variant); margin-top: 4px; }
+.ik-remise-ticket { background: var(--surface); border: 1px solid var(--outline-variant); border-radius: 18px; }
+.ik-remise-ticket summary { display: flex; align-items: center; gap: 12px; padding: 20px; cursor: pointer; list-style: none; }
+.ik-remise-ticket summary span { flex: 1; font-weight: 600; font-size: .9rem; }
+.ik-remise-ticket summary small { display: block; font-weight: 400; font-size: .74rem; margin-top: 5px; color: var(--on-surface-variant); }
+.ik-remise-ticket > div { padding: 4px 20px 24px; text-align: center; }
+.ik-remise-ticket img { display: block; margin: 0 auto 16px; border-radius: 12px; }
+.ik-remise-ticket .ik-ticket-code { display: block; }
+.ik-remise-ticket p { font-size: .78rem; line-height: 1.6; }
+.ik-delivery-success { max-width: 540px; margin: 0 auto; padding: 40px 24px; text-align: center; }
+.ik-success-mark { width: 112px; height: 112px; margin: 0 auto 30px; border-radius: 50%; background: color-mix(in srgb, var(--brand-green) 8%, transparent); padding: 10px; animation: ik-success-enter .45s ease-out both; }
+.ik-success-mark svg { width: 100%; height: 100%; stroke: var(--brand-green); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.ik-success-mark circle { stroke-dasharray: 271; stroke-dashoffset: 0; animation: ik-success-ring .65s ease-out both; }
+.ik-success-mark path { stroke-dasharray: 70; stroke-dashoffset: 0; animation: ik-success-check .45s .4s ease-out both; }
+.ik-delivery-success h2 { font-size: clamp(1.7rem, 6vw, 2.3rem); letter-spacing: -.05em; margin: 10px 0 16px; }
+.ik-delivery-success > p { line-height: 1.8; }
+.ik-success-summary { padding: 16px; border: 1px solid var(--outline-variant); border-radius: 14px; font-size: .9rem; }
+.ik-success-actions { display: grid; gap: 12px; margin-top: 36px; }
+.ik-success-dialog { padding: 28px 16px; width: min(94vw, 600px); max-height: 92dvh; margin: auto; border: 1px solid var(--outline-variant); border-radius: 28px; color: var(--on-surface); background: var(--surface); overscroll-behavior: contain; }
+.ik-success-dialog::backdrop { background: rgb(0 0 0 / 48%); backdrop-filter: blur(5px); }
+.ik-success-close { margin-left: auto; }
+.ik-delivery-complete-page { display: grid; place-items: center; padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom); }
+@keyframes ik-success-enter { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes ik-success-ring { from { stroke-dashoffset: 271; } to { stroke-dashoffset: 0; } }
+@keyframes ik-success-check { from { stroke-dashoffset: 70; } to { stroke-dashoffset: 0; } }
+.ik-profile-identity { display: flex; align-items: center; gap: 18px; padding: 24px; border-radius: 22px; background: var(--surface); border: 1px solid var(--outline-variant); margin-bottom: 32px; }
+.ik-profile-avatar { display: grid; place-items: center; width: 66px; height: 66px; flex: 0 0 66px; border-radius: 50%; background: var(--primary-container); color: var(--on-primary-container); font-size: 1.25rem; font-weight: 600; }
+.ik-profile-identity > div { flex: 1; min-width: 0; }
+.ik-profile-identity h2 { margin: 0 0 5px; font-size: 1.15rem; overflow-wrap: anywhere; }
+.ik-profile-identity p { margin: 0; font-size: .8rem; color: var(--on-surface-variant); overflow-wrap: anywhere; }
+.ik-profile-identity > .icon { color: var(--brand-green); }
+.ik-profile-group { margin-bottom: 28px; }
+.ik-profile-group > h2 { color: var(--on-surface-variant); font-size: .83rem; font-weight: 500; margin: 0 0 12px 8px; }
+.ik-profile-group-card { border-radius: 20px; background: var(--surface); border: 1px solid var(--outline-variant); overflow: hidden; }
+.ik-profile-group-card > * + * { border-top: 1px solid var(--outline-variant); }
+.ik-profile-row { display: flex; align-items: center; gap: 16px; padding: 21px 22px; min-height: 76px; color: var(--on-surface); text-decoration: none; list-style: none; cursor: pointer; }
+.ik-profile-row::-webkit-details-marker, .ik-remise-ticket summary::-webkit-details-marker { display: none; }
+.ik-profile-row > span { flex: 1; min-width: 0; }
+.ik-profile-row strong { display: block; font-size: .9rem; font-weight: 550; }
+.ik-profile-row small { display: block; font-size: .73rem; line-height: 1.5; margin-top: 4px; color: var(--on-surface-variant); }
+.ik-profile-row > .icon { flex-shrink: 0; }
+.ik-profile-row > .icon:last-child { color: var(--on-surface-variant); }
+.ik-profile-row:hover { background: var(--surface-container-low); }
+.ik-profile-form { display: grid; gap: 10px; padding: 2px 22px 24px; }
+.ik-profile-form label { font-size: .82rem; font-weight: 600; margin-top: 12px; }
+.ik-profile-form input, .ik-profile-form textarea { width: 100%; min-height: 48px; border-radius: 12px; background: var(--surface-container-low); border: 1px solid var(--outline-variant); color: var(--on-surface); padding: 12px 14px; font: inherit; font-size: 16px; }
+.ik-profile-form p { font-size: .78rem; line-height: 1.7; margin: 4px 0 8px; }
+.ik-profile-feedback { color: var(--on-primary-container); }
+.ik-theme-choice { display: flex; padding: 4px; border-radius: 100px; background: var(--surface-container); gap: 4px; }
+.ik-theme-choice button { display: flex; align-items: center; justify-content: center; gap: 4px; border: 0; min-height: 40px; padding: 8px 10px; font-size: .74rem; color: var(--on-surface-variant); border-radius: 100px; background: transparent; cursor: pointer; }
+.ik-theme-choice button[aria-pressed="true"] { background: var(--surface); color: var(--on-surface); box-shadow: var(--e1); }
+.ik-profile-logout { display: flex; gap: 12px; justify-content: center; align-items: center; width: 100%; min-height: 52px; border-radius: 100px; background: var(--surface); border: 1px solid var(--outline-variant); color: var(--on-surface); cursor: pointer; font-size: .9rem; }
+.ik-profile-signature { text-align: center; font-size: .72rem; color: var(--on-surface-variant); margin-top: 24px; }
+.ik-loading-card { height: 120px; margin-bottom: 18px; opacity: .65; }
+@media (max-width: 640px) {
+  .ik-orders-page, .ik-order-page, .ik-profile-page { padding-top: 24px; }
+  .ik-order-detail-grid { grid-template-columns: 1fr; }
+  .ik-order-card { padding: 20px; }
+  .ik-order-summary { display: block; }
+  .ik-order-summary > strong { display: block; margin-top: 12px; }
+  .ik-order-card-head { flex-wrap: wrap; }
+  .ik-order-tabs button { padding-inline: 7px; font-size: .75rem; }
+  .ik-orders-toolbar { gap: 8px; }
+  .ik-order-tabs button span { margin-left: 4px; }
+  .ik-order-state { padding: 20px; gap: 14px; }
+  .ik-order-state h2 { font-size: 1.35rem; }
+  .ik-order-state p { font-size: .87rem; }
+  .ik-profile-row { padding: 18px; gap: 12px; flex-wrap: wrap; }
+  .ik-profile-row > span { min-width: 145px; }
+  .ik-profile-row .ik-theme-choice { margin-left: auto; }
+  .ik-profile-identity { padding: 20px 16px; gap: 12px; }
+  .ik-profile-avatar { width: 54px; height: 54px; flex-basis: 54px; }
+  .ik-success-dialog { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  .ik-success-dialog .ik-delivery-success { padding-top: min(15dvh, 100px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ik-success-mark, .ik-success-mark circle, .ik-success-mark path { animation: none; }
+  .ik-order-tabs button { transition: none; }
+}

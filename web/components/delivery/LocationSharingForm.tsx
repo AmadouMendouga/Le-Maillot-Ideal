@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import jsQR from "jsqr";
+import { DeliverySuccess } from "@/components/account/DeliverySuccess";
 import { Icon } from "@/components/icons/Icon";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
 import {
@@ -143,7 +144,7 @@ export function LocationSharingForm({
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null);
   const [sharedView, setSharedView] = useState<{ customer: SharedTrack; courier: SharedTrack } | null>(null);
   const [delivering, setDelivering] = useState(false);
-  const [delivered, setDelivered] = useState(false);
+  const [delivered, setDelivered] = useState(initialOrderStatus === "livree");
   const [reviewToken, setReviewToken] = useState<string | null>(null);
   const [orderStatus, setOrderStatus] = useState<OrderStatus>(initialOrderStatus);
   const [codeInput, setCodeInput] = useState("");
@@ -251,18 +252,28 @@ export function LocationSharingForm({
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let controller: AbortController | null = null;
+    let completed = false;
+    let failures = 0;
     async function poll() {
+      if (document.hidden) { timer = setTimeout(poll, MAP_POLL_MS); return; }
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 12000);
       try {
-        const result = await getSharedLocationViewAction(token);
+        const response = await fetch(`/api/delivery/${encodeURIComponent(token)}`, { cache: "no-store", signal: controller.signal });
+        if (!response.ok && response.status !== 404) throw new Error("Actualisation impossible");
+        const result = await response.json() as Awaited<ReturnType<typeof getSharedLocationViewAction>>;
         if (cancelled) return;
         if (!result.ok) {
           setPollWarning(result.error);
           return;
         }
+        failures = 0;
         setPollWarning("");
         setSharedView({ customer: result.customer, courier: result.courier });
         setOrderStatus(result.status);
         if (result.delivered) {
+          completed = true;
           setDelivered(true);
           stopScan();
           if (watchIdRef.current !== null) {
@@ -274,15 +285,18 @@ export function LocationSharingForm({
         }
         if (result.reviewToken) setReviewToken(result.reviewToken);
       } catch {
+        failures++;
         if (!cancelled) setPollWarning("Actualisation interrompue. Vérifiez votre connexion ; le suivi réessaiera automatiquement.");
       } finally {
-        if (!cancelled) timer = setTimeout(poll, MAP_POLL_MS);
+        clearTimeout(timeout);
+        if (!cancelled && !completed) timer = setTimeout(poll, Math.min(60000, MAP_POLL_MS * Math.max(1, 2 ** failures)));
       }
     }
     poll();
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      controller?.abort();
     };
   }, [token]);
 
@@ -567,6 +581,8 @@ export function LocationSharingForm({
       </div>
     </div>
   ) : null;
+
+  if (delivered && role === "customer") return <div className="ik-app ik-delivery-complete-page"><DeliverySuccess reviewHref={reviewToken ? `/avis/${reviewToken}` : null} /></div>;
 
   return (
     <div className={"ik-app dlv-screen" + (role === "courier" ? " ik-courier-screen" : "")} data-panel={panel}>

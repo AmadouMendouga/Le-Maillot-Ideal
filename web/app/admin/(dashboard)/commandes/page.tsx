@@ -1,6 +1,6 @@
 import { getAllOrders } from "@/lib/data/orders";
-import { getAllProducts } from "@/lib/data/products";
-import { getSiteSettings } from "@/lib/data/settings";
+import { getAllProducts } from "@/lib/data/adminCatalog";
+import { getSiteSettings } from "@/lib/data/adminCatalog";
 import { getAllCouriers } from "@/lib/data/couriers";
 import { OrdersAdmin } from "@/components/admin/OrdersAdmin";
 

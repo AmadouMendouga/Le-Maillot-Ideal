@@ -1,12 +1,7 @@
 "use client";
 
-// Onglet Commandes — addendum au plan de migration (suivi de commandes +
-// collecte d'avis post-achat). Contrairement à ProductsAdmin/GalleryAdmin, pas
-// de onSnapshot ici : orders est fermée en lecture côté client (firestore.rules),
-// donc la liste vient uniquement du Server Component parent et se rafraîchit
-// via router.refresh() après chaque action.
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+// Private reads use GET; writes return committed fields for the affected row.
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Drawer } from "@/components/admin/Drawer";
 import { DeliveryMap } from "@/components/delivery/DeliveryMap";
 import { Icon } from "@/components/icons/Icon";
@@ -20,8 +15,6 @@ import {
   updateOrderAddressAction,
   updateOrderStatusAction,
   getOrCreateLocationTokenAction,
-  getOrderLocationAction,
-  getOrderLocationHistoryAction,
   setCourierPayoutAction,
   type LocationPoint,
 } from "@/lib/actions/orders";
@@ -31,6 +24,15 @@ import type { DeliveryIncidentType, OrderStatus } from "@/lib/types";
 import { canGenerateTrackingLink, normalizeOrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_OPTIONS } from "@/lib/orderWorkflow";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+type AdminOrderUpdates = { patchOrder: (id: string, patch: Partial<Order>) => void; reloadOrders: () => Promise<void> };
+const OrderUpdates = createContext<AdminOrderUpdates | null>(null);
+function useOrderUpdates() {
+  const updates = useContext(OrderUpdates);
+  if (!updates) throw new Error("OrdersAdmin provider missing");
+  return updates;
+}
+
 
 function statusBadge(order: Order) {
   const status = normalizeOrderStatus(order.status);
@@ -119,25 +121,31 @@ function LocationMapDrawer({
     sharing: order.courierLocationSharing,
   });
 
+  const [mapError, setMapError] = useState("");
   useEffect(() => {
-    if (!open) return undefined;
-
+    if (!open) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let controller: AbortController | null = null;
     async function poll() {
-      const [c, l] = await Promise.all([
-        getOrderLocationHistoryAction(order.id, "customer"),
-        getOrderLocationHistoryAction(order.id, "courier"),
-      ]);
-      if (cancelled) return;
-      if (c.ok) setCustomerTrack({ points: c.points, current: c.liveLocation, sharing: c.locationSharing });
-      if (l.ok) setCourierTrack({ points: l.points, current: l.liveLocation, sharing: l.locationSharing });
+      if (document.hidden) { timer = setTimeout(poll, MAP_POLL_MS); return; }
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 12000);
+      try {
+        const response = await fetch(`/api/admin/orders/${encodeURIComponent(order.id)}/location`, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error("Lecture impossible");
+        const view = await response.json();
+        if (cancelled) return;
+        setCustomerTrack(view.customer); setCourierTrack(view.courier); setMapError("");
+      } catch {
+        if (!cancelled) setMapError("La carte n’a pas pu être actualisée. Dernières positions conservées.");
+      } finally {
+        clearTimeout(timeout);
+        if (!cancelled) timer = setTimeout(poll, MAP_POLL_MS);
+      }
     }
-    poll();
-    const id = setInterval(poll, MAP_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    void poll();
+    return () => { cancelled = true; clearTimeout(timer); controller?.abort(); };
   }, [open, order.id]);
 
   function statusLine(label: string, track: typeof customerTrack) {
@@ -154,6 +162,7 @@ function LocationMapDrawer({
   return (
     <Drawer open={open} onClose={onClose} title={`Trajet — ${order.customerName}`} titleIcon="location">
       <DeliveryMap customer={customerTrack} courier={courierTrack} />
+      {mapError ? <p role="status" className="sub">{mapError}</p> : null}
       <div style={{ marginTop: 12, display: "flex", gap: 14, fontSize: ".78rem", color: "var(--on-surface-variant)" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#1e2440", display: "inline-block" }} />
@@ -211,26 +220,23 @@ function RoleLocationRow({
   role,
   label,
   token,
-  setToken,
   location,
   sharing,
   couriers,
   assignedCourierId,
-  onAssignCourier,
 }: {
   order: Order;
   settings: SiteSettings;
   role: "customer" | "courier";
   label: string;
   token: string | null;
-  setToken: (t: string) => void;
   location: Order["liveLocation"];
   sharing: boolean;
   /** Uniquement pour role === "courier" : livreurs enregistrés parmi lesquels choisir. */
   couriers?: Courier[];
   assignedCourierId?: string | null;
-  onAssignCourier?: (courierId: string | null) => void;
 }) {
+  const { patchOrder } = useOrderUpdates();
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
@@ -255,7 +261,7 @@ function RoleLocationRow({
           return;
         }
         t = result.token;
-        setToken(t);
+        patchOrder(order.id, result.patch);
       }
       const url = customerLocationRequestLink(order, settings.siteUrl, t);
       if (newTab) newTab.location.href = url;
@@ -276,7 +282,7 @@ function RoleLocationRow({
           return;
         }
         t = result.token;
-        setToken(t);
+        patchOrder(order.id, result.patch);
       }
       await navigator.clipboard.writeText(courierLocationUrl(settings.siteUrl, t));
       showToast("Lien copié — envoyez-le à qui livre cette commande", "check-circle");
@@ -296,7 +302,7 @@ function RoleLocationRow({
         alert(result.error);
         return;
       }
-      onAssignCourier?.(id);
+      patchOrder(order.id, result.patch);
       if (id) showToast("Livreur assigné — il verra la livraison sur son lien personnel", "check-circle");
     } finally {
       setAssigning(false);
@@ -382,23 +388,14 @@ function CourierPayoutField({ order }: { order: Order }) {
     if (!Number.isFinite(amount) || amount < 0) return;
     setSaving(true);
     try {
-      // Cette page sonde beaucoup de commandes en parallèle (position en
-      // direct, toutes les 6s) — sous forte charge, Next.js peut annuler une
-      // action serveur concurrente sans jamais résoudre sa promesse
-      // (constaté le 06/09/2026 : le bouton restait bloqué indéfiniment,
-      // écriture jamais faite). Le délai de secours garantit que le bouton
-      // se débloque toujours, même dans ce cas.
-      const result = await Promise.race([
-        setCourierPayoutAction(order.id, amount),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
-      ]);
+      const result = await setCourierPayoutAction(order.id, amount);
       if (!result.ok) {
         alert(result.error);
         return;
       }
       showToast("Montant enregistré", "check-circle");
     } catch {
-      alert("Échec de l'enregistrement (trop de requêtes en cours) — réessayez dans un instant.");
+      alert("Enregistrement non confirmé. Vérifiez votre connexion puis réessayez.");
     } finally {
       setSaving(false);
     }
@@ -427,58 +424,29 @@ function CourierPayoutField({ order }: { order: Order }) {
 }
 
 function LocationCell({ order, settings, couriers }: { order: Order; settings: SiteSettings; couriers: Courier[] }) {
-  const [customerToken, setCustomerToken] = useState(order.locationToken);
-  const [courierToken, setCourierToken] = useState(order.courierLocationToken);
-  const [customerLocation, setCustomerLocation] = useState(order.liveLocation);
-  const [customerSharing, setCustomerSharing] = useState(order.locationSharing);
-  const [courierLocation, setCourierLocation] = useState(order.courierLiveLocation);
-  const [courierSharing, setCourierSharing] = useState(order.courierLocationSharing);
-  const [assignedCourierId, setAssignedCourierId] = useState(order.assignedCourierId || null);
   const [mapOpen, setMapOpen] = useState(false);
-
-  // Rafraîchit les deux statuts en un coup (pas de bouton dédié par ligne —
-  // un seul point d'entrée, moins de boutons à comprendre dans une cellule
-  // de tableau déjà chargée).
-  useEffect(() => {
-    if (!customerLocation && !courierLocation) return;
-    let cancelled = false;
-    async function refresh() {
-      const [c, l] = await Promise.all([
-        getOrderLocationAction(order.id, "customer"),
-        getOrderLocationAction(order.id, "courier"),
-      ]);
-      if (cancelled) return;
-      if (c.ok) {
-        setCustomerLocation(c.liveLocation);
-        setCustomerSharing(c.locationSharing);
-      }
-      if (l.ok) {
-        setCourierLocation(l.liveLocation);
-        setCourierSharing(l.locationSharing);
-      }
-    }
-    const id = setInterval(refresh, MAP_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ne redémarre pas le minuteur à chaque tick, seulement quand une position apparaît pour la première fois
-  }, [order.id, !customerLocation && !courierLocation]);
+  const customerToken = order.locationToken;
+  const courierToken = order.courierLocationToken;
+  const customerLocation = order.liveLocation;
+  const courierLocation = order.courierLiveLocation;
+  const customerSharing = order.locationSharing;
+  const courierSharing = order.courierLocationSharing;
+  const assignedCourierId = order.assignedCourierId;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {canGenerateTrackingLink(normalizeOrderStatus(order.status), "customer") ? (
-        <RoleLocationRow order={order} settings={settings} role="customer" label="Client" token={customerToken} setToken={setCustomerToken} location={customerLocation} sharing={customerSharing} />
+        <RoleLocationRow order={order} settings={settings} role="customer" label="Client" token={customerToken} location={customerLocation} sharing={customerSharing} />
       ) : (
-        <span className="sub">Client · disponible au départ</span>
+        <span className="sub">Client · suivi disponible au départ</span>
       )}
       {canGenerateTrackingLink(normalizeOrderStatus(order.status), "courier") ? (
-        <RoleLocationRow order={order} settings={settings} role="courier" label="Livreur" token={courierToken} setToken={setCourierToken} location={courierLocation} sharing={courierSharing} couriers={couriers} assignedCourierId={assignedCourierId} onAssignCourier={setAssignedCourierId} />
+        <RoleLocationRow order={order} settings={settings} role="courier" label="Livreur" token={courierToken} location={courierLocation} sharing={courierSharing} couriers={couriers} assignedCourierId={assignedCourierId} />
       ) : (
         <span className="sub">Livreur · commande non prête</span>
       )}
       {order.status === "livree" && assignedCourierId ? <CourierPayoutField order={order} /> : null}
-      {customerLocation || courierLocation ? (
+      {customerLocation || courierLocation || ["en_route", "arrivee"].includes(order.status) ? (
         <button
           type="button"
           className="sub"
@@ -496,13 +464,13 @@ function LocationCell({ order, settings, couriers }: { order: Order; settings: S
           Voir le trajet
         </button>
       ) : null}
-      <LocationMapDrawer order={order} open={mapOpen} onClose={() => setMapOpen(false)} />
+      {mapOpen ? <LocationMapDrawer order={order} open onClose={() => setMapOpen(false)} /> : null}
     </div>
   );
 }
 
 function DeliverySlotCell({ order }: { order: Order }) {
-  const router = useRouter();
+  const { patchOrder } = useOrderUpdates();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(order.deliverySlot || "");
   const [saving, setSaving] = useState(false);
@@ -513,7 +481,9 @@ function DeliverySlotCell({ order }: { order: Order }) {
       const result = await updateDeliverySlotAction(order.id, value);
       if (!result.ok) return alert(result.error);
       setEditing(false);
-      router.refresh();
+      patchOrder(order.id, result.patch);
+    } catch {
+      showToast("Enregistrement non confirmé. Réessayez après vérification de la connexion.", "error");
     } finally {
       setSaving(false);
     }
@@ -531,33 +501,29 @@ function DeliverySlotCell({ order }: { order: Order }) {
 }
 
 function StatusControl({ order }: { order: Order }) {
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
+  const { patchOrder } = useOrderUpdates();
+  const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
+  const [error, setError] = useState("");
   const status = normalizeOrderStatus(order.status);
-
   async function change(next: OrderStatus) {
-    if (next === status) return;
-    setSaving(true);
+    if (next === status || pendingStatus) return;
+    setPendingStatus(next); setError("");
     try {
-      const result = await updateOrderStatusAction(order.id, next);
-      if (!result.ok) return alert(result.error);
+      const result = await updateOrderStatusAction(order.id, next, status);
+      if (!result.ok) { setError(result.error); return; }
+      patchOrder(order.id, result.patch);
       showToast(`Commande : ${ORDER_STATUS_LABELS[next]}`, "check-circle");
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
+    } catch { setError("Modification non confirmée. Actualisez avant de réessayer."); }
+    finally { setPendingStatus(null); }
   }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {statusBadge(order)}
-      {status !== "livree" ? (
-        <select aria-label="Modifier l'état de la commande" value={status} disabled={saving} onChange={(e) => change(e.target.value as OrderStatus)} style={{ fontSize: ".76rem", padding: "4px 6px" }}>
-          {ORDER_STATUS_OPTIONS.filter((option) => option.value !== "livree").map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
-      ) : null}
-    </div>
-  );
+  return <div className="adm-status-control" aria-busy={Boolean(pendingStatus)}>
+    {statusBadge(order)}
+    {status !== "livree" ? <select aria-label="Modifier l'état de la commande" value={pendingStatus || status} disabled={Boolean(pendingStatus)} onChange={(event) => change(event.target.value as OrderStatus)}>
+      {ORDER_STATUS_OPTIONS.filter((option) => option.value !== "livree").map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select> : null}
+    {pendingStatus ? <span className="sub" role="status">Enregistrement…</span> : null}
+    {error ? <p className="adm-inline-error" role="alert">{error}</p> : null}
+  </div>;
 }
 
 const INCIDENT_LABELS: Record<DeliveryIncidentType, string> = {
@@ -569,7 +535,7 @@ const INCIDENT_LABELS: Record<DeliveryIncidentType, string> = {
 };
 
 function IncidentControl({ order }: { order: Order }) {
-  const router = useRouter();
+  const { patchOrder } = useOrderUpdates();
   const [saving, setSaving] = useState(false);
   async function report(type: DeliveryIncidentType) {
     const note = window.prompt("Ajoutez une précision utile (facultatif) :", order.deliveryIncidentNote || "") ?? "";
@@ -578,7 +544,9 @@ function IncidentControl({ order }: { order: Order }) {
       const result = await reportDeliveryIncidentAction(order.id, type, note);
       if (!result.ok) return alert(result.error);
       showToast("Incident enregistré — livraison reportée", "error");
-      router.refresh();
+      patchOrder(order.id, result.patch);
+    } catch {
+      showToast("Enregistrement non confirmé. Réessayez après vérification de la connexion.", "error");
     } finally {
       setSaving(false);
     }
@@ -588,7 +556,9 @@ function IncidentControl({ order }: { order: Order }) {
     try {
       const result = await reportDeliveryIncidentAction(order.id, null);
       if (!result.ok) return alert(result.error);
-      router.refresh();
+      patchOrder(order.id, result.patch);
+    } catch {
+      showToast("Enregistrement non confirmé. Réessayez après vérification de la connexion.", "error");
     } finally {
       setSaving(false);
     }
@@ -605,7 +575,7 @@ function IncidentControl({ order }: { order: Order }) {
 }
 
 function AddressCell({ order }: { order: Order }) {
-  const router = useRouter();
+  const { patchOrder } = useOrderUpdates();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(order.address || "");
   const [saving, setSaving] = useState(false);
@@ -620,7 +590,9 @@ function AddressCell({ order }: { order: Order }) {
         return;
       }
       setEditing(false);
-      router.refresh();
+      patchOrder(order.id, result.patch);
+    } catch {
+      showToast("Enregistrement non confirmé. Réessayez après vérification de la connexion.", "error");
     } finally {
       setSaving(false);
     }
@@ -664,7 +636,7 @@ function AddressCell({ order }: { order: Order }) {
 }
 
 function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () => void }) {
-  const router = useRouter();
+  const { reloadOrders } = useOrderUpdates();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderSummary, setOrderSummary] = useState("");
@@ -702,8 +674,8 @@ function NewOrderForm({ products, onClose }: { products: Product[]; onClose: () 
         return;
       }
       showToast("Commande enregistrée", "check-circle");
-      router.refresh();
       onClose();
+      void reloadOrders();
     } catch {
       setError("Échec de l'enregistrement. Vérifiez votre connexion et réessayez.");
     } finally {
@@ -947,20 +919,54 @@ export function OrdersAdmin({
   settings: SiteSettings;
   initialCouriers: Courier[];
 }) {
-  const router = useRouter();
+  const [orders, setOrders] = useState(initialOrders);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
+  const revision = useRef(0);
+  const patchOrder = useCallback((id: string, patch: Partial<Order>) => {
+    revision.current++;
+    setOrders((rows) => rows.map((order) => order.id === id ? { ...order, ...patch } : order));
+  }, []);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [couriersOpen, setCouriersOpen] = useState(false);
   const [couriers, setCouriers] = useState(initialCouriers);
   const [formNonce, setFormNonce] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const reloadOrders = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController(); requestRef.current = controller;
+    const version = revision.current;
+    setRefreshing(true);
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch("/api/admin/orders", { cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error("Actualisation impossible");
+      const data = await response.json();
+      if (controller.signal.aborted || version !== revision.current) return;
+      setOrders(data.orders); setCouriers(data.couriers); setRefreshError("");
+    } catch {
+      if (requestRef.current === controller) setRefreshError("Actualisation indisponible. Vos dernières données restent affichées.");
+    } finally {
+      clearTimeout(timeout);
+      if (requestRef.current === controller) { setRefreshing(false); requestRef.current = null; }
+    }
+  }, []);
+  useEffect(() => {
+    const timer = setInterval(() => { if (!document.hidden && !requestRef.current) void reloadOrders(); }, 30000);
+    const onFocus = () => { if (!document.hidden && !requestRef.current) void reloadOrders(); };
+    document.addEventListener("visibilitychange", onFocus);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", onFocus); requestRef.current?.abort(); };
+  }, [reloadOrders]);
+
   const [view, setView] = useState("");
   useEffect(() => {
     const initial = new URLSearchParams(window.location.search).get("view");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- filtre initial provenant du tableau de bord
     if (initial && ["pending", "delivery", "review"].includes(initial)) setView(initial);
   }, []);
-  const filteredOrders = initialOrders.filter((order) => {
+  const filteredOrders = orders.filter((order) => {
     const status = normalizeOrderStatus(order.status);
     if (view === "pending" && !["recue", "confirmee", "preparation", "prete"].includes(status)) return false;
     if (view === "delivery" && !["livreur_assigne", "en_route", "arrivee"].includes(status)) return false;
@@ -983,14 +989,16 @@ export function OrdersAdmin({
         return;
       }
       showToast("Commande marquée livrée", "check-circle");
-      router.refresh();
+      patchOrder(order.id, result.patch);
+    } catch {
+      showToast("La livraison n’a pas pu être confirmée. Actualisez avant de réessayer.", "error");
     } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <section>
+    <OrderUpdates.Provider value={{ patchOrder, reloadOrders }}><section>
       <div className="adm-page-heading"><div><p className="ik-eyebrow">Opérations</p><h1>Commandes et livraisons</h1><p>Retrouvez un client, préparez sa commande et suivez sa livraison.</p></div></div>
       <div className="adm-info">
         <Icon name="info" />
@@ -1000,7 +1008,9 @@ export function OrdersAdmin({
           d&apos;avis à usage unique est généré.
         </div>
       </div>
+      {refreshError ? <p className="adm-inline-error" role="status">{refreshError}</p> : null}
       <div className="adm-toolbar">
+        <button type="button" className="btn btn-tonal btn-sm" onClick={() => void reloadOrders()} disabled={refreshing}><Icon name="refresh" size="sm" />{refreshing ? "Actualisation…" : "Actualiser"}</button>
         <button type="button" className="btn btn-primary btn-sm" onClick={openNewOrder}>
           <Icon name="add" size="sm" />
           Nouvelle commande
@@ -1124,6 +1134,6 @@ export function OrdersAdmin({
         siteUrl={settings.siteUrl}
         onToggle={(id, active) => setCouriers((list) => list.map((c) => (c.id === id ? { ...c, active } : c)))}
       />
-    </section>
+    </section></OrderUpdates.Provider>
   );
 }

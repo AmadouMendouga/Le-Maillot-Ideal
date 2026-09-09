@@ -1,4 +1,5 @@
 import "server-only";
+import { orderStatusPatch } from "@/lib/orderStatusHistory";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { decrementQuotedStock, incrementQuotedStock, loadInventoryQuote } from "@/lib/orderInventory";
@@ -66,7 +67,7 @@ export async function applyPaymentResult(
 
     tx.update(orderRef, {
       paymentStatus: "paid",
-      ...(fresh.status === "recue" ? { status: "confirmee", statusUpdatedAt: new Date().toISOString() } : {}),
+      ...(fresh.status === "recue" ? orderStatusPatch(fresh, "confirmee", new Date().toISOString()) : {}),
       paidAt: fresh.paidAt || new Date().toISOString(),
       stockState: "committed",
       inventoryIssue: false,

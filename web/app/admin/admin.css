@@ -328,3 +328,8 @@ html[data-theme="dark"] .adm-drawer-foot { background: var(--surface-container);
   .adm-metric h2 { font-size: .76rem; }
   .adm-status-pill { white-space: normal; max-width: 80px; }
 }
+
+.adm-status-control { display: flex; flex-direction: column; gap: 7px; }
+.adm-status-control select { font-size: .8rem; padding: 7px 9px; min-height: 36px; }
+.adm-status-control[aria-busy="true"] select { opacity: .75; }
+.adm-inline-error { color: var(--error); font-size: .8rem; line-height: 1.6; margin: 4px 0; }

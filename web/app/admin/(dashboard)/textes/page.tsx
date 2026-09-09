@@ -1,4 +1,4 @@
-import { getSiteSettings } from "@/lib/data/settings";
+import { getSiteSettings } from "@/lib/data/adminCatalog";
 import { SiteSettingsAdmin } from "@/components/admin/SiteSettingsAdmin";
 
 export default async function AdminSettingsPage() {

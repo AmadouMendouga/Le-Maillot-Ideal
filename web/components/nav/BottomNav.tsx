@@ -13,7 +13,7 @@ export function BottomNav({ basePath }: { basePath: string }) {
     { href: `${basePath}/boutique`, label: "Boutique", icon: "grid", active: pathname.includes("/boutique") || pathname.includes("/produits/") },
     { href: `${basePath}/favoris`, label: "Favoris", active: pathname.endsWith("/favoris") },
     { href: `${basePath}/compte/commandes`, label: "Commandes", icon: "shipping", active: pathname.includes("/compte/commandes") || pathname.includes("/compte/paiement") },
-    { href: `${basePath}/compte`, label: "Compte", icon: "person", active: pathname.includes("/compte") && !pathname.includes("/commandes") && !pathname.includes("/paiement") },
+    { href: `${basePath}/compte/profil`, label: "Compte", icon: "person", active: pathname.includes("/compte") && !pathname.includes("/commandes") && !pathname.includes("/paiement") },
   ];
   return (
     <nav className="ik-bottom-nav" aria-label="Navigation mobile">

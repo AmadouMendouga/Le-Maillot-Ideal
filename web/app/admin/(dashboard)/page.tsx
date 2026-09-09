@@ -1,6 +1,6 @@
-import { getAllProducts } from "@/lib/data/products";
-import { getAllLeagues } from "@/lib/data/leagues";
-import { getAllSports } from "@/lib/data/sports";
+import { getAllProducts } from "@/lib/data/adminCatalog";
+import { getAllLeagues } from "@/lib/data/adminCatalog";
+import { getAllSports } from "@/lib/data/adminCatalog";
 import { ProductsAdmin } from "@/components/admin/ProductsAdmin";
 
 export default async function AdminProductsPage() {

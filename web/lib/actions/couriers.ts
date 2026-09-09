@@ -11,7 +11,7 @@
 // que reviewToken/locationToken, voir lib/actions/orders.ts), jamais par une
 // vérification côté navigateur.
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { orderStatusPatch } from "@/lib/orderStatusHistory";
 import { verifyAdminSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import type { Courier, Order } from "@/lib/types";
@@ -75,50 +75,31 @@ export async function setCourierActiveAction(id: string, active: boolean): Promi
 // enregistré voit simplement la même livraison apparaître sur son lien
 // personnel.
 export async function assignCourierToOrderAction(
-  orderId: string,
-  courierId: string | null
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  orderId: string, courierId: string | null
+): Promise<{ ok: true; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
-
   const ref = adminDb.collection("orders").doc(orderId);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-  const order = snap.data() as Order;
-  const status = normalizeOrderStatus(order.status);
-  if (TERMINAL_ORDER_STATUSES.has(status)) return { ok: false, error: "Cette commande est déjà clôturée." };
-  if (courierId && status !== "prete" && status !== "livreur_assigne") {
-    return { ok: false, error: "Passez d'abord la commande à « Prête à livrer »." };
-  }
-
-  if (!courierId) {
-    await ref.update({
-      assignedCourierId: null,
-      courierLocationToken: null,
-      courierLocationTokenExpiresAt: null,
-      courierLocationSharing: false,
-      courierLiveLocation: null,
-      ...(status === "livreur_assigne" ? { status: "prete", statusUpdatedAt: new Date().toISOString() } : {}),
-    });
-    return { ok: true };
-  }
-
-  const courierSnap = await adminDb.collection("couriers").doc(courierId).get();
-  if (!courierSnap.exists || (courierSnap.data() as Courier).active !== true) {
-    return { ok: false, error: "Ce livreur n'est pas actif." };
-  }
-
-  // Toute affectation produit une nouvelle capacité et révoque les anciens liens.
-  await ref.update({
-    assignedCourierId: courierId,
-    courierLocationToken: randomUUID(),
-    courierLocationTokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    courierLocationSharing: false,
-    courierLiveLocation: null,
-    status: "livreur_assigne",
-    statusUpdatedAt: new Date().toISOString(),
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false as const, error: "Commande introuvable." };
+    const order = snap.data() as Order;
+    const status = normalizeOrderStatus(order.status);
+    if (TERMINAL_ORDER_STATUSES.has(status)) return { ok: false as const, error: "Cette commande est déjà clôturée." };
+    if (status !== "prete" && status !== "livreur_assigne") return { ok: false as const, error: "Passez d'abord la commande à « Prête à livrer » ou reportez la course avant de changer de livreur." };
+    if (courierId) {
+      const courierSnap = await tx.get(adminDb.collection("couriers").doc(courierId));
+      if (!courierSnap.exists || (courierSnap.data() as Courier).active !== true) return { ok: false as const, error: "Ce livreur n'est pas actif." };
+    }
+    const patch: Partial<Order> = {
+      assignedCourierId: courierId,
+      courierLocationToken: courierId ? randomUUID() : null,
+      courierLocationTokenExpiresAt: courierId ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+      courierLocationSharing: false, courierLiveLocation: null,
+      ...orderStatusPatch(order, courierId ? "livreur_assigne" : "prete", new Date().toISOString()),
+    };
+    tx.update(ref, patch);
+    return { ok: true as const, patch };
   });
-  revalidatePath("/", "layout");
-  return { ok: true };
 }
 
 export interface CourierPayoutLine {

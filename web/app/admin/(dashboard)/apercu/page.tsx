@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdminOrRedirect } from "@/lib/auth/dal";
 import { getAllOrders } from "@/lib/data/orders";
-import { getAllProducts } from "@/lib/data/products";
+import { getAllProducts } from "@/lib/data/adminCatalog";
 import { ORDER_STATUS_LABELS, normalizeOrderStatus } from "@/lib/orderWorkflow";
 import { Icon } from "@/components/icons/Icon";
 import type { IconName } from "@/components/icons/names";
