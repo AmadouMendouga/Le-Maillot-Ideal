@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { AuthError } from "@/lib/auth/dal";
 import { getCustomerProfile } from "@/lib/data/customer";
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 
 // Miroir de app/api/session/route.ts (admin) pour les comptes clients — cookie
 // distinct (customer_session), pas de contrôle de custom claim : tout compte
@@ -33,7 +33,17 @@ export async function POST(request: Request) {
     maxAge: SESSION_MAX_AGE_MS / 1000,
   });
 
-  return Response.json({ ok: true, uid: decoded.uid });
+  const profileRef = adminDb.collection("customers").doc(decoded.uid);
+  const profileSnapshot = await profileRef.get();
+  const existing = profileSnapshot.data();
+  if (!profileSnapshot.exists) {
+    const fallbackName = typeof decoded.name === "string" && decoded.name.trim()
+      ? decoded.name.trim().slice(0, 120)
+      : typeof decoded.email === "string" ? decoded.email.split("@")[0].slice(0, 120) : "Client IKIGAI";
+    await profileRef.set({ name: fallbackName, phone: "", createdAt: new Date().toISOString() });
+  }
+  const phone = typeof existing?.phone === "string" ? existing.phone.replace(/\D/g, "") : "";
+  return Response.json({ ok: true, uid: decoded.uid, profileComplete: phone.length >= 8 && phone.length <= 15 });
 }
 
 export async function DELETE() {

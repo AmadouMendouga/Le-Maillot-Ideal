@@ -9,6 +9,7 @@
 // navigateur (CLAUDE.md §12).
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { orderStatusPatch } from "@/lib/orderStatusHistory";
 import { verifyAdminSession, verifyCustomerSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import { decrementQuotedStock, loadInventoryQuote } from "@/lib/orderInventory";
@@ -160,6 +161,7 @@ export async function createOrderAction(
     courierLiveLocation: null,
     deliveryCode: generateDeliveryCode(),
     status: "confirmee",
+    statusHistory: [{ status: "confirmee", at: new Date().toISOString() }],
     createdAt: new Date().toISOString(),
     statusUpdatedAt: new Date().toISOString(),
     deliverySlot: input.deliverySlot?.trim().slice(0, 120) || null,
@@ -196,15 +198,16 @@ export async function createOrderAction(
 export async function updateOrderAddressAction(
   id: string,
   address: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
 
   const ref = adminDb.collection("orders").doc(id);
   const snap = await ref.get();
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
 
-  await ref.update({ address: address.trim() || null });
-  return { ok: true };
+  const patch = { address: String(address || "").trim().slice(0, 500) || null };
+  await ref.update(patch);
+  return { ok: true, patch };
 }
 
 // --- Client connecté (verifyCustomerSession) ----------------------------
@@ -237,7 +240,11 @@ export async function createCustomerOrderAction(
 
   const profileSnap = await adminDb.collection("customers").doc(session.uid).get();
   if (!profileSnap.exists) return { ok: false, error: "Profil introuvable." };
-  const profile = profileSnap.data() as { name: string; phone: string };
+  const profile = profileSnap.data() as { name: string; phone: string; defaultAddress?: string };
+  const customerPhone = String(profile.phone || "").replace(/\D/g, "");
+  if (customerPhone.length < 8 || customerPhone.length > 15) {
+    return { ok: false, error: "Complétez votre numéro de téléphone dans Mon compte avant de commander." };
+  }
 
   const ref = adminDb.collection("orders").doc(customerOrderDocumentId(session.uid, requestId));
   try {
@@ -250,9 +257,9 @@ export async function createCustomerOrderAction(
       decrementQuotedStock(tx, inventory.quote);
       tx.set(ref, {
         customerName: profile.name,
-        customerPhone: profile.phone,
+        customerPhone,
         orderSummary: inventory.quote.summary,
-        address: null,
+        address: typeof profile.defaultAddress === "string" ? profile.defaultAddress.trim().slice(0, 500) || null : null,
         locationToken: null,
         locationTokenExpiresAt: null,
         locationSharing: false,
@@ -266,6 +273,7 @@ export async function createCustomerOrderAction(
         total: inventory.quote.total,
         checkoutRequestId: requestId,
         status: "recue",
+        statusHistory: [{ status: "recue", at: new Date().toISOString() }],
         createdAt: new Date().toISOString(),
         statusUpdatedAt: new Date().toISOString(),
         deliverySlot: null,
@@ -287,102 +295,100 @@ export async function createCustomerOrderAction(
 
 export async function markOrderDeliveredAction(
   id: string
-): Promise<{ ok: true; reviewToken: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; reviewToken: string; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
-
   const ref = adminDb.collection("orders").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-
-  const order = snap.data() as Order;
-  if (normalizeOrderStatus(order.status) !== "arrivee") {
-    return { ok: false, error: "Le livreur doit être signalé comme arrivé avant de clôturer la livraison." };
-  }
-  const reviewToken = order.reviewToken || randomUUID();
-  const deliveredAt = order.deliveredAt || new Date().toISOString();
-  await ref.update({
-    status: "livree",
-    statusUpdatedAt: deliveredAt,
-    deliveredAt,
-    reviewToken,
-    // La livraison est faite, plus besoin de suivre la position — évite
-    // qu'un onglet resté ouvert continue de remonter des positions inutiles.
-    locationSharing: false,
-    courierLocationSharing: false,
-    locationHistoryPurgeDueAt: locationHistoryPurgeDueAt(new Date(deliveredAt)),
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false as const, error: "Commande introuvable." };
+    const order = snap.data() as Order;
+    if (normalizeOrderStatus(order.status) !== "arrivee") {
+      return { ok: false as const, error: "Le livreur doit être signalé comme arrivé avant de clôturer la livraison." };
+    }
+    const reviewToken = order.reviewToken || randomUUID();
+    const deliveredAt = order.deliveredAt || new Date().toISOString();
+    const patch: Partial<Order> = {
+      ...orderStatusPatch(order, "livree", deliveredAt), deliveredAt, reviewToken,
+      locationSharing: false, courierLocationSharing: false,
+      locationHistoryPurgeDueAt: locationHistoryPurgeDueAt(new Date(deliveredAt)),
+    };
+    tx.update(ref, patch);
+    return { ok: true as const, reviewToken, patch };
   });
-
-  return { ok: true, reviewToken };
 }
 
 export async function updateOrderStatusAction(
   id: string,
-  status: OrderStatus
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  status: OrderStatus,
+  expectedStatus?: OrderStatus
+): Promise<{ ok: true; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
   if (!id || normalizeOrderStatus(status) !== status) return { ok: false, error: "État invalide." };
-
   const ref = adminDb.collection("orders").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-  const order = snap.data() as Order;
-  const current = normalizeOrderStatus(order.status);
-  if (current === "livree") return { ok: false, error: "Une commande livrée ne peut plus être modifiée." };
-  if (status === "livree") return { ok: false, error: "Utilisez la validation par code ou « Marquer livrée »." };
-  if (status === "livreur_assigne" && !order.assignedCourierId && !order.courierLocationToken) {
-    return { ok: false, error: "Affectez d'abord un livreur ou créez son lien ponctuel." };
-  }
-  if ((status === "en_route" || status === "arrivee") && !order.courierLocationToken) {
-    return { ok: false, error: "Aucun accès livreur n'est associé à cette commande." };
-  }
-
-  const now = new Date().toISOString();
-  await ref.update({
-    status,
-    statusUpdatedAt: now,
-    ...(status === "en_route" ? { trackingStartedAt: order.trackingStartedAt || now } : {}),
-    ...(status === "arrivee" ? { courierArrivedAt: order.courierArrivedAt || now } : {}),
-    ...(TERMINAL_ORDER_STATUSES.has(status)
-      ? { locationSharing: false, courierLocationSharing: false }
-      : {}),
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false as const, error: "Commande introuvable." };
+    const order = snap.data() as Order;
+    const current = normalizeOrderStatus(order.status);
+    if (current === "livree") return { ok: false as const, error: "Une commande livrée ne peut plus être modifiée." };
+    if (expectedStatus && expectedStatus !== current) return { ok: false as const, error: "Cette commande a changé entre-temps. Actualisez la liste avant de réessayer." };
+    if (status === "livree") return { ok: false as const, error: "Utilisez la validation par code ou « Marquer livrée »." };
+    if (status === "livreur_assigne" && !order.assignedCourierId && !order.courierLocationToken) {
+      return { ok: false as const, error: "Affectez d'abord un livreur ou créez son lien ponctuel." };
+    }
+    if ((status === "en_route" || status === "arrivee") && !order.courierLocationToken) {
+      return { ok: false as const, error: "Aucun accès livreur n'est associé à cette commande." };
+    }
+    const now = new Date().toISOString();
+    const patch: Partial<Order> = {
+      ...orderStatusPatch(order, status, now),
+      ...(status === "en_route" ? { trackingStartedAt: order.trackingStartedAt || now } : {}),
+      ...(status === "arrivee" ? { courierArrivedAt: order.courierArrivedAt || now } : {}),
+      ...(!canUpdateLiveLocation(status) ? { locationSharing: false, courierLocationSharing: false } : {}),
+    };
+    tx.update(ref, patch);
+    // Private pages read current data. Return the committed row fields without re-rendering the entire route.
+    return { ok: true as const, patch };
   });
-  revalidatePath("/", "layout");
-  return { ok: true };
 }
 
 export async function updateDeliverySlotAction(
   id: string,
   deliverySlot: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
-  const value = String(deliverySlot || "").trim().slice(0, 120);
+  const patch = { deliverySlot: String(deliverySlot || "").trim().slice(0, 120) || null };
   const ref = adminDb.collection("orders").doc(id);
   const snap = await ref.get();
   if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-  await ref.update({ deliverySlot: value || null });
-  revalidatePath("/", "layout");
-  return { ok: true };
+  await ref.update(patch);
+  return { ok: true, patch };
 }
 
 export async function reportDeliveryIncidentAction(
   id: string,
   type: DeliveryIncidentType | null,
   note = ""
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
   const allowed: DeliveryIncidentType[] = ["client_injoignable", "adresse_incorrecte", "livreur_indisponible", "report_client", "autre"];
   if (type && !allowed.includes(type)) return { ok: false, error: "Incident invalide." };
   const ref = adminDb.collection("orders").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-  await ref.update({
-    deliveryIncidentType: type,
-    deliveryIncidentNote: type ? String(note || "").trim().slice(0, 300) || null : null,
-    deliveryIncidentAt: type ? new Date().toISOString() : null,
-    ...(type ? { status: "reportee", statusUpdatedAt: new Date().toISOString(), locationSharing: false, courierLocationSharing: false } : {}),
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false as const, error: "Commande introuvable." };
+    const order = snap.data() as Order;
+    if (type && TERMINAL_ORDER_STATUSES.has(normalizeOrderStatus(order.status))) return { ok: false as const, error: "Cette commande est déjà clôturée." };
+    const now = new Date().toISOString();
+    const patch: Partial<Order> = {
+      deliveryIncidentType: type,
+      deliveryIncidentNote: type ? String(note || "").trim().slice(0, 300) || null : null,
+      deliveryIncidentAt: type ? now : null,
+      ...(type ? { ...orderStatusPatch(order, "reportee", now), locationSharing: false, courierLocationSharing: false } : {}),
+    };
+    tx.update(ref, patch);
+    return { ok: true as const, patch };
   });
-  revalidatePath("/", "layout");
-  return { ok: true };
 }
 
 // Montant payé au livreur pour une course donnée — décidé au cas par cas par
@@ -408,39 +414,29 @@ export async function setCourierPayoutAction(orderId: string, amount: number): P
 export async function getOrCreateLocationTokenAction(
   id: string,
   role: LocationRole = "customer"
-): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; token: string; patch: Partial<Order> } | { ok: false; error: string }> {
   await verifyAdminSession();
-
   const fields = locationFields(role);
   const ref = adminDb.collection("orders").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-
-  const order = snap.data() as Order;
-  const status = normalizeOrderStatus(order.status);
-  if (!canGenerateTrackingLink(status, role)) {
-    return {
-      ok: false,
-      error:
-        role === "customer"
-          ? "Le lien client devient disponible lorsque le livreur est en route."
-          : "Préparez la commande avant de créer l'accès du livreur.",
-    };
-  }
-  const existing = order[fields.token];
-  const expiresAt = order[fields.expires];
-  const expired = Boolean(expiresAt && Date.parse(expiresAt) <= Date.now());
-  const token = existing && !expired ? existing : randomUUID();
-  if (!existing || expired || !expiresAt) {
-    await ref.update({
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false as const, error: "Commande introuvable." };
+    const order = snap.data() as Order;
+    const status = normalizeOrderStatus(order.status);
+    if (!canGenerateTrackingLink(status, role)) return { ok: false as const, error: role === "customer" ? "Le lien client devient disponible lorsque le livreur est en route." : "Préparez la commande avant de créer l'accès du livreur." };
+    const existing = order[fields.token];
+    const expiresAt = order[fields.expires];
+    const expired = Boolean(expiresAt && Date.parse(expiresAt) <= Date.now());
+    const token = existing && !expired ? existing : randomUUID();
+    const patch: Partial<Order> = !existing || expired || !expiresAt ? {
       [fields.token]: token,
       [fields.expires]: trackingTokenExpiresAt(),
-      ...(role === "courier" && status === "prete" ? { status: "livreur_assigne", statusUpdatedAt: new Date().toISOString() } : {}),
+      ...(role === "courier" && status === "prete" ? orderStatusPatch(order, "livreur_assigne", new Date().toISOString()) : {}),
       ...(role === "customer" ? { trackingRequestedAt: new Date().toISOString() } : {}),
-    });
-  }
-
-  return { ok: true, token };
+    } : {};
+    if (Object.keys(patch).length) tx.update(ref, patch);
+    return { ok: true as const, token, patch };
+  });
 }
 
 export async function getOrderLocationAction(
@@ -685,8 +681,7 @@ export async function markOrderDeliveredByCourierAction(
 
     const deliveredAt = order.deliveredAt || now.toISOString();
     tx.update(orderRef, {
-      status: "livree",
-      statusUpdatedAt: deliveredAt,
+      ...orderStatusPatch(order, "livree", deliveredAt),
       deliveredAt,
       reviewToken: order.reviewToken || randomUUID(),
       locationSharing: false,
@@ -726,7 +721,7 @@ export async function startDeliveryByCourierAction(
       return { ok: false as const, error: "La commande doit être prête avant le départ." };
     }
     const now = new Date().toISOString();
-    tx.update(ref, { status: "en_route", statusUpdatedAt: now, trackingStartedAt: order.trackingStartedAt || now });
+    tx.update(ref, { ...orderStatusPatch(order, "en_route", now), trackingStartedAt: order.trackingStartedAt || now });
     return { ok: true as const };
   });
   return result;
@@ -738,13 +733,16 @@ export async function markCourierArrivedAction(
   const found = await findOrderByEitherLocationToken(token);
   if (!found || found.role !== "courier") return { ok: false, error: "Lien livreur invalide." };
   const ref = adminDb.collection("orders").doc(found.order.id);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: "Commande introuvable." };
-  const order = snap.data() as Order;
-  if (normalizeOrderStatus(order.status) !== "en_route") return { ok: false, error: "La livraison doit être en route." };
-  const now = new Date().toISOString();
-  await ref.update({ status: "arrivee", statusUpdatedAt: now, courierArrivedAt: order.courierArrivedAt || now });
-  return { ok: true };
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false as const, error: "Commande introuvable." };
+    const order = snap.data() as Order;
+    if (order.courierLocationToken !== String(token || "").trim()) return { ok: false as const, error: "Lien livreur invalide." };
+    if (normalizeOrderStatus(order.status) !== "en_route") return { ok: false as const, error: "La livraison doit être en route." };
+    const now = new Date().toISOString();
+    tx.update(ref, { ...orderStatusPatch(order, "arrivee", now), courierArrivedAt: order.courierArrivedAt || now });
+    return { ok: true as const };
+  });
 }
 
 export async function updateLiveLocationAction(

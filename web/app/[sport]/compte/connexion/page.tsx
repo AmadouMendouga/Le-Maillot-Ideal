@@ -22,13 +22,15 @@ import { auth } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
 import { GoogleGlyph } from "@/components/icons/GoogleGlyph";
 
-async function establishServerSession(idToken: string): Promise<boolean> {
+async function establishServerSession(idToken: string): Promise<{ ok: true; profileComplete: boolean } | { ok: false }> {
   const res = await fetch("/api/customer-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken }),
   });
-  return res.ok;
+  if (!res.ok) return { ok: false };
+  const data = await res.json() as { profileComplete?: boolean };
+  return { ok: true, profileComplete: data.profileComplete === true };
 }
 
 export default function ComptConnexionPage() {
@@ -71,9 +73,9 @@ export default function ComptConnexionPage() {
       if (!user) return;
       try {
         const idToken = await user.getIdToken();
-        const ok = await establishServerSession(idToken);
-        if (ok && !cancelled) {
-          router.push(`/${sport}/compte`);
+        const session = await establishServerSession(idToken);
+        if (session.ok && !cancelled) {
+          router.push(session.profileComplete ? `/${sport}/compte` : `/${sport}/compte/profil`);
           router.refresh();
         }
       } catch {
@@ -91,9 +93,9 @@ export default function ComptConnexionPage() {
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await credential.user.getIdToken();
-      const ok = await establishServerSession(idToken);
-      if (!ok) throw new Error();
-      router.push(`/${sport}/compte`);
+      const session = await establishServerSession(idToken);
+      if (!session.ok) throw new Error();
+      router.push(session.profileComplete ? `/${sport}/compte` : `/${sport}/compte/profil`);
       router.refresh();
     } catch {
       setError("Adresse e-mail ou mot de passe incorrect.");
@@ -111,9 +113,9 @@ export default function ComptConnexionPage() {
     try {
       const credential = await signInWithPopup(auth, new GoogleAuthProvider());
       const idToken = await credential.user.getIdToken();
-      const ok = await establishServerSession(idToken);
-      if (!ok) throw new Error();
-      router.push(`/${sport}/compte`);
+      const session = await establishServerSession(idToken);
+      if (!session.ok) throw new Error();
+      router.push(session.profileComplete ? `/${sport}/compte` : `/${sport}/compte/profil`);
       router.refresh();
     } catch {
       setError("Connexion Google impossible pour le moment. Réessayez ou utilisez votre e-mail.");

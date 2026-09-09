@@ -4,7 +4,6 @@
 // champ s'enregistre directement dans Firestore (débounce léger sur le texte pour
 // éviter une écriture par frappe) — plus de brouillon local à publier plus tard.
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { Icon } from "@/components/icons/Icon";
@@ -137,7 +136,6 @@ export function TestimonialsAdmin({
   initialTestimonials: Testimonial[];
   initialPendingSubmissions: TestimonialSubmission[];
 }) {
-  const router = useRouter();
   const [pendingSubmissions, setPendingSubmissions] = useState(initialPendingSubmissions);
   const [pendingBusyId, setPendingBusyId] = useState<string | null>(null);
 
@@ -163,7 +161,6 @@ export function TestimonialsAdmin({
       }
       setPendingSubmissions((list) => list.filter((s) => s.id !== id));
       showToast("Avis publié", "check-circle");
-      router.refresh();
     } finally {
       setPendingBusyId(null);
     }

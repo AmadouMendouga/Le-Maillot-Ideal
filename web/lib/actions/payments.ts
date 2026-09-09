@@ -1,6 +1,6 @@
 "use server";
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomInt, randomUUID } from "node:crypto";
 import { verifyCustomerSession } from "@/lib/auth/dal";
 import { adminDb } from "@/lib/firebase/admin";
 import { getOrderById } from "@/lib/data/orders";
@@ -40,7 +40,7 @@ export async function initiateCampayPaymentAction(
 
   const profileSnap = await adminDb.collection("customers").doc(session.uid).get();
   if (!profileSnap.exists) return { ok: false, error: "Profil introuvable." };
-  const profile = profileSnap.data() as { name: string; phone: string };
+  const profile = profileSnap.data() as { name: string; phone: string; defaultAddress?: string };
   const phone = String(profile.phone || "").replace(/\D/g, "");
   if (phone.length < 8 || phone.length > 15) return { ok: false, error: "Numéro Mobile Money invalide." };
 
@@ -74,7 +74,7 @@ export async function initiateCampayPaymentAction(
         customerName: profile.name,
         customerPhone: phone,
         orderSummary: inventory.quote.summary,
-        address: null,
+        address: typeof profile.defaultAddress === "string" ? profile.defaultAddress.trim().slice(0, 500) || null : null,
         locationToken: null,
         locationTokenExpiresAt: null,
         locationSharing: false,
@@ -86,7 +86,9 @@ export async function initiateCampayPaymentAction(
         items: inventory.quote.items,
         total: inventory.quote.total,
         checkoutRequestId: requestId,
+        deliveryCode: String(randomInt(0, 10000)).padStart(4, "0"),
         status: "recue",
+        statusHistory: [{ status: "recue", at: new Date().toISOString() }],
         createdAt: new Date().toISOString(),
         statusUpdatedAt: new Date().toISOString(),
         deliverySlot: null,

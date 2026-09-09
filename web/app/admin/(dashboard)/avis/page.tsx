@@ -1,4 +1,4 @@
-import { getTestimonials } from "@/lib/data/testimonials";
+import { getTestimonials } from "@/lib/data/adminCatalog";
 import { getPendingTestimonialSubmissions } from "@/lib/data/orders";
 import { TestimonialsAdmin } from "@/components/admin/TestimonialsAdmin";
 

@@ -165,6 +165,7 @@ export interface Order {
   deliverySlot?: string | null;
   /** Horodatages métier : permettent de mesurer préparation, attente et livraison. */
   statusUpdatedAt?: string | null;
+  statusHistory?: { status: OrderStatus; at: string }[];
   trackingRequestedAt?: string | null;
   trackingStartedAt?: string | null;
   courierArrivedAt?: string | null;

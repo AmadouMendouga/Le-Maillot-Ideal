@@ -1,4 +1,4 @@
-import { getGallery } from "@/lib/data/gallery";
+import { getGallery } from "@/lib/data/adminCatalog";
 import { GalleryAdmin } from "@/components/admin/GalleryAdmin";
 
 export default async function AdminGalleryPage() {

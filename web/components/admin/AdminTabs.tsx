@@ -24,7 +24,7 @@ const TABS: TabDef[] = [
   { href: "/admin/textes", label: "Textes du site", icon: "edit" },
 ];
 
-export function AdminTabs({ counts }: { counts: Record<string, number> }) {
+export function AdminTabs({ counts }: { counts?: Record<string, number> }) {
   const pathname = usePathname();
   return (
     <nav className="adm-tabs" aria-label="Administration">
@@ -32,7 +32,7 @@ export function AdminTabs({ counts }: { counts: Record<string, number> }) {
         <Link key={tab.href} href={tab.href} aria-current={pathname === tab.href ? "page" : undefined} className={"adm-tab" + (pathname === tab.href ? " active" : "")}>
           <Icon name={tab.icon} size="sm" />
           <span>{tab.label}</span>
-          {tab.countKey ? <span className="cnt">{counts[tab.countKey]}</span> : null}
+          {tab.countKey && counts ? <span className="cnt">{counts[tab.countKey]}</span> : null}
         </Link>
       ))}
     </nav>

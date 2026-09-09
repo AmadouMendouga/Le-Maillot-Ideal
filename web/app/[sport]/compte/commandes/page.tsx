@@ -1,39 +1,14 @@
 import Link from "next/link";
 import { requireCustomerOrRedirect } from "@/lib/auth/dal";
 import { getOrdersForCustomer } from "@/lib/data/orders";
+import { toCustomerOrderView } from "@/lib/customerOrderView";
 import { OrderHistory } from "@/components/account/OrderHistory";
-import { AccountHeader } from "@/components/account/AccountHeader";
 import { Icon } from "@/components/icons/Icon";
 
+export const metadata = { title: "Mes commandes — IKIGAI Sport", robots: { index: false, follow: false } };
 export default async function CompteCommandesPage({ params }: PageProps<"/[sport]/compte/commandes">) {
   const { sport } = await params;
   const customer = await requireCustomerOrRedirect(sport);
   const orders = await getOrdersForCustomer(customer.uid);
-
-  return (
-    <main>
-      <div className="page-hero">
-        <div className="container">
-          <h1>
-            <Icon name="shipping" size="xl" />
-            Mes commandes
-          </h1>
-          <p>Retrouvez ici l&apos;historique de vos commandes.</p>
-        </div>
-      </div>
-      <div className="section">
-        <div className="container" style={{ maxWidth: 640 }}>
-          <AccountHeader email={customer.email} />
-          <OrderHistory orders={orders} />
-          {/* Retour client du 06/09/2026 : la page ne menait nulle part
-              d'autre que la déconnexion — un compte n'est pas un cul-de-sac,
-              on y revient depuis la boutique. */}
-          <Link href={`/${sport}/boutique`} className="btn btn-primary btn-lg btn-block" style={{ marginTop: 24 }}>
-            <Icon name="storefront" size="sm" />
-            Continuer mes achats
-          </Link>
-        </div>
-      </div>
-    </main>
-  );
+  return <main id="main" className="container ik-orders-page"><header className="ik-account-page-title"><div><p className="ik-eyebrow">VOTRE ESPACE IKIGAI</p><h1>Mes commandes</h1><p className="ik-muted">De la préparation à la remise, suivez chaque étape ici.</p></div><Link href={`/${sport}/compte/profil`} className="ik-round-button" aria-label="Mon compte"><Icon name="person" /></Link></header><OrderHistory orders={orders.map((order) => toCustomerOrderView(order))} sport={sport} /></main>;
 }

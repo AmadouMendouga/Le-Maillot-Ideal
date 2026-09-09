@@ -62,7 +62,7 @@ export function Navbar({ basePath, leagues, products, settings }: NavbarProps) {
               <Link href={`${basePath}/favoris`} className="icon-btn plain" aria-label="Mes favoris">
                 <HeartIcon />
               </Link>
-              <Link href={`${basePath}/compte`} className="icon-btn plain" aria-label="Mon compte">
+              <Link href={`${basePath}/compte/profil`} className="icon-btn plain" aria-label="Mon compte">
                 <Icon name="person" />
               </Link>
               <ThemeToggle />

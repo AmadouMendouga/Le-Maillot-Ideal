@@ -5,7 +5,6 @@
 // l'onglet Produits : ajouter un sport (ex. « Judo », « Basketball ») et
 // renommer les existants à volonté.
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Drawer } from "@/components/admin/Drawer";
 import { ImageDropZone } from "@/components/admin/ImageDropZone";
 import { Icon } from "@/components/icons/Icon";
@@ -197,7 +196,6 @@ function SportRow({ sport, onSaved, onDeleted }: { sport: Sport; onSaved: () => 
 }
 
 export function SportsManager({ sports, open, onClose }: { sports: Sport[]; open: boolean; onClose: () => void }) {
-  const router = useRouter();
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState("#22c55e");
   const [creating, setCreating] = useState(false);
@@ -215,7 +213,6 @@ export function SportsManager({ sports, open, onClose }: { sports: Sport[]; open
       }
       showToast(`« ${newLabel} » créé`, "check-circle");
       setNewLabel("");
-      router.refresh();
     } finally {
       setCreating(false);
     }
@@ -230,7 +227,7 @@ export function SportsManager({ sports, open, onClose }: { sports: Sport[]; open
 
       <div className="adm-testi">
         {sports.map((s) => (
-          <SportRow key={s.key} sport={s} onSaved={() => router.refresh()} onDeleted={() => router.refresh()} />
+          <SportRow key={s.key} sport={s} onSaved={() => {}} onDeleted={() => {}} />
         ))}
       </div>
 
