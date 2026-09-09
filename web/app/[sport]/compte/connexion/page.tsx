@@ -138,55 +138,32 @@ export default function ComptConnexionPage() {
         <div className="container" style={{ maxWidth: 440 }}>
           <div className="contact-card">
             <h2 className="auth-heading">Se connecter</h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="auth-form" aria-busy={loading || googleLoading}>
               {error ? (
-                <p className="form-note" style={{ color: "var(--error)" }}>
-                  {error}
-                </p>
+                <p className="auth-feedback" id="ccAuthError" role="alert"><Icon name="error" size="sm" />{error}</p>
               ) : null}
               {resetSent ? (
-                <p className="form-note" style={{ color: "var(--secondary)" }}>
-                  Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d&apos;être envoyé.
-                </p>
+                <p className="auth-feedback auth-feedback--success" role="status"><Icon name="check-circle" size="sm" />Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d&apos;être envoyé.</p>
               ) : null}
               <div className="auth-field">
-                <Icon name="mail" size="sm" className="icon-lead" />
-                <input
-                  id="ccEmail"
-                  type="email"
-                  placeholder="E-mail"
-                  aria-label="E-mail"
-                  autoComplete="username"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <label htmlFor="ccEmail">Adresse e-mail</label>
+                <div className="auth-input"><Icon name="mail" size="sm" className="icon-lead" />
+                  <input id="ccEmail" type="email" placeholder="vous@exemple.com" autoComplete="username" required aria-invalid={Boolean(error)} aria-describedby={error ? "ccAuthError" : undefined} value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
               </div>
-              <div className="auth-field has-trail">
-                <Icon name="lock" size="sm" className="icon-lead" />
-                <input
-                  id="ccPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Mot de passe"
-                  aria-label="Mot de passe"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="icon-trail"
-                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                  onClick={() => setShowPassword((v) => !v)}
-                >
-                  <Icon name={showPassword ? "visibility-off" : "visibility"} size="sm" />
-                </button>
+              <div className="auth-field">
+                <label htmlFor="ccPassword">Mot de passe</label>
+                <div className="auth-input has-trail"><Icon name="lock" size="sm" className="icon-lead" />
+                  <input id="ccPassword" type={showPassword ? "text" : "password"} placeholder="Votre mot de passe" autoComplete="current-password" required aria-invalid={Boolean(error)} aria-describedby={error ? "ccAuthError" : undefined} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <button type="button" className="icon-trail" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={showPassword} onClick={() => setShowPassword((v) => !v)}>
+                    <Icon name={showPassword ? "visibility-off" : "visibility"} size="sm" />
+                  </button>
+                </div>
               </div>
               <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>
                 {resetting ? "Envoi…" : "Mot de passe oublié ?"}
               </button>
-              <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
+              <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading || googleLoading}>
                 <Icon name="verified" size="sm" />
                 {loading ? "Connexion…" : "Se connecter"}
               </button>

@@ -712,9 +712,11 @@ html[data-theme="dark"] .contact-card { background: var(--surface-container-low)
    intégrée, repère client du 09/09/2026. Classes dédiées plutôt que
    .field-wrap/.search-input (radius 14px, réutilisés ailleurs en admin) pour
    ne changer que ces écrans-là. */
-.auth-heading { text-align: center; color: var(--primary); font-size: 1.5rem; margin: 0 0 22px; }
-.auth-field { position: relative; display: flex; align-items: center; margin-bottom: 14px; }
-.auth-field .icon-lead { position: absolute; left: 18px; color: var(--on-surface-variant); pointer-events: none; }
+.auth-heading { text-align: center; color: var(--on-surface); font-size: 1.5rem; margin: 0 0 22px; }
+.auth-field { margin-bottom: 16px; }
+.auth-field > label { display: block; margin: 0 0 7px 4px; color: var(--on-surface); font-size: .8rem; font-weight: 650; }
+.auth-input { position: relative; display: flex; align-items: center; }
+.auth-input .icon-lead { position: absolute; left: 18px; color: var(--on-surface-variant); pointer-events: none; }
 .auth-field input {
   width: 100%; font-family: inherit; font-size: .92rem; font-weight: 500; color: var(--on-surface);
   background: var(--surface); border: 1px solid var(--outline-variant); border-radius: var(--r-btn);
@@ -722,13 +724,23 @@ html[data-theme="dark"] .contact-card { background: var(--surface-container-low)
 }
 html[data-theme="dark"] .auth-field input { background: var(--surface-container-high); }
 .auth-field input:focus { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.auth-field input[aria-invalid="true"] { border-color: var(--error); box-shadow: inset 0 0 0 1px var(--error); }
 .auth-field input::placeholder { color: var(--on-surface-variant); font-weight: 400; }
-.auth-field.has-trail input { padding-right: 46px; }
-.auth-field .icon-trail {
+.auth-input.has-trail input { padding-right: 50px; }
+.auth-input .icon-trail {
   position: absolute; right: 6px; width: 40px; height: 40px; display: grid; place-items: center;
   background: none; border: 0; color: var(--on-surface-variant); cursor: pointer; border-radius: 50%;
 }
-.auth-field .icon-trail:hover { background: var(--surface-container-high); }
+.auth-input .icon-trail:hover { background: var(--surface-container-high); }
+.auth-hint { display: flex; align-items: flex-start; gap: 6px; margin: 7px 4px 0; color: var(--on-surface-variant); font-size: .73rem; line-height: 1.45; }
+.auth-hint .icon { flex: 0 0 auto; margin-top: 1px; }
+.auth-feedback { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; background: var(--error-container); color: var(--on-error-container); font-size: .8rem; line-height: 1.5; }
+.auth-feedback--success { background: var(--primary-container); color: var(--on-primary-container); }
+.auth-feedback .icon { flex: 0 0 auto; margin-top: 1px; }
+.auth-form .link-btn { min-height: 44px; margin-top: -7px; margin-bottom: 8px; }
+.ik-app .auth-form .link-btn { color: var(--brand-ink); }
+.ik-app .auth-form .form-note a { color: var(--brand-ink); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.auth-form .btn-block { min-height: 52px; }
 
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--on-surface-variant); font-size: .78rem; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--outline-variant); }
