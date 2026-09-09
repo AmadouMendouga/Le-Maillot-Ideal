@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="adm-login-wrap">
-      <form className="adm-login-card" onSubmit={handleSubmit}>
+      <form className="adm-login-card auth-form" onSubmit={handleSubmit} aria-busy={loading}>
         <span className="logo-mark">
           <Icon name="storefront" size="lg" />
         </span>
@@ -70,51 +70,32 @@ export default function AdminLoginPage() {
         <p className="sub">IKIGAI Sport</p>
 
         {error ? (
-          <div className="adm-login-error">
+          <div className="adm-login-error" id="admAuthError" role="alert">
             <Icon name="error" size="sm" />
             <span>{error}</span>
           </div>
         ) : null}
         {resetSent ? (
-          <div className="adm-login-error" style={{ background: "var(--secondary-container)", color: "var(--on-secondary-container)" }}>
+          <div className="adm-login-error" role="status" style={{ background: "var(--secondary-container)", color: "var(--on-secondary-container)" }}>
             <Icon name="check-circle" size="sm" />
             <span>Si un compte admin existe avec cette adresse, un e-mail de réinitialisation vient d&apos;être envoyé.</span>
           </div>
         ) : null}
 
         <div className="auth-field">
-          <Icon name="mail" size="sm" className="icon-lead" />
-          <input
-            id="admEmail"
-            type="email"
-            placeholder="E-mail"
-            aria-label="E-mail"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <label htmlFor="admEmail">Adresse e-mail</label>
+          <div className="auth-input"><Icon name="mail" size="sm" className="icon-lead" />
+            <input id="admEmail" type="email" placeholder="admin@exemple.com" autoComplete="username" required aria-invalid={Boolean(error)} aria-describedby={error ? "admAuthError" : undefined} value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
         </div>
-        <div className="auth-field has-trail">
-          <Icon name="lock" size="sm" className="icon-lead" />
-          <input
-            id="admPassword"
-            type={showPassword ? "text" : "password"}
-            placeholder="Mot de passe"
-            aria-label="Mot de passe"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button
-            type="button"
-            className="icon-trail"
-            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-            onClick={() => setShowPassword((v) => !v)}
-          >
-            <Icon name={showPassword ? "visibility-off" : "visibility"} size="sm" />
-          </button>
+        <div className="auth-field">
+          <label htmlFor="admPassword">Mot de passe</label>
+          <div className="auth-input has-trail"><Icon name="lock" size="sm" className="icon-lead" />
+            <input id="admPassword" type={showPassword ? "text" : "password"} placeholder="Votre mot de passe" autoComplete="current-password" required aria-invalid={Boolean(error)} aria-describedby={error ? "admAuthError" : undefined} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" className="icon-trail" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={showPassword} onClick={() => setShowPassword((v) => !v)}>
+              <Icon name={showPassword ? "visibility-off" : "visibility"} size="sm" />
+            </button>
+          </div>
         </div>
 
         <button type="button" className="link-btn" disabled={!email || resetting} onClick={handleForgotPassword}>

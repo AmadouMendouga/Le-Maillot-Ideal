@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/icons/Icon";
 import { FCFA } from "@/lib/cart";
@@ -17,12 +17,22 @@ export function OrderHistory({ orders, sport }: { orders: CustomerOrderView[]; s
     scheduled: data.filter((order) => customerOrderGroup(order) === "scheduled"),
     history: data.filter((order) => customerOrderGroup(order) === "history"),
   };
+  const tabs: OrderGroup[] = ["active", "scheduled", "history"];
+  function handleTabKey(event: KeyboardEvent<HTMLButtonElement>, current: OrderGroup) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const offset = event.key === "ArrowRight" ? 1 : -1;
+    const next = tabs[(tabs.indexOf(current) + offset + tabs.length) % tabs.length];
+    setTab(next);
+    requestAnimationFrame(() => document.getElementById(`orders-tab-${next}`)?.focus());
+  }
   return <>
-    <div className="ik-orders-toolbar"><div className="ik-order-tabs" role="group" aria-label="Filtrer mes commandes">
-      {([["active", "En cours"], ["scheduled", "Planifiées"], ["history", "Historique"]] as const).map(([key, label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}<span>{groups[key].length}</span></button>)}
+    <div className="ik-orders-toolbar"><div className="ik-order-tabs" role="tablist" aria-label="Filtrer mes commandes">
+      {([["active", "En cours"], ["scheduled", "Planifiées"], ["history", "Historique"]] as const).map(([key, label]) => <button type="button" role="tab" id={`orders-tab-${key}`} aria-selected={tab === key} aria-controls={`orders-panel-${key}`} tabIndex={tab === key ? 0 : -1} key={key} onClick={() => setTab(key)} onKeyDown={(event) => handleTabKey(event, key)}>{label}<span aria-label={`${groups[key].length} commande${groups[key].length > 1 ? "s" : ""}`}>{groups[key].length}</span></button>)}
     </div><button type="button" className="ik-round-button" aria-label="Actualiser mes commandes" disabled={refreshing} onClick={() => void refresh()}><Icon name="refresh" /></button></div>
+    <p className="sr-only" role="status" aria-live="polite">{refreshing ? "Actualisation des commandes en cours" : ""}</p>
     {warning ? <p className="ik-inline-warning" role="status">{warning}</p> : null}
-    <div className="ik-order-list">
+    <div className="ik-order-list" role="tabpanel" id={`orders-panel-${tab}`} aria-labelledby={`orders-tab-${tab}`}>
       {groups[tab].map((order) => <article key={order.id} className="ik-order-card">
         <div className="ik-order-card-head"><span className="ik-order-parcel" aria-hidden="true"><Icon name="inventory" /></span>
           <div><strong>IKIGAI Sport</strong><p><time dateTime={order.createdAt}>{orderDate(order.createdAt)}</time> · #{order.id.slice(-6).toUpperCase()}</p></div>
