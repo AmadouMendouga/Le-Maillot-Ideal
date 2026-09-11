@@ -3,6 +3,14 @@
 > Fichier lu automatiquement par Claude Code. Il contient tout ce qui a été décidé
 > et construit jusqu'ici. **Lis-le en entier avant de modifier quoi que ce soit.**
 
+@NARA.md
+
+> ⚠️ Ce document décrit le **site statique d'origine** (HTML/JS vanilla, admin
+> séparée). Il a depuis été **entièrement refondu en Next.js + Firebase** dans
+> `web/` — voir `NARA.md` ci-dessus pour l'état et les règles à jour. Le
+> contenu ci-dessous reste comme historique/contexte, pas comme référence
+> technique active.
+
 ---
 
 ## 1. Le projet
