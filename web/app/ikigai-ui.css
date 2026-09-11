@@ -187,9 +187,20 @@ html[data-theme="dark"] .ik-app {
 .ik-tracking-header h1 { font-size: .98rem; font-weight: 600; margin: 2px 0 0; }
 .ik-tracking-header > div > span { font-size: .55rem; letter-spacing: .14em; color: var(--primary); font-weight: 700; }
 .ik-round-button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--outline-variant); background: var(--surface); border-radius: 50%; }
-.ik-app .dlv-sheet { display: flex; flex-direction: column; width: min(100%, 620px); margin-inline: auto; max-height: 42dvh; padding: 0 18px calc(12px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--surface); border: 1px solid var(--outline-variant); border-bottom: 0; overflow: hidden; box-shadow: 0 -3px 18px rgb(24 39 29 / 6%); }
+.ik-app .dlv-sheet { display: flex; flex-direction: column; width: min(100%, 620px); margin-inline: auto; max-height: 42dvh; padding: 0 18px calc(12px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--surface); border: 1px solid var(--outline-variant); border-bottom: 0; overflow: hidden; box-shadow: 0 -3px 18px rgb(24 39 29 / 6%); transition: max-height .2s ease-out; }
 .ik-app .dlv-sheet--expanded { max-height: 72dvh; }
-.ik-sheet-handle { flex-shrink: 0; width: 34px; height: 4px; border-radius: 99px; background: var(--outline-variant); margin: 9px auto 4px; }
+/* Repère client du 11/09/2026 : la poignée était purement décorative — le
+   panneau prenait beaucoup de place sur la carte sans moyen de le réduire.
+   Repliée : ne laisse dépasser que la poignée elle-même (tout le reste du
+   contenu est masqué, pas juste coupé au clip) pour maximiser la carte. */
+.ik-app .dlv-sheet[data-collapsed="true"] { max-height: 34px; padding-bottom: 0; }
+.ik-app .dlv-sheet[data-collapsed="true"] > *:not(.ik-sheet-handle-zone) { display: none; }
+.ik-sheet-handle-zone {
+  flex-shrink: 0; display: flex; justify-content: center; align-items: center; width: 100%;
+  min-height: 30px; padding: 10px 0; margin: 0; background: none; border: 0; cursor: grab; touch-action: none;
+}
+.ik-sheet-handle-zone:active { cursor: grabbing; }
+.ik-sheet-handle { width: 34px; height: 4px; border-radius: 99px; background: var(--outline-variant); pointer-events: none; }
 .ik-tracking-tabs { flex-shrink: 0; display: flex; gap: 4px; padding-bottom: 8px; }
 .ik-tracking-tabs button { flex: 1; background: none; border: 0; border-radius: 999px; min-height: 44px; color: var(--on-surface-variant); font: inherit; font-size: .76rem; font-weight: 500; cursor: pointer; }
 .ik-tracking-tabs button[aria-pressed="true"] { color: var(--primary); background: var(--primary-container); }

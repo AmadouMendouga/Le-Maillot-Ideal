@@ -5,7 +5,7 @@
 // que le dépôt d'avis. Ne démarre jamais tout seul : la demande de
 // permission navigateur part uniquement d'un geste explicite (bouton), et
 // un bouton « Arrêter » est toujours visible une fois le partage actif.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Link from "next/link";
 import jsQR from "jsqr";
 import { DeliverySuccess } from "@/components/account/DeliverySuccess";
@@ -155,6 +155,9 @@ export function LocationSharingForm({
   const [pollWarning, setPollWarning] = useState("");
   const [scanning, setScanning] = useState(false);
   const [panel, setPanel] = useState<"tracking" | "details" | "code">("tracking");
+  const [sheetCollapsed, setSheetCollapsed] = useState(false);
+  const dragStartYRef = useRef<number | null>(null);
+  const draggedRef = useRef(false);
   const [starting, setStarting] = useState(false);
   const startingRef = useRef(false);
   const scanPendingRef = useRef(false);
@@ -559,6 +562,35 @@ export function LocationSharingForm({
   function openPanel(next: "tracking" | "details" | "code") {
     if (next !== "code") stopScan();
     setPanel(next);
+    setSheetCollapsed(false);
+  }
+
+  // Poignée du panneau : cliquable (bascule) et glissable (seuil de 28px,
+  // un seul geste = un seul changement d'état, pas de suivi élastique du
+  // doigt — plus simple à fiabiliser sur un vrai téléphone qu'un drag
+  // continu). `draggedRef` évite que le clic de synthèse qui suit un
+  // pointerup ne rebascule aussitôt l'état déjà changé pendant le glissement.
+  function handleHandlePointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    dragStartYRef.current = e.clientY;
+    draggedRef.current = false;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function handleHandlePointerMove(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (dragStartYRef.current === null || draggedRef.current) return;
+    const delta = e.clientY - dragStartYRef.current;
+    if (Math.abs(delta) < 28) return;
+    draggedRef.current = true;
+    setSheetCollapsed(delta > 0);
+  }
+  function handleHandlePointerUp() {
+    dragStartYRef.current = null;
+  }
+  function handleHandleClick() {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    setSheetCollapsed((v) => !v);
   }
 
   const contactCard = role === "courier" && delivery ? (
@@ -592,8 +624,24 @@ export function LocationSharingForm({
         {role === "courier" ? <button type="button" className="ik-round-button" aria-label="Détails de la livraison" onClick={() => openPanel("details")}><Icon name="info" /></button> : <ThemeToggle />}
       </header>
       <DeliveryMap customer={customerTrack} courier={courierTrack} fullScreen darkMap={role === "courier"} navigationMode={role === "courier" && navigating && !delivered && panel === "tracking"} routingEnabled={navigating && !delivered} showRouteStats={panel === "tracking"} viewportKey={panel} />
-      <section className={"dlv-sheet" + (panel !== "tracking" ? " dlv-sheet--expanded" : "")} aria-label="Détails de la livraison">
-        <div className="ik-sheet-handle" aria-hidden="true" />
+      <section
+        className={"dlv-sheet" + (panel !== "tracking" ? " dlv-sheet--expanded" : "")}
+        aria-label="Détails de la livraison"
+        data-collapsed={sheetCollapsed}
+      >
+        <button
+          type="button"
+          className="ik-sheet-handle-zone"
+          aria-label={sheetCollapsed ? "Agrandir le panneau de livraison" : "Réduire le panneau de livraison"}
+          aria-expanded={!sheetCollapsed}
+          onClick={handleHandleClick}
+          onPointerDown={handleHandlePointerDown}
+          onPointerMove={handleHandlePointerMove}
+          onPointerUp={handleHandlePointerUp}
+          onPointerCancel={handleHandlePointerUp}
+        >
+          <span className="ik-sheet-handle" aria-hidden="true" />
+        </button>
         <div className="ik-tracking-tabs" role="group" aria-label="Affichage du suivi">
           <button type="button" aria-pressed={panel === "tracking"} onClick={() => openPanel("tracking")}>Itinéraire</button>
           <button type="button" aria-pressed={panel === "details"} onClick={() => openPanel("details")}>Détails</button>
