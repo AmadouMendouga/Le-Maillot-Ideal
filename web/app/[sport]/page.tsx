@@ -7,7 +7,6 @@ import { getSportByKey } from "@/lib/data/sports";
 import { getSiteSettings } from "@/lib/data/settings";
 import { getTestimonials } from "@/lib/data/testimonials";
 import { Icon } from "@/components/icons/Icon";
-import { LeagueShortcuts } from "@/components/home/LeagueShortcuts";
 import { LeagueGrid } from "@/components/home/LeagueGrid";
 import { ContainerTextFlip } from "@/components/ContainerTextFlip";
 import { AnimatedTestimonials } from "@/components/AnimatedTestimonials";
@@ -112,8 +111,6 @@ export default async function SportHomePage({ params }: PageProps<"/[sport]">) {
           </div>
         </div>
       </section>
-
-      {leagues.length > 0 && <LeagueShortcuts leagues={leagues} products={products} basePath={`/${sportKey}`} />}
 
       <section className="services-strip">
         <div className="container">
